@@ -37,8 +37,14 @@
         .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
         #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
         .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #536dfe, #00ffff); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; }
-        .sim-btn:hover { transform: scale(1.05); }
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+                .sim-btn:hover { transform: scale(1.05); }
+                #data-table-panel { position: absolute; bottom: 200px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #536dfe; border-radius: 10px; padding: 12px; max-width: 300px; z-index: 100; }
+                #data-table-panel h3 { color: #536dfe; font-size: 0.9em; margin-bottom: 8px; }
+                .data-table { width: 100%; border-collapse: collapse; font-size: 0.75em; }
+                .data-table th { background: rgba(83,109,254,0.2); color: #536dfe; padding: 4px 6px; text-align: left; border: 1px solid #536dfe; }
+                .data-table td { padding: 4px 6px; border: 1px solid rgba(83,109,254,0.3); color: #fff; font-family: monospace; }
+                .data-table tr.active td { background: rgba(0,255,0,0.15); }
+                #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #536dfe; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -82,14 +88,78 @@
         <div class="metric-row"><span class="metric-label">Tests:</span><span class="metric-value" id="tests">12</span></div>
         <div class="metric-row"><span class="metric-label">Status:</span><span class="metric-value" id="status">Ready</span></div>
     </div>
+    <div id="data-table-panel">
+        <h3>Table: stg_orders</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
-        var nodes = [], edges = [], dataFlows = [];
-        var nodeData = [{x:-12,y:4,layer:'source',color:0x888888},{x:-12,y:0,layer:'source',color:0x888888},{x:-12,y:-4,layer:'source',color:0x888888},{x:-4,y:2,layer:'staging',color:0xfbbc04},{x:-4,y:-2,layer:'staging',color:0xfbbc04},{x:4,y:2,layer:'intermediate',color:0x536dfe},{x:4,y:-2,layer:'intermediate',color:0x536dfe},{x:12,y:0,layer:'mart',color:0x34a853}];
-        var edgeData = [[0,3],[1,3],[1,4],[2,4],[3,5],[4,5],[4,6],[5,7],[6,7]];
-        var steps = [
+                var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
+                var nodes = [], edges = [], dataFlows = [];
+                var nodeData = [{x:-12,y:4,layer:'source',color:0x888888},{x:-12,y:0,layer:'source',color:0x888888},{x:-12,y:-4,layer:'source',color:0x888888},{x:-4,y:2,layer:'staging',color:0xfbbc04},{x:-4,y:-2,layer:'staging',color:0xfbbc04},{x:4,y:2,layer:'intermediate',color:0x536dfe},{x:4,y:-2,layer:'intermediate',color:0x536dfe},{x:12,y:0,layer:'mart',color:0x34a853}];
+                var edgeData = [[0,3],[1,3],[1,4],[2,4],[3,5],[4,5],[4,6],[5,7],[6,7]];
+
+                var sourceData = [
+                    { order_id: "1001", customer: "Alice", amount: "1299.00", date: "2024-01-15" },
+                    { order_id: "1002", customer: "Bob", amount: "899.50", date: "2024-01-15" },
+                    { order_id: "1003", customer: "Carol", amount: "NULL", date: "2024-01-16" }
+                ];
+                var stagingData = [
+                    { order_id: "1001", customer: "Alice", amount: 1299.00, date: "2024-01-15" },
+                    { order_id: "1002", customer: "Bob", amount: 899.50, date: "2024-01-15" },
+                    { order_id: "1003", customer: "Carol", amount: 0.00, date: "2024-01-16" }
+                ];
+                var martData = [
+                    { date: "2024-01-15", total_orders: 2, revenue: 2198.50 },
+                    { date: "2024-01-16", total_orders: 1, revenue: 0.00 }
+                ];
+
+                function buildDataformTable(data, cols) {
+                    var html = '<table class="data-table"><thead><tr>';
+                    cols.forEach(function(c) { html += '<th>' + c + '</th>'; });
+                    html += '</tr></thead><tbody>';
+                    data.forEach(function(row) {
+                        html += '<tr>';
+                        cols.forEach(function(c) { html += '<td>' + row[c] + '</td>'; });
+                        html += '</tr>';
+                    });
+                    html += '</tbody></table>';
+                    return html;
+                }
+
+                function updateDataTableForStep(step) {
+                    var container = document.getElementById("data-table-container");
+                    var panel = document.getElementById("data-table-panel");
+                    switch(step) {
+                        case 0:
+                            panel.querySelector("h3").textContent = "Table: stg_orders";
+                            container.innerHTML = buildDataformTable(sourceData, ['order_id', 'customer', 'amount']);
+                            break;
+                        case 1:
+                            panel.querySelector("h3").textContent = "Source: raw_orders";
+                            container.innerHTML = '<p style="color:#888;font-size:0.8em;margin-bottom:8px;">Raw data (has NULLs):</p>' + buildDataformTable(sourceData, ['order_id', 'customer', 'amount']);
+                            break;
+                        case 2:
+                            panel.querySelector("h3").textContent = "Staging: stg_orders";
+                            container.innerHTML = '<p style="color:#fbbc04;font-size:0.8em;margin-bottom:8px;">Cleaned (NULLs → 0):</p>' + buildDataformTable(stagingData, ['order_id', 'customer', 'amount']);
+                            break;
+                        case 3:
+                            panel.querySelector("h3").textContent = "Intermediate: int_orders";
+                            container.innerHTML = '<p style="color:#536dfe;font-size:0.8em;margin-bottom:8px;">Joined & transformed:</p>' + buildDataformTable(stagingData, ['order_id', 'customer', 'amount']);
+                            break;
+                        case 4:
+                            panel.querySelector("h3").textContent = "Mart: fct_daily_sales";
+                            container.innerHTML = '<p style="color:#34a853;font-size:0.8em;margin-bottom:8px;">Aggregated for BI:</p>' + buildDataformTable(martData, ['date', 'total_orders', 'revenue']);
+                            break;
+                        case 5:
+                            panel.querySelector("h3").textContent = "Pipeline Complete";
+                            container.innerHTML = '<p style="color:#00ff00;font-size:0.8em;margin-bottom:8px;">All tables built!</p>' + buildDataformTable(martData, ['date', 'total_orders', 'revenue']);
+                            break;
+                    }
+                }
+
+                var steps = [
             {title:"Welcome to Dataform!",description:"Dataform is a <strong>SQL-based data transformation</strong> tool. Write SQL queries to transform raw data into clean, analytics-ready tables!",detail:"Dataform: Write SQL, manage dependencies, build data pipelines!",cameraPos:{x:0,y:10,z:25},cameraTarget:{x:0,y:0,z:0}},
             {title:"Step 1: Source Tables",description:"The <strong>gray cylinders</strong> on the left are source tables - your raw data from databases, APIs, or files. This is where your data journey begins!",detail:"Sources: BigQuery tables, external data, or any SQL-accessible data.",cameraPos:{x:-15,y:8,z:18},cameraTarget:{x:-12,y:0,z:0}},
             {title:"Step 2: Staging Layer",description:"The <strong>yellow cylinders</strong> are staging tables. Here you clean and standardize raw data - fix data types, rename columns, filter bad records.",detail:"Staging: SELECT with CAST, COALESCE, WHERE clauses to clean data.",cameraPos:{x:-6,y:8,z:18},cameraTarget:{x:-4,y:0,z:0}},
@@ -154,40 +224,41 @@
             });
             setTimeout(function() { document.getElementById("status").textContent = "12/12 Passed"; }, 1500);
         }
-        function updateStep() {
-            var step = steps[currentStep];
-            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
-            document.getElementById("step-title").textContent = step.title;
-            document.getElementById("step-description").innerHTML = step.description;
-            document.getElementById("step-detail").innerHTML = step.detail;
-            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
-            document.getElementById("prev-btn").disabled = currentStep === 0;
-            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
-            animateCamera(step.cameraPos, step.cameraTarget);
-        }
-        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
-        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
-        function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); }
-        function animateCamera(targetPos, targetLookAt) {
-            var startPos = camera.position.clone(), startTarget = controls.target.clone();
-            var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
-            var endTarget = new THREE.Vector3(targetLookAt.x, targetLookAt.y, targetLookAt.z);
-            var startTime = Date.now();
-            function anim() {
-                var progress = Math.min((Date.now() - startTime) / 1000, 1);
-                var eased = 1 - Math.pow(1 - progress, 3);
-                camera.position.lerpVectors(startPos, endPos, eased);
-                controls.target.lerpVectors(startTarget, endTarget, eased);
-                if (progress < 1) requestAnimationFrame(anim);
-            }
-            anim();
-        }
-        function toggleAutoPlay() { if (isAutoPlaying) stopAutoPlay(); else startAutoPlay(); }
-        function startAutoPlay() { isAutoPlaying = true; document.getElementById("autoplay-btn").textContent = "Pause Story"; autoPlayInterval = setInterval(function() { if (currentStep < steps.length - 1) nextStep(); else stopAutoPlay(); }, 5000); }
-        function stopAutoPlay() { isAutoPlaying = false; document.getElementById("autoplay-btn").textContent = "Auto-Play Story"; if (autoPlayInterval) { clearInterval(autoPlayInterval); autoPlayInterval = null; } }
-        function animate() {
-            requestAnimationFrame(animate);
-            nodes.forEach(function(n) { n.rotation.z += 0.01; });
+                function updateStep() {
+                    var step = steps[currentStep];
+                    document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+                    document.getElementById("step-title").textContent = step.title;
+                    document.getElementById("step-description").innerHTML = step.description;
+                    document.getElementById("step-detail").innerHTML = step.detail;
+                    document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+                    document.getElementById("prev-btn").disabled = currentStep === 0;
+                    document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+                    animateCamera(step.cameraPos, step.cameraTarget);
+                    updateDataTableForStep(currentStep);
+                }
+                function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+                function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+                function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); }
+                function animateCamera(targetPos, targetLookAt) {
+                    var startPos = camera.position.clone(), startTarget = controls.target.clone();
+                    var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
+                    var endTarget = new THREE.Vector3(targetLookAt.x, targetLookAt.y, targetLookAt.z);
+                    var startTime = Date.now();
+                    function anim() {
+                        var progress = Math.min((Date.now() - startTime) / 1000, 1);
+                        var eased = 1 - Math.pow(1 - progress, 3);
+                        camera.position.lerpVectors(startPos, endPos, eased);
+                        controls.target.lerpVectors(startTarget, endTarget, eased);
+                        if (progress < 1) requestAnimationFrame(anim);
+                    }
+                    anim();
+                }
+                function toggleAutoPlay() { if (isAutoPlaying) stopAutoPlay(); else startAutoPlay(); }
+                function startAutoPlay() { isAutoPlaying = true; document.getElementById("autoplay-btn").textContent = "Pause Story"; autoPlayInterval = setInterval(function() { if (currentStep < steps.length - 1) nextStep(); else stopAutoPlay(); }, 5000); }
+                function stopAutoPlay() { isAutoPlaying = false; document.getElementById("autoplay-btn").textContent = "Auto-Play Story"; if (autoPlayInterval) { clearInterval(autoPlayInterval); autoPlayInterval = null; } }
+                function animate() {
+                    requestAnimationFrame(animate);
+                    nodes.forEach(function(n) { n.rotation.z += 0.01; });
             dataFlows.forEach(function(f) {
                 f.userData.progress += f.userData.speed;
                 if (f.userData.progress > 1) { f.userData.progress = 0; f.userData.edgeIdx = Math.floor(Math.random() * edgeData.length); }

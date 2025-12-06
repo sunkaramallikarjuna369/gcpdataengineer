@@ -37,8 +37,16 @@
         .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
         #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
         .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #ff5722, #ff9800); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; }
-        .sim-btn:hover { transform: scale(1.05); }
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+                .sim-btn:hover { transform: scale(1.05); }
+                #data-table-panel { position: absolute; bottom: 200px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #ff5722; border-radius: 10px; padding: 12px; max-width: 300px; z-index: 100; }
+                #data-table-panel h3 { color: #ff5722; font-size: 0.9em; margin-bottom: 8px; }
+                .data-table { width: 100%; border-collapse: collapse; font-size: 0.75em; }
+                .data-table th { background: rgba(255,87,34,0.2); color: #ff5722; padding: 4px 6px; text-align: left; border: 1px solid #ff5722; }
+                .data-table td { padding: 4px 6px; border: 1px solid rgba(255,87,34,0.3); color: #fff; font-family: monospace; }
+                .data-table tr.insert td { background: rgba(0,255,0,0.15); }
+                .data-table tr.update td { background: rgba(255,255,0,0.15); }
+                .data-table tr.delete td { background: rgba(255,0,0,0.15); }
+                #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #ff5722; border-right: 4px solid #ff9800; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -84,12 +92,65 @@
         <div class="metric-row"><span class="metric-label">Deletes:</span><span class="metric-value" id="deletes">0</span></div>
         <div class="metric-row"><span class="metric-label">Lag:</span><span class="metric-value" id="lag">0 ms</span></div>
     </div>
+    <div id="data-table-panel">
+        <h3>CDC Events</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
-        var sourceDB, destBQ, cdcEvents = [], insertCount = 0, updateCount = 0, deleteCount = 0;
-        var steps = [
+                var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
+                var sourceDB, destBQ, cdcEvents = [], insertCount = 0, updateCount = 0, deleteCount = 0;
+
+                var cdcData = [
+                    { op: "INSERT", table: "users", pk: "101", timestamp: "10:15:32" },
+                    { op: "UPDATE", table: "orders", pk: "55", timestamp: "10:15:33" },
+                    { op: "INSERT", table: "products", pk: "789", timestamp: "10:15:34" },
+                    { op: "DELETE", table: "sessions", pk: "42", timestamp: "10:15:35" }
+                ];
+
+                function buildCDCTable(data) {
+                    var html = '<table class="data-table"><thead><tr><th>op</th><th>table</th><th>pk</th></tr></thead><tbody>';
+                    data.forEach(function(row) {
+                        var cls = row.op === 'INSERT' ? 'insert' : row.op === 'UPDATE' ? 'update' : 'delete';
+                        html += '<tr class="' + cls + '"><td>' + row.op + '</td><td>' + row.table + '</td><td>' + row.pk + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                    return html;
+                }
+
+                function updateDataTableForStep(step) {
+                    var container = document.getElementById("data-table-container");
+                    var panel = document.getElementById("data-table-panel");
+                    switch(step) {
+                        case 0:
+                            panel.querySelector("h3").textContent = "CDC Events";
+                            container.innerHTML = buildCDCTable(cdcData);
+                            break;
+                        case 1:
+                            panel.querySelector("h3").textContent = "Source: MySQL";
+                            container.innerHTML = '<p style="color:#9c27b0;font-size:0.8em;margin-bottom:8px;">Transaction log:</p>' + buildCDCTable(cdcData);
+                            break;
+                        case 2:
+                            panel.querySelector("h3").textContent = "Change Detection";
+                            container.innerHTML = '<p style="color:#ff5722;font-size:0.8em;margin-bottom:8px;">Detected changes:</p>' + buildCDCTable(cdcData);
+                            break;
+                        case 3:
+                            panel.querySelector("h3").textContent = "Streaming Pipeline";
+                            container.innerHTML = '<p style="color:#00ffff;font-size:0.8em;margin-bottom:8px;">Events in flight:</p>' + buildCDCTable(cdcData);
+                            break;
+                        case 4:
+                            panel.querySelector("h3").textContent = "Destination: BigQuery";
+                            container.innerHTML = '<p style="color:#4285f4;font-size:0.8em;margin-bottom:8px;">Applied to BQ:</p>' + buildCDCTable(cdcData);
+                            break;
+                        case 5:
+                            panel.querySelector("h3").textContent = "Try CDC Operations";
+                            container.innerHTML = '<p style="color:#00ff00;font-size:0.8em;margin-bottom:8px;">Click buttons above:</p>' + buildCDCTable(cdcData);
+                            break;
+                    }
+                }
+
+                var steps = [
             {title:"Welcome to Datastream!",description:"Datastream is a <strong>Change Data Capture (CDC)</strong> service. It watches your database for changes and instantly streams them to BigQuery or Cloud Storage!",detail:"CDC: Capture every INSERT, UPDATE, DELETE as it happens in real-time.",cameraPos:{x:0,y:15,z:25},cameraTarget:{x:0,y:0,z:0}},
             {title:"Step 1: Source Database",description:"The <strong>purple cylinder</strong> is your source database - MySQL, PostgreSQL, or Oracle. Datastream reads the database's transaction log to detect changes.",detail:"Transaction logs: Every database keeps a log of all changes for recovery.",cameraPos:{x:-12,y:10,z:18},cameraTarget:{x:-10,y:0,z:0}},
             {title:"Step 2: Change Detection",description:"When you INSERT, UPDATE, or DELETE a record, Datastream <strong>instantly detects</strong> the change from the transaction log - no polling needed!",detail:"Log-based CDC: More efficient than polling, captures every change.",cameraPos:{x:-8,y:12,z:15},cameraTarget:{x:-5,y:0,z:0}},
@@ -133,20 +194,21 @@
         function triggerInsert() { createCDCEvent(0x00ff00); insertCount++; document.getElementById("inserts").textContent = insertCount; }
         function triggerUpdate() { createCDCEvent(0xffff00); updateCount++; document.getElementById("updates").textContent = updateCount; }
         function triggerDelete() { createCDCEvent(0xff0000); deleteCount++; document.getElementById("deletes").textContent = deleteCount; }
-        function updateStep() {
-            var step = steps[currentStep];
-            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
-            document.getElementById("step-title").textContent = step.title;
-            document.getElementById("step-description").innerHTML = step.description;
-            document.getElementById("step-detail").innerHTML = step.detail;
-            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
-            document.getElementById("prev-btn").disabled = currentStep === 0;
-            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
-            animateCamera(step.cameraPos, step.cameraTarget);
-        }
-        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
-        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
-        function resetVisualization() { currentStep = 0; stopAutoPlay(); insertCount = 0; updateCount = 0; deleteCount = 0; document.getElementById("inserts").textContent = "0"; document.getElementById("updates").textContent = "0"; document.getElementById("deletes").textContent = "0"; updateStep(); }
+                function updateStep() {
+                    var step = steps[currentStep];
+                    document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+                    document.getElementById("step-title").textContent = step.title;
+                    document.getElementById("step-description").innerHTML = step.description;
+                    document.getElementById("step-detail").innerHTML = step.detail;
+                    document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+                    document.getElementById("prev-btn").disabled = currentStep === 0;
+                    document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+                    animateCamera(step.cameraPos, step.cameraTarget);
+                    updateDataTableForStep(currentStep);
+                }
+                function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+                function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+                function resetVisualization() { currentStep = 0; stopAutoPlay(); insertCount = 0; updateCount = 0; deleteCount = 0; document.getElementById("inserts").textContent = "0"; document.getElementById("updates").textContent = "0"; document.getElementById("deletes").textContent = "0"; updateStep(); }
         function animateCamera(targetPos, targetLookAt) {
             var startPos = camera.position.clone(), startTarget = controls.target.clone();
             var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);

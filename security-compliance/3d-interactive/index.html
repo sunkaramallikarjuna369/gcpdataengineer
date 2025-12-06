@@ -37,8 +37,15 @@
         .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
         #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
         .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #ea4335, #ff6600); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; }
-        .sim-btn:hover { transform: scale(1.05); }
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+                .sim-btn:hover { transform: scale(1.05); }
+                #data-table-panel { position: absolute; bottom: 200px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #ea4335; border-radius: 10px; padding: 12px; max-width: 300px; z-index: 100; }
+                #data-table-panel h3 { color: #ea4335; font-size: 0.9em; margin-bottom: 8px; }
+                .data-table { width: 100%; border-collapse: collapse; font-size: 0.75em; }
+                .data-table th { background: rgba(234,67,53,0.2); color: #ea4335; padding: 4px 6px; text-align: left; border: 1px solid #ea4335; }
+                .data-table td { padding: 4px 6px; border: 1px solid rgba(234,67,53,0.3); color: #fff; font-family: monospace; }
+                .data-table tr.blocked td { background: rgba(0,255,0,0.15); }
+                .data-table tr.threat td { background: rgba(255,0,0,0.15); }
+                #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #ea4335; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -82,12 +89,65 @@
         <div class="metric-row"><span class="metric-label">Assets:</span><span class="metric-value" id="assets">6</span></div>
         <div class="metric-row"><span class="metric-label">Shield:</span><span class="metric-value" id="shield">100%</span></div>
     </div>
+    <div id="data-table-panel">
+        <h3>Security Events</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
-        var shield, protectedAssets = [], threats = [], blockedCount = 0;
-        var steps = [
+                var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
+                var shield, protectedAssets = [], threats = [], blockedCount = 0;
+
+                var securityData = [
+                    { event: "Login attempt", source: "203.0.113.5", status: "Blocked" },
+                    { event: "API call", source: "internal", status: "Allowed" },
+                    { event: "Data export", source: "unknown", status: "Blocked" },
+                    { event: "IAM change", source: "admin@co", status: "Allowed" }
+                ];
+
+                function buildSecurityTable(data) {
+                    var html = '<table class="data-table"><thead><tr><th>event</th><th>source</th><th>status</th></tr></thead><tbody>';
+                    data.forEach(function(row) {
+                        var cls = row.status === 'Blocked' ? 'blocked' : row.status === 'Threat' ? 'threat' : '';
+                        html += '<tr class="' + cls + '"><td>' + row.event + '</td><td>' + row.source + '</td><td>' + row.status + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                    return html;
+                }
+
+                function updateDataTableForStep(step) {
+                    var container = document.getElementById("data-table-container");
+                    var panel = document.getElementById("data-table-panel");
+                    switch(step) {
+                        case 0:
+                            panel.querySelector("h3").textContent = "Security Events";
+                            container.innerHTML = buildSecurityTable(securityData);
+                            break;
+                        case 1:
+                            panel.querySelector("h3").textContent = "VPC Perimeter";
+                            container.innerHTML = '<p style="color:#4285f4;font-size:0.8em;margin-bottom:8px;">Service Controls:</p>' + buildSecurityTable(securityData);
+                            break;
+                        case 2:
+                            panel.querySelector("h3").textContent = "Protected Assets";
+                            container.innerHTML = '<p style="color:#34a853;font-size:0.8em;margin-bottom:8px;">Inside perimeter:</p>' + buildSecurityTable(securityData.filter(function(e) { return e.status === 'Allowed'; }));
+                            break;
+                        case 3:
+                            panel.querySelector("h3").textContent = "Threats Detected";
+                            container.innerHTML = '<p style="color:#ea4335;font-size:0.8em;margin-bottom:8px;">Unauthorized:</p>' + buildSecurityTable(securityData.filter(function(e) { return e.status === 'Blocked'; }));
+                            break;
+                        case 4:
+                            panel.querySelector("h3").textContent = "Blocking Threats";
+                            container.innerHTML = '<p style="color:#888;font-size:0.8em;margin-bottom:8px;">Audit logged:</p>' + buildSecurityTable(securityData);
+                            break;
+                        case 5:
+                            panel.querySelector("h3").textContent = "Try Simulation";
+                            container.innerHTML = '<p style="color:#ff6600;font-size:0.8em;margin-bottom:8px;">Click buttons:</p>' + buildSecurityTable(securityData);
+                            break;
+                    }
+                }
+
+                var steps = [
             {title:"Welcome to Security!",description:"GCP Security uses <strong>defense in depth</strong> - multiple layers of protection. VPC Service Controls, IAM, encryption, and audit logs work together to keep your data safe!",detail:"Defense in Depth: Multiple security layers so if one fails, others protect you.",cameraPos:{x:0,y:15,z:30},cameraTarget:{x:0,y:0,z:0}},
             {title:"Step 1: VPC Service Controls",description:"The <strong>blue ring</strong> is your VPC Service Control perimeter - an invisible wall around your GCP resources. It prevents data from leaving your organization!",detail:"VPC SC: Blocks data exfiltration even if credentials are compromised.",cameraPos:{x:0,y:20,z:20},cameraTarget:{x:0,y:0,z:0}},
             {title:"Step 2: Protected Assets",description:"The <strong>colored boxes</strong> inside the perimeter are your protected assets - BigQuery datasets, Cloud Storage buckets, and other sensitive resources.",detail:"Assets: Only authorized users and services can access protected resources.",cameraPos:{x:10,y:10,z:20},cameraTarget:{x:0,y:0,z:0}},
@@ -136,20 +196,21 @@
             document.getElementById("blocked").textContent = "0";
         }
         function strengthenShield() { shield.material.emissiveIntensity = 1; shield.material.opacity = 1; setTimeout(function() { shield.material.emissiveIntensity = 0.3; shield.material.opacity = 0.6; }, 1000); }
-        function updateStep() {
-            var step = steps[currentStep];
-            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
-            document.getElementById("step-title").textContent = step.title;
-            document.getElementById("step-description").innerHTML = step.description;
-            document.getElementById("step-detail").innerHTML = step.detail;
-            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
-            document.getElementById("prev-btn").disabled = currentStep === 0;
-            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
-            animateCamera(step.cameraPos, step.cameraTarget);
-        }
-        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
-        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
-        function resetVisualization() { currentStep = 0; stopAutoPlay(); simulateAttack(); updateStep(); }
+                function updateStep() {
+                    var step = steps[currentStep];
+                    document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+                    document.getElementById("step-title").textContent = step.title;
+                    document.getElementById("step-description").innerHTML = step.description;
+                    document.getElementById("step-detail").innerHTML = step.detail;
+                    document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+                    document.getElementById("prev-btn").disabled = currentStep === 0;
+                    document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+                    animateCamera(step.cameraPos, step.cameraTarget);
+                    updateDataTableForStep(currentStep);
+                }
+                function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+                function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+                function resetVisualization() { currentStep = 0; stopAutoPlay(); simulateAttack(); updateStep(); }
         function animateCamera(targetPos, targetLookAt) {
             var startPos = camera.position.clone(), startTarget = controls.target.clone();
             var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);

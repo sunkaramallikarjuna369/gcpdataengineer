@@ -43,6 +43,14 @@
         #tooltip.visible { opacity: 1; }
         #tooltip h4 { color: #ff6600; margin-bottom: 6px; font-size: 0.95em; }
         #tooltip p { color: #ccc; font-size: 0.85em; line-height: 1.4; }
+        #data-table-panel { position: absolute; bottom: 200px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #00ff00; border-radius: 10px; padding: 12px; max-width: 320px; z-index: 100; }
+        #data-table-panel h3 { color: #00ff00; font-size: 0.9em; margin-bottom: 8px; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.75em; }
+        .data-table th { background: rgba(0,255,0,0.2); color: #00ff00; padding: 4px 6px; text-align: left; border: 1px solid #00ff00; }
+        .data-table td { padding: 4px 6px; border: 1px solid rgba(0,255,0,0.3); color: #fff; font-family: monospace; }
+        .data-table tr.running td { background: rgba(0,255,0,0.15); }
+        .data-table tr.failed td { background: rgba(255,0,0,0.15); }
+        .data-table tr.success td { background: rgba(0,255,255,0.1); }
         #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #00ff00; border-right: 4px solid #ff6600; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -89,6 +97,10 @@
         <div class="metric-row"><span class="metric-label">Status:</span><span class="metric-value" id="dag-status">Idle</span></div>
     </div>
     <div id="tooltip"><h4 id="tooltip-title">Component</h4><p id="tooltip-desc">Description</p></div>
+    <div id="data-table-panel">
+        <h3>DAG: etl_pipeline</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
@@ -110,15 +122,83 @@
             { title: "Step 6: Handling Failures & Retries", description: "If a task fails, Composer can <strong>automatically retry</strong> it! You configure how many retries and how long to wait between them. Failed tasks turn red, successful ones turn green.", detail: "Best practice: Set retries=3, retry_delay=timedelta(minutes=5). Use on_failure_callback for alerts!", highlight: ["task", "scheduler"], cameraPos: { x: 22, y: 18, z: 22 }, cameraTarget: { x: 0, y: 0, z: 0 } }
         ];
 
-        var componentInfo = {
-            scheduler: { title: "Scheduler", desc: "The brain that triggers DAGs on schedule and decides which tasks are ready to run." },
-            dag: { title: "DAG (Workflow)", desc: "A Directed Acyclic Graph defining your workflow - tasks and their dependencies." },
-            task: { title: "Task", desc: "A single unit of work. Uses Operators like BashOperator, PythonOperator, BigQueryOperator." },
-            dependency: { title: "Dependency Arrow", desc: "Shows task order. Downstream tasks wait for upstream tasks to complete." },
-            worker: { title: "Worker", desc: "A compute node that executes task code. Composer autoscales workers based on load." }
-        };
+                var componentInfo = {
+                    scheduler: { title: "Scheduler", desc: "The brain that triggers DAGs on schedule and decides which tasks are ready to run." },
+                    dag: { title: "DAG (Workflow)", desc: "A Directed Acyclic Graph defining your workflow - tasks and their dependencies." },
+                    task: { title: "Task", desc: "A single unit of work. Uses Operators like BashOperator, PythonOperator, BigQueryOperator." },
+                    dependency: { title: "Dependency Arrow", desc: "Shows task order. Downstream tasks wait for upstream tasks to complete." },
+                    worker: { title: "Worker", desc: "A compute node that executes task code. Composer autoscales workers based on load." }
+                };
 
-        function init() {
+                var dagTasksData = [
+                    { task_id: "extract", operator: "PythonOperator", status: "pending", duration: "-" },
+                    { task_id: "transform_a", operator: "BigQueryOperator", status: "pending", duration: "-" },
+                    { task_id: "transform_b", operator: "DataflowOperator", status: "pending", duration: "-" },
+                    { task_id: "validate", operator: "PythonOperator", status: "pending", duration: "-" },
+                    { task_id: "load", operator: "BigQueryOperator", status: "pending", duration: "-" }
+                ];
+
+                function buildDAGTable(data) {
+                    var html = '<table class="data-table"><thead><tr><th>task_id</th><th>operator</th><th>status</th></tr></thead><tbody>';
+                    data.forEach(function(row) {
+                        var cls = row.status === 'running' ? 'running' : row.status === 'success' ? 'success' : row.status === 'failed' ? 'failed' : '';
+                        html += '<tr class="' + cls + '"><td>' + row.task_id + '</td><td>' + row.operator + '</td><td>' + row.status + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                    return html;
+                }
+
+                function updateDataTableForStep(step) {
+                    var container = document.getElementById("data-table-container");
+                    var panel = document.getElementById("data-table-panel");
+                    switch(step) {
+                        case 0:
+                            panel.querySelector("h3").textContent = "DAG: etl_pipeline";
+                            container.innerHTML = buildDAGTable(dagTasksData);
+                            break;
+                        case 1:
+                            panel.querySelector("h3").textContent = "DAG Definition";
+                            container.innerHTML = '<p style="color:#ff6600;font-size:0.8em;margin-bottom:8px;">Tasks in workflow:</p>' + buildDAGTable(dagTasksData);
+                            break;
+                        case 2:
+                            panel.querySelector("h3").textContent = "Scheduler: Triggering DAG";
+                            container.innerHTML = '<p style="color:#00ffff;font-size:0.8em;margin-bottom:8px;">Schedule: 0 * * * * (hourly)</p>' + buildDAGTable(dagTasksData);
+                            break;
+                        case 3:
+                            panel.querySelector("h3").textContent = "Task: Extract Running";
+                            var d3 = JSON.parse(JSON.stringify(dagTasksData));
+                            d3[0].status = "running";
+                            container.innerHTML = buildDAGTable(d3);
+                            break;
+                        case 4:
+                            panel.querySelector("h3").textContent = "Dependencies: Waiting";
+                            var d4 = JSON.parse(JSON.stringify(dagTasksData));
+                            d4[0].status = "success";
+                            d4[1].status = "running";
+                            d4[2].status = "running";
+                            d4[3].status = "running";
+                            container.innerHTML = buildDAGTable(d4);
+                            break;
+                        case 5:
+                            panel.querySelector("h3").textContent = "Workers: Executing Tasks";
+                            var d5 = JSON.parse(JSON.stringify(dagTasksData));
+                            d5[0].status = "success";
+                            d5[1].status = "success";
+                            d5[2].status = "success";
+                            d5[3].status = "success";
+                            d5[4].status = "running";
+                            container.innerHTML = buildDAGTable(d5);
+                            break;
+                        case 6:
+                            panel.querySelector("h3").textContent = "DAG Complete";
+                            var d6 = JSON.parse(JSON.stringify(dagTasksData));
+                            d6.forEach(function(t) { t.status = "success"; });
+                            container.innerHTML = '<p style="color:#00ff00;font-size:0.8em;margin-bottom:8px;">All tasks succeeded!</p>' + buildDAGTable(d6);
+                            break;
+                    }
+                }
+
+                function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x0a0a0a);
             scene.fog = new THREE.FogExp2(0x0a0a0a, 0.012);
@@ -226,24 +306,25 @@
             scene.add(grid);
         }
 
-        function updateStep() {
-            var step = steps[currentStep];
-            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
-            document.getElementById("step-title").textContent = step.title;
-            document.getElementById("step-description").innerHTML = step.description;
-            document.getElementById("step-detail").innerHTML = step.detail;
-            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
-            document.getElementById("prev-btn").disabled = currentStep === 0;
-            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
-            animateCamera(step.cameraPos, step.cameraTarget);
-            highlightComponents(step.highlight);
-        }
+                function updateStep() {
+                    var step = steps[currentStep];
+                    document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+                    document.getElementById("step-title").textContent = step.title;
+                    document.getElementById("step-description").innerHTML = step.description;
+                    document.getElementById("step-detail").innerHTML = step.detail;
+                    document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+                    document.getElementById("prev-btn").disabled = currentStep === 0;
+                    document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+                    animateCamera(step.cameraPos, step.cameraTarget);
+                    highlightComponents(step.highlight);
+                    updateDataTableForStep(currentStep);
+                }
 
-        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
-        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
-        function resetVisualization() {
-            currentStep = 0; stopAutoPlay(); updateStep();
-            dagRuns = 0; tasksComplete = 0; tasksFailed = 0;
+                function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+                function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+                function resetVisualization() {
+                    currentStep = 0; stopAutoPlay(); updateStep();
+                    dagRuns = 0; tasksComplete = 0; tasksFailed = 0;
             updateMetrics();
             for (var i = 0; i < tasks.length; i++) {
                 tasks[i].userData.status = "pending";

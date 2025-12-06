@@ -37,8 +37,14 @@
         .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
         #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
         .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #2979ff, #00ffff); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; }
-        .sim-btn:hover { transform: scale(1.05); }
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+                .sim-btn:hover { transform: scale(1.05); }
+                #data-table-panel { position: absolute; bottom: 200px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #2979ff; border-radius: 10px; padding: 12px; max-width: 300px; z-index: 100; }
+                #data-table-panel h3 { color: #2979ff; font-size: 0.9em; margin-bottom: 8px; }
+                .data-table { width: 100%; border-collapse: collapse; font-size: 0.75em; }
+                .data-table th { background: rgba(41,121,255,0.2); color: #2979ff; padding: 4px 6px; text-align: left; border: 1px solid #2979ff; }
+                .data-table td { padding: 4px 6px; border: 1px solid rgba(41,121,255,0.3); color: #fff; font-family: monospace; }
+                .data-table tr.active td { background: rgba(0,255,0,0.15); }
+                #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #2979ff; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -82,12 +88,64 @@
         <div class="metric-row"><span class="metric-label">Latency:</span><span class="metric-value" id="latency">0 ms</span></div>
         <div class="metric-row"><span class="metric-label">CPU:</span><span class="metric-value" id="cpu">0%</span></div>
     </div>
+    <div id="data-table-panel">
+        <h3>Service: api-backend</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
-        var containers = [], requests = [], targetContainers = 3, requestCount = 0;
-        var steps = [
+                var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
+                var containers = [], requests = [], targetContainers = 3, requestCount = 0;
+
+                var requestData = [
+                    { req_id: "req-001", method: "GET", path: "/api/users", status: "200" },
+                    { req_id: "req-002", method: "POST", path: "/api/orders", status: "201" },
+                    { req_id: "req-003", method: "GET", path: "/api/products", status: "200" },
+                    { req_id: "req-004", method: "PUT", path: "/api/users/1", status: "200" }
+                ];
+
+                function buildRequestTable(data) {
+                    var html = '<table class="data-table"><thead><tr><th>req_id</th><th>method</th><th>status</th></tr></thead><tbody>';
+                    data.forEach(function(row) {
+                        html += '<tr><td>' + row.req_id + '</td><td>' + row.method + '</td><td>' + row.status + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                    return html;
+                }
+
+                function updateDataTableForStep(step) {
+                    var container = document.getElementById("data-table-container");
+                    var panel = document.getElementById("data-table-panel");
+                    switch(step) {
+                        case 0:
+                            panel.querySelector("h3").textContent = "Service: api-backend";
+                            container.innerHTML = buildRequestTable(requestData);
+                            break;
+                        case 1:
+                            panel.querySelector("h3").textContent = "Container Instances";
+                            container.innerHTML = '<p style="color:#2979ff;font-size:0.8em;margin-bottom:8px;">3 instances running:</p>' + buildRequestTable(requestData);
+                            break;
+                        case 2:
+                            panel.querySelector("h3").textContent = "Incoming Requests";
+                            container.innerHTML = buildRequestTable(requestData);
+                            break;
+                        case 3:
+                            panel.querySelector("h3").textContent = "Auto-Scaling Up";
+                            container.innerHTML = '<p style="color:#00ff00;font-size:0.8em;margin-bottom:8px;">Scaling to 5 instances:</p>' + buildRequestTable(requestData);
+                            break;
+                        case 4:
+                            panel.querySelector("h3").textContent = "Scale to Zero";
+                            container.innerHTML = '<p style="color:#888;font-size:0.8em;margin-bottom:8px;">No traffic = 0 instances:</p><p style="color:#00ff00;font-size:0.9em;">Cost: $0.00</p>';
+                            break;
+                        case 5:
+                            panel.querySelector("h3").textContent = "Pay Per Use";
+                            container.innerHTML = '<p style="color:#00ffff;font-size:0.8em;margin-bottom:8px;">4 requests processed:</p>' + buildRequestTable(requestData);
+                            break;
+                    }
+                }
+
+                var steps = [
             {title:"Welcome to Cloud Run!",description:"Cloud Run is a <strong>serverless container platform</strong>. Deploy any container and it scales automatically from zero to thousands!",detail:"Cloud Run: Deploy containers, pay only when they run!",cameraPos:{x:0,y:15,z:25},cameraTarget:{x:0,y:0,z:0}},
             {title:"Step 1: Your Containers",description:"The <strong>blue boxes</strong> are container instances running your app. Each container can handle multiple concurrent requests!",detail:"Containers can run any language: Node.js, Python, Go, Java, .NET, Ruby, etc.",cameraPos:{x:0,y:10,z:18},cameraTarget:{x:0,y:0,z:0}},
             {title:"Step 2: Incoming Requests",description:"The <strong>green spheres</strong> are HTTP requests from users. They fly down from the cloud to your containers!",detail:"Cloud Run handles HTTPS, load balancing, and SSL certificates automatically.",cameraPos:{x:0,y:20,z:20},cameraTarget:{x:0,y:5,z:0}},
@@ -145,20 +203,21 @@
             document.getElementById("cpu").textContent = "0%";
             document.getElementById("rps").textContent = "0";
         }
-        function updateStep() {
-            var step = steps[currentStep];
-            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
-            document.getElementById("step-title").textContent = step.title;
-            document.getElementById("step-description").innerHTML = step.description;
-            document.getElementById("step-detail").innerHTML = step.detail;
-            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
-            document.getElementById("prev-btn").disabled = currentStep === 0;
-            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
-            animateCamera(step.cameraPos, step.cameraTarget);
-        }
-        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
-        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
-        function resetVisualization() { currentStep = 0; stopAutoPlay(); targetContainers = 3; updateContainers(); updateStep(); }
+                function updateStep() {
+                    var step = steps[currentStep];
+                    document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+                    document.getElementById("step-title").textContent = step.title;
+                    document.getElementById("step-description").innerHTML = step.description;
+                    document.getElementById("step-detail").innerHTML = step.detail;
+                    document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+                    document.getElementById("prev-btn").disabled = currentStep === 0;
+                    document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+                    animateCamera(step.cameraPos, step.cameraTarget);
+                    updateDataTableForStep(currentStep);
+                }
+                function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+                function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+                function resetVisualization() { currentStep = 0; stopAutoPlay(); targetContainers = 3; updateContainers(); updateStep(); }
         function animateCamera(targetPos, targetLookAt) {
             var startPos = camera.position.clone(), startTarget = controls.target.clone();
             var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);

@@ -37,8 +37,14 @@
         .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
         #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
         .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #2196f3, #00ffff); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; }
-        .sim-btn:hover { transform: scale(1.05); }
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+                .sim-btn:hover { transform: scale(1.05); }
+                #data-table-panel { position: absolute; bottom: 200px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #2196f3; border-radius: 10px; padding: 12px; max-width: 300px; z-index: 100; }
+                #data-table-panel h3 { color: #2196f3; font-size: 0.9em; margin-bottom: 8px; }
+                .data-table { width: 100%; border-collapse: collapse; font-size: 0.75em; }
+                .data-table th { background: rgba(33,150,243,0.2); color: #2196f3; padding: 4px 6px; text-align: left; border: 1px solid #2196f3; }
+                .data-table td { padding: 4px 6px; border: 1px solid rgba(33,150,243,0.3); color: #fff; font-family: monospace; }
+                .data-table tr.active td { background: rgba(0,255,0,0.15); }
+                #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #2196f3; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -84,13 +90,65 @@
         <div class="metric-row"><span class="metric-label">Sources:</span><span class="metric-value" id="sources">4</span></div>
         <div class="metric-row"><span class="metric-label">Status:</span><span class="metric-value" id="status">Active</span></div>
     </div>
+    <div id="data-table-panel">
+        <h3>Ingestion Sources</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
-        var sources = [], destinations = [], dataStreams = [];
-        var sourceData = [{y:6, color:0xff5722, name:'Database'}, {y:2, color:0x9c27b0, name:'API'}, {y:-2, color:0x4caf50, name:'Files'}, {y:-6, color:0xff9800, name:'Streaming'}];
-        var steps = [
+                var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
+                var sources = [], destinations = [], dataStreams = [];
+                var sourceData = [{y:6, color:0xff5722, name:'Database'}, {y:2, color:0x9c27b0, name:'API'}, {y:-2, color:0x4caf50, name:'Files'}, {y:-6, color:0xff9800, name:'Streaming'}];
+
+                var ingestionData = [
+                    { source: "MySQL", type: "Database", rate: "1.2K/s" },
+                    { source: "REST API", type: "API", rate: "500/s" },
+                    { source: "CSV files", type: "Files", rate: "batch" },
+                    { source: "Kafka", type: "Streaming", rate: "5K/s" }
+                ];
+
+                function buildIngestionTable(data) {
+                    var html = '<table class="data-table"><thead><tr><th>source</th><th>type</th><th>rate</th></tr></thead><tbody>';
+                    data.forEach(function(row) {
+                        html += '<tr><td>' + row.source + '</td><td>' + row.type + '</td><td>' + row.rate + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                    return html;
+                }
+
+                function updateDataTableForStep(step) {
+                    var container = document.getElementById("data-table-container");
+                    var panel = document.getElementById("data-table-panel");
+                    switch(step) {
+                        case 0:
+                            panel.querySelector("h3").textContent = "Ingestion Sources";
+                            container.innerHTML = buildIngestionTable(ingestionData);
+                            break;
+                        case 1:
+                            panel.querySelector("h3").textContent = "Database Source";
+                            container.innerHTML = '<p style="color:#ff5722;font-size:0.8em;margin-bottom:8px;">CDC from MySQL:</p>' + buildIngestionTable([ingestionData[0]]);
+                            break;
+                        case 2:
+                            panel.querySelector("h3").textContent = "API Source";
+                            container.innerHTML = '<p style="color:#9c27b0;font-size:0.8em;margin-bottom:8px;">REST endpoints:</p>' + buildIngestionTable([ingestionData[1]]);
+                            break;
+                        case 3:
+                            panel.querySelector("h3").textContent = "File Source";
+                            container.innerHTML = '<p style="color:#4caf50;font-size:0.8em;margin-bottom:8px;">Batch uploads:</p>' + buildIngestionTable([ingestionData[2]]);
+                            break;
+                        case 4:
+                            panel.querySelector("h3").textContent = "Streaming Source";
+                            container.innerHTML = '<p style="color:#ff9800;font-size:0.8em;margin-bottom:8px;">Real-time Kafka:</p>' + buildIngestionTable([ingestionData[3]]);
+                            break;
+                        case 5:
+                            panel.querySelector("h3").textContent = "GCP Destination";
+                            container.innerHTML = '<p style="color:#2196f3;font-size:0.8em;margin-bottom:8px;">All → BigQuery:</p>' + buildIngestionTable(ingestionData);
+                            break;
+                    }
+                }
+
+                var steps = [
             {title:"Welcome to Data Ingestion!",description:"Data Ingestion is the process of <strong>loading data</strong> from external sources into GCP. It's the first step in any data pipeline - getting your data where it needs to be!",detail:"Ingestion Methods: Batch (scheduled), Streaming (real-time), or Hybrid.",cameraPos:{x:0,y:15,z:30},cameraTarget:{x:0,y:0,z:0}},
             {title:"Step 1: Database Sources",description:"The <strong>orange cone</strong> represents database sources - MySQL, PostgreSQL, Oracle. Use Datastream for CDC or batch exports for scheduled loads.",detail:"Tools: Datastream (CDC), Data Transfer Service, Dataflow JDBC.",cameraPos:{x:-15,y:10,z:20},cameraTarget:{x:-15,y:6,z:0}},
             {title:"Step 2: API Sources",description:"The <strong>purple cone</strong> represents API sources - REST endpoints, GraphQL, webhooks. Use Cloud Functions or Dataflow to pull data from APIs.",detail:"Tools: Cloud Functions, Cloud Run, Dataflow with HTTP transforms.",cameraPos:{x:-15,y:10,z:15},cameraTarget:{x:-15,y:2,z:0}},
@@ -138,20 +196,21 @@
             dataStreams.forEach(function(s) { if (s.userData.sourceIdx === idx) s.userData.speed = 0.05; });
             setTimeout(function() { dataStreams.forEach(function(s) { if (s.userData.sourceIdx === idx) s.userData.speed = 0.01 + Math.random() * 0.02; }); }, 2000);
         }
-        function updateStep() {
-            var step = steps[currentStep];
-            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
-            document.getElementById("step-title").textContent = step.title;
-            document.getElementById("step-description").innerHTML = step.description;
-            document.getElementById("step-detail").innerHTML = step.detail;
-            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
-            document.getElementById("prev-btn").disabled = currentStep === 0;
-            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
-            animateCamera(step.cameraPos, step.cameraTarget);
-        }
-        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
-        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
-        function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); }
+                function updateStep() {
+                    var step = steps[currentStep];
+                    document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+                    document.getElementById("step-title").textContent = step.title;
+                    document.getElementById("step-description").innerHTML = step.description;
+                    document.getElementById("step-detail").innerHTML = step.detail;
+                    document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+                    document.getElementById("prev-btn").disabled = currentStep === 0;
+                    document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+                    animateCamera(step.cameraPos, step.cameraTarget);
+                    updateDataTableForStep(currentStep);
+                }
+                function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+                function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+                function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); }
         function animateCamera(targetPos, targetLookAt) {
             var startPos = camera.position.clone(), startTarget = controls.target.clone();
             var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);

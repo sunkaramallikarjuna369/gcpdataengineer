@@ -37,8 +37,14 @@
         .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
         #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
         .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #4285f4, #00ffff); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; }
-        .sim-btn:hover { transform: scale(1.05); }
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+                .sim-btn:hover { transform: scale(1.05); }
+                #data-table-panel { position: absolute; bottom: 200px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #4285f4; border-radius: 10px; padding: 12px; max-width: 300px; z-index: 100; }
+                #data-table-panel h3 { color: #4285f4; font-size: 0.9em; margin-bottom: 8px; }
+                .data-table { width: 100%; border-collapse: collapse; font-size: 0.75em; }
+                .data-table th { background: rgba(66,133,244,0.2); color: #4285f4; padding: 4px 6px; text-align: left; border: 1px solid #4285f4; }
+                .data-table td { padding: 4px 6px; border: 1px solid rgba(66,133,244,0.3); color: #fff; font-family: monospace; }
+                .data-table tr.active td { background: rgba(0,255,0,0.15); }
+                #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #4285f4; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -83,13 +89,64 @@
         <div class="metric-row"><span class="metric-label">Projects:</span><span class="metric-value" id="projects">4</span></div>
         <div class="metric-row"><span class="metric-label">Resources:</span><span class="metric-value" id="resources">10</span></div>
     </div>
-
+    <div id="data-table-panel">
+        <h3>Resource Hierarchy</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
-        var nodes = [], connections = [], orgNode, folderNodes = [], projectNodes = [], resourceNodes = [];
-        var steps = [
+                var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
+                var nodes = [], connections = [], orgNode, folderNodes = [], projectNodes = [], resourceNodes = [];
+
+                var hierarchyData = [
+                    { name: "example.com", type: "Org", parent: "-" },
+                    { name: "Engineering", type: "Folder", parent: "example.com" },
+                    { name: "data-prod", type: "Project", parent: "Engineering" },
+                    { name: "BigQuery", type: "Resource", parent: "data-prod" }
+                ];
+
+                function buildHierarchyTable(data) {
+                    var html = '<table class="data-table"><thead><tr><th>name</th><th>type</th><th>parent</th></tr></thead><tbody>';
+                    data.forEach(function(row) {
+                        html += '<tr><td>' + row.name + '</td><td>' + row.type + '</td><td>' + row.parent + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                    return html;
+                }
+
+                function updateDataTableForStep(step) {
+                    var container = document.getElementById("data-table-container");
+                    var panel = document.getElementById("data-table-panel");
+                    switch(step) {
+                        case 0:
+                            panel.querySelector("h3").textContent = "Resource Hierarchy";
+                            container.innerHTML = buildHierarchyTable(hierarchyData);
+                            break;
+                        case 1:
+                            panel.querySelector("h3").textContent = "Organization";
+                            container.innerHTML = '<p style="color:#ea4335;font-size:0.8em;margin-bottom:8px;">Root container:</p>' + buildHierarchyTable([hierarchyData[0]]);
+                            break;
+                        case 2:
+                            panel.querySelector("h3").textContent = "Folders";
+                            container.innerHTML = '<p style="color:#fbbc04;font-size:0.8em;margin-bottom:8px;">Group projects:</p>' + buildHierarchyTable([hierarchyData[1]]);
+                            break;
+                        case 3:
+                            panel.querySelector("h3").textContent = "Projects";
+                            container.innerHTML = '<p style="color:#4285f4;font-size:0.8em;margin-bottom:8px;">Billing unit:</p>' + buildHierarchyTable([hierarchyData[2]]);
+                            break;
+                        case 4:
+                            panel.querySelector("h3").textContent = "Resources";
+                            container.innerHTML = '<p style="color:#34a853;font-size:0.8em;margin-bottom:8px;">GCP services:</p>' + buildHierarchyTable([hierarchyData[3]]);
+                            break;
+                        case 5:
+                            panel.querySelector("h3").textContent = "IAM Inheritance";
+                            container.innerHTML = '<p style="color:#00ffff;font-size:0.8em;margin-bottom:8px;">Policies flow down:</p>' + buildHierarchyTable(hierarchyData);
+                            break;
+                    }
+                }
+
+                var steps = [
             {title:"Welcome to GCP Fundamentals!",description:"GCP organizes resources in a <strong>hierarchy</strong> - like a family tree! This structure helps manage permissions, billing, and organization across your cloud.",detail:"Key Concept: IAM policies inherit downward through the hierarchy.",cameraPos:{x:0,y:15,z:30},cameraTarget:{x:0,y:0,z:0}},
             {title:"Step 1: Organization",description:"The <strong>red box</strong> at the top is your Organization - the root of your GCP hierarchy. It represents your company or domain (e.g., example.com).",detail:"Organization: Created when you sign up for Google Workspace or Cloud Identity.",cameraPos:{x:0,y:18,z:15},cameraTarget:{x:0,y:12,z:0}},
             {title:"Step 2: Folders",description:"The <strong>yellow boxes</strong> are Folders - they group related projects together. Use folders for departments, teams, or environments (dev/prod).",detail:"Folders: Optional but recommended for organizing large organizations.",cameraPos:{x:0,y:12,z:20},cameraTarget:{x:0,y:6,z:0}},
@@ -150,20 +207,21 @@
         function highlightOrg() { if (orgNode) { orgNode.material.emissiveIntensity = 1; setTimeout(function() { orgNode.material.emissiveIntensity = 0.3; }, 1000); } }
         function highlightFolders() { folderNodes.forEach(function(n) { n.material.emissiveIntensity = 1; setTimeout(function() { n.material.emissiveIntensity = 0.3; }, 1000); }); }
         function highlightProjects() { projectNodes.forEach(function(n) { n.material.emissiveIntensity = 1; setTimeout(function() { n.material.emissiveIntensity = 0.3; }, 1000); }); }
-        function updateStep() {
-            var step = steps[currentStep];
-            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
-            document.getElementById("step-title").textContent = step.title;
-            document.getElementById("step-description").innerHTML = step.description;
-            document.getElementById("step-detail").innerHTML = step.detail;
-            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
-            document.getElementById("prev-btn").disabled = currentStep === 0;
-            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
-            animateCamera(step.cameraPos, step.cameraTarget);
-        }
-        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
-        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
-        function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); }
+                function updateStep() {
+                    var step = steps[currentStep];
+                    document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+                    document.getElementById("step-title").textContent = step.title;
+                    document.getElementById("step-description").innerHTML = step.description;
+                    document.getElementById("step-detail").innerHTML = step.detail;
+                    document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+                    document.getElementById("prev-btn").disabled = currentStep === 0;
+                    document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+                    animateCamera(step.cameraPos, step.cameraTarget);
+                    updateDataTableForStep(currentStep);
+                }
+                function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+                function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+                function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); }
         function animateCamera(targetPos, targetLookAt) {
             var startPos = camera.position.clone(), startTarget = controls.target.clone();
             var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);

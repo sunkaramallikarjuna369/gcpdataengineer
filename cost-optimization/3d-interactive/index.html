@@ -37,8 +37,14 @@
         .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
         #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
         .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #34a853, #00ff00); border: none; color: #000; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; }
-        .sim-btn:hover { transform: scale(1.05); }
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+                .sim-btn:hover { transform: scale(1.05); }
+                #data-table-panel { position: absolute; bottom: 200px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #34a853; border-radius: 10px; padding: 12px; max-width: 300px; z-index: 100; }
+                #data-table-panel h3 { color: #34a853; font-size: 0.9em; margin-bottom: 8px; }
+                .data-table { width: 100%; border-collapse: collapse; font-size: 0.75em; }
+                .data-table th { background: rgba(52,168,83,0.2); color: #34a853; padding: 4px 6px; text-align: left; border: 1px solid #34a853; }
+                .data-table td { padding: 4px 6px; border: 1px solid rgba(52,168,83,0.3); color: #fff; font-family: monospace; }
+                .data-table tr.savings td { background: rgba(0,255,0,0.15); }
+                #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #34a853; border-right: 4px solid #00ff00; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -84,13 +90,65 @@
         <div class="metric-row" style="border-top: 2px solid #34a853; padding-top: 8px;"><span class="metric-label">Total:</span><span class="metric-value" id="total-cost">$10,000</span></div>
         <div class="metric-row"><span class="metric-label">Savings:</span><span class="metric-value" id="savings" style="color: #34a853;">$0</span></div>
     </div>
+    <div id="data-table-panel">
+        <h3>Cost Breakdown</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
-        var costBars = [], dollarParticles = [], originalCosts = {bq: 5000, df: 3000, st: 2000};
-        var costs = {bq: 5000, df: 3000, st: 2000};
-        var steps = [
+                var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
+                var costBars = [], dollarParticles = [], originalCosts = {bq: 5000, df: 3000, st: 2000};
+                var costs = {bq: 5000, df: 3000, st: 2000};
+
+                var costData = [
+                    { service: "BigQuery", cost: 5000, tip: "Use partitioning" },
+                    { service: "Dataflow", cost: 3000, tip: "Use autoscaling" },
+                    { service: "Storage", cost: 2000, tip: "Lifecycle rules" }
+                ];
+
+                function buildCostTable(data) {
+                    var html = '<table class="data-table"><thead><tr><th>service</th><th>cost</th><th>tip</th></tr></thead><tbody>';
+                    data.forEach(function(row) {
+                        html += '<tr><td>' + row.service + '</td><td>$' + row.cost.toLocaleString() + '</td><td>' + row.tip + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                    return html;
+                }
+
+                function updateDataTableForStep(step) {
+                    var container = document.getElementById("data-table-container");
+                    var panel = document.getElementById("data-table-panel");
+                    switch(step) {
+                        case 0:
+                            panel.querySelector("h3").textContent = "Cost Breakdown";
+                            container.innerHTML = buildCostTable(costData);
+                            break;
+                        case 1:
+                            panel.querySelector("h3").textContent = "BigQuery Costs";
+                            container.innerHTML = '<p style="color:#4285f4;font-size:0.8em;margin-bottom:8px;">$5/TB scanned:</p>' + buildCostTable([costData[0]]);
+                            break;
+                        case 2:
+                            panel.querySelector("h3").textContent = "Dataflow Costs";
+                            container.innerHTML = '<p style="color:#ea4335;font-size:0.8em;margin-bottom:8px;">Worker VMs:</p>' + buildCostTable([costData[1]]);
+                            break;
+                        case 3:
+                            panel.querySelector("h3").textContent = "Storage Costs";
+                            container.innerHTML = '<p style="color:#fbbc04;font-size:0.8em;margin-bottom:8px;">Per GB/month:</p>' + buildCostTable([costData[2]]);
+                            break;
+                        case 4:
+                            panel.querySelector("h3").textContent = "Total Spending";
+                            var total = costData.reduce(function(s, r) { return s + r.cost; }, 0);
+                            container.innerHTML = '<p style="color:#34a853;font-size:0.8em;margin-bottom:8px;">Total: $' + total.toLocaleString() + '/mo</p>' + buildCostTable(costData);
+                            break;
+                        case 5:
+                            panel.querySelector("h3").textContent = "Optimize Now!";
+                            container.innerHTML = '<p style="color:#00ff00;font-size:0.8em;margin-bottom:8px;">Click buttons to save:</p>' + buildCostTable(costData);
+                            break;
+                    }
+                }
+
+                var steps = [
             {title:"Welcome to Cost Optimization!",description:"Cloud costs can grow quickly! <strong>FinOps</strong> (Financial Operations) helps you understand and optimize your cloud spending while maintaining performance.",detail:"FinOps: The practice of bringing financial accountability to cloud spending.",cameraPos:{x:0,y:15,z:25},cameraTarget:{x:0,y:0,z:0}},
             {title:"Step 1: BigQuery Costs",description:"The <strong>blue bar</strong> shows BigQuery costs. BigQuery charges for data scanned. Use <strong>partitioning</strong> and <strong>clustering</strong> to scan less data and save money!",detail:"Tip: Partition by date, cluster by frequently filtered columns.",cameraPos:{x:-8,y:12,z:18},cameraTarget:{x:-6,y:3,z:0}},
             {title:"Step 2: Dataflow Costs",description:"The <strong>red bar</strong> shows Dataflow costs. Dataflow charges for worker VMs. Use <strong>autoscaling</strong> and <strong>right-sizing</strong> to use only what you need!",detail:"Tip: Set maxWorkers limit, use Dataflow Prime for automatic optimization.",cameraPos:{x:0,y:12,z:18},cameraTarget:{x:0,y:3,z:0}},
@@ -139,20 +197,21 @@
         function optimizeBigQuery() { costs.bq = Math.max(Math.floor(costs.bq * 0.7), 1000); updateCostDisplay(); }
         function optimizeDataflow() { costs.df = Math.max(Math.floor(costs.df * 0.75), 500); updateCostDisplay(); }
         function optimizeStorage() { costs.st = Math.max(Math.floor(costs.st * 0.5), 200); updateCostDisplay(); }
-        function updateStep() {
-            var step = steps[currentStep];
-            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
-            document.getElementById("step-title").textContent = step.title;
-            document.getElementById("step-description").innerHTML = step.description;
-            document.getElementById("step-detail").innerHTML = step.detail;
-            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
-            document.getElementById("prev-btn").disabled = currentStep === 0;
-            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
-            animateCamera(step.cameraPos, step.cameraTarget);
-        }
-        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
-        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
-        function resetVisualization() { currentStep = 0; stopAutoPlay(); costs = {bq: 5000, df: 3000, st: 2000}; updateCostDisplay(); updateStep(); }
+                function updateStep() {
+                    var step = steps[currentStep];
+                    document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+                    document.getElementById("step-title").textContent = step.title;
+                    document.getElementById("step-description").innerHTML = step.description;
+                    document.getElementById("step-detail").innerHTML = step.detail;
+                    document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+                    document.getElementById("prev-btn").disabled = currentStep === 0;
+                    document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+                    animateCamera(step.cameraPos, step.cameraTarget);
+                    updateDataTableForStep(currentStep);
+                }
+                function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+                function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+                function resetVisualization() { currentStep = 0; stopAutoPlay(); costs = {bq: 5000, df: 3000, st: 2000}; updateCostDisplay(); updateStep(); }
         function animateCamera(targetPos, targetLookAt) {
             var startPos = camera.position.clone(), startTarget = controls.target.clone();
             var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);

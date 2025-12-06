@@ -37,8 +37,15 @@
         .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
         #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
         .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #00bfa5, #00ffff); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; }
-        .sim-btn:hover { transform: scale(1.05); }
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+                .sim-btn:hover { transform: scale(1.05); }
+                #data-table-panel { position: absolute; bottom: 200px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #00bfa5; border-radius: 10px; padding: 12px; max-width: 300px; z-index: 100; }
+                #data-table-panel h3 { color: #00bfa5; font-size: 0.9em; margin-bottom: 8px; }
+                .data-table { width: 100%; border-collapse: collapse; font-size: 0.75em; }
+                .data-table th { background: rgba(0,191,165,0.2); color: #00bfa5; padding: 4px 6px; text-align: left; border: 1px solid #00bfa5; }
+                .data-table td { padding: 4px 6px; border: 1px solid rgba(0,191,165,0.3); color: #fff; font-family: monospace; }
+                .data-table tr.warning td { background: rgba(255,255,0,0.15); }
+                .data-table tr.critical td { background: rgba(255,0,0,0.15); }
+                #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #00bfa5; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -83,12 +90,66 @@
         <div class="metric-row"><span class="metric-label">Throughput:</span><span class="metric-value" id="throughput">2,500/s</span></div>
         <div class="metric-row"><span class="metric-label">Latency:</span><span class="metric-value" id="latency">25ms</span></div>
     </div>
+    <div id="data-table-panel">
+        <h3>Live Metrics</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
-        var metricBars = [], dataPoints = [], alertRing;
-        var steps = [
+                var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
+                var metricBars = [], dataPoints = [], alertRing;
+
+                var metricsData = [
+                    { metric: "CPU", value: "45%", status: "OK" },
+                    { metric: "Memory", value: "62%", status: "OK" },
+                    { metric: "Disk", value: "78%", status: "Warning" },
+                    { metric: "Network", value: "25%", status: "OK" }
+                ];
+
+                function buildMetricsTable(data) {
+                    var html = '<table class="data-table"><thead><tr><th>metric</th><th>value</th><th>status</th></tr></thead><tbody>';
+                    data.forEach(function(row) {
+                        var cls = row.status === 'Warning' ? 'warning' : row.status === 'Critical' ? 'critical' : '';
+                        html += '<tr class="' + cls + '"><td>' + row.metric + '</td><td>' + row.value + '</td><td>' + row.status + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                    return html;
+                }
+
+                function updateDataTableForStep(step) {
+                    var container = document.getElementById("data-table-container");
+                    var panel = document.getElementById("data-table-panel");
+                    switch(step) {
+                        case 0:
+                            panel.querySelector("h3").textContent = "Live Metrics";
+                            container.innerHTML = buildMetricsTable(metricsData);
+                            break;
+                        case 1:
+                            panel.querySelector("h3").textContent = "Metrics Collection";
+                            container.innerHTML = '<p style="color:#00bfa5;font-size:0.8em;margin-bottom:8px;">Auto-collected:</p>' + buildMetricsTable(metricsData);
+                            break;
+                        case 2:
+                            panel.querySelector("h3").textContent = "Data Flow";
+                            container.innerHTML = '<p style="color:#4285f4;font-size:0.8em;margin-bottom:8px;">Golden signals:</p>' + buildMetricsTable(metricsData);
+                            break;
+                        case 3:
+                            panel.querySelector("h3").textContent = "Dashboards";
+                            container.innerHTML = '<p style="color:#fbbc04;font-size:0.8em;margin-bottom:8px;">Visualized:</p>' + buildMetricsTable(metricsData);
+                            break;
+                        case 4:
+                            panel.querySelector("h3").textContent = "Alerting";
+                            var alertData = metricsData.map(function(m) { return {metric: m.metric, value: m.value, status: m.value.replace('%','') > 70 ? 'Warning' : 'OK'}; });
+                            container.innerHTML = '<p style="color:#ea4335;font-size:0.8em;margin-bottom:8px;">Threshold: 70%</p>' + buildMetricsTable(alertData);
+                            break;
+                        case 5:
+                            panel.querySelector("h3").textContent = "Try Simulation";
+                            container.innerHTML = '<p style="color:#00ff00;font-size:0.8em;margin-bottom:8px;">Click buttons:</p>' + buildMetricsTable(metricsData);
+                            break;
+                    }
+                }
+
+                var steps = [
             {title:"Welcome to Monitoring!",description:"Cloud Monitoring is your <strong>observability platform</strong>. It collects metrics, logs, and traces from all your GCP services so you can see what's happening inside!",detail:"Observability: Metrics (numbers), Logs (text), Traces (request paths).",cameraPos:{x:0,y:15,z:25},cameraTarget:{x:0,y:0,z:0}},
             {title:"Step 1: Metrics Collection",description:"The <strong>rising bars</strong> show real-time metrics - CPU, Memory, Disk, Network. Cloud Monitoring collects these automatically from all GCP services!",detail:"Metrics: Time-series data points collected every 60 seconds by default.",cameraPos:{x:0,y:10,z:20},cameraTarget:{x:0,y:0,z:-5}},
             {title:"Step 2: Data Flow",description:"The <strong>flowing particles</strong> represent data moving through your systems. Monitoring tracks throughput, latency, and error rates for every service!",detail:"Golden Signals: Latency, Traffic, Errors, Saturation (the 4 key metrics).",cameraPos:{x:10,y:12,z:20},cameraTarget:{x:0,y:5,z:5}},
@@ -141,20 +202,21 @@
             document.getElementById("latency").textContent = Math.floor(10 + Math.random() * 50) + "ms";
             metricBars.forEach(function(bar) { bar.userData.targetHeight = 1 + Math.random() * 6; });
         }
-        function updateStep() {
-            var step = steps[currentStep];
-            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
-            document.getElementById("step-title").textContent = step.title;
-            document.getElementById("step-description").innerHTML = step.description;
-            document.getElementById("step-detail").innerHTML = step.detail;
-            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
-            document.getElementById("prev-btn").disabled = currentStep === 0;
-            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
-            animateCamera(step.cameraPos, step.cameraTarget);
-        }
-        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
-        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
-        function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); }
+                function updateStep() {
+                    var step = steps[currentStep];
+                    document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+                    document.getElementById("step-title").textContent = step.title;
+                    document.getElementById("step-description").innerHTML = step.description;
+                    document.getElementById("step-detail").innerHTML = step.detail;
+                    document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+                    document.getElementById("prev-btn").disabled = currentStep === 0;
+                    document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+                    animateCamera(step.cameraPos, step.cameraTarget);
+                    updateDataTableForStep(currentStep);
+                }
+                function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+                function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+                function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); }
         function animateCamera(targetPos, targetLookAt) {
             var startPos = camera.position.clone(), startTarget = controls.target.clone();
             var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);

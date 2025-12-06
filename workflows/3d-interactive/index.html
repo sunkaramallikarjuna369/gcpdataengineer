@@ -37,8 +37,15 @@
         .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
         #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
         .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #7c4dff, #00ffff); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; }
-        .sim-btn:hover { transform: scale(1.05); }
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+                .sim-btn:hover { transform: scale(1.05); }
+                #data-table-panel { position: absolute; bottom: 200px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #7c4dff; border-radius: 10px; padding: 12px; max-width: 300px; z-index: 100; }
+                #data-table-panel h3 { color: #7c4dff; font-size: 0.9em; margin-bottom: 8px; }
+                .data-table { width: 100%; border-collapse: collapse; font-size: 0.75em; }
+                .data-table th { background: rgba(124,77,255,0.2); color: #7c4dff; padding: 4px 6px; text-align: left; border: 1px solid #7c4dff; }
+                .data-table td { padding: 4px 6px; border: 1px solid rgba(124,77,255,0.3); color: #fff; font-family: monospace; }
+                .data-table tr.running td { background: rgba(0,255,0,0.15); }
+                .data-table tr.error td { background: rgba(255,0,0,0.15); }
+                #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #7c4dff; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -82,14 +89,84 @@
         <div class="metric-row"><span class="metric-label">Duration:</span><span class="metric-value" id="duration">0 s</span></div>
         <div class="metric-row"><span class="metric-label">Retries:</span><span class="metric-value" id="retries">0</span></div>
     </div>
+    <div id="data-table-panel">
+        <h3>Workflow: etl_workflow</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
-        var workflowSteps = [], connections = [], executionToken, execStep = 0;
-        var stepData = [{x:-10,y:3,name:'Start',color:0x4caf50},{x:-5,y:3,name:'Extract',color:0x7c4dff},{x:0,y:5,name:'Transform A',color:0x7c4dff},{x:0,y:1,name:'Transform B',color:0x7c4dff},{x:5,y:3,name:'Load',color:0x7c4dff},{x:10,y:3,name:'End',color:0xea4335}];
-        var connData = [[0,1],[1,2],[1,3],[2,4],[3,4],[4,5]];
-        var steps = [
+                var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
+                var workflowSteps = [], connections = [], executionToken, execStep = 0;
+                var stepData = [{x:-10,y:3,name:'Start',color:0x4caf50},{x:-5,y:3,name:'Extract',color:0x7c4dff},{x:0,y:5,name:'Transform A',color:0x7c4dff},{x:0,y:1,name:'Transform B',color:0x7c4dff},{x:5,y:3,name:'Load',color:0x7c4dff},{x:10,y:3,name:'End',color:0xea4335}];
+                var connData = [[0,1],[1,2],[1,3],[2,4],[3,4],[4,5]];
+
+                var workflowData = [
+                    { step_name: "Start", type: "trigger", status: "pending" },
+                    { step_name: "Extract", type: "http_call", status: "pending" },
+                    { step_name: "Transform A", type: "function", status: "pending" },
+                    { step_name: "Transform B", type: "function", status: "pending" },
+                    { step_name: "Load", type: "bigquery", status: "pending" },
+                    { step_name: "End", type: "return", status: "pending" }
+                ];
+
+                function buildWorkflowTable(data) {
+                    var html = '<table class="data-table"><thead><tr><th>step</th><th>type</th><th>status</th></tr></thead><tbody>';
+                    data.forEach(function(row) {
+                        var cls = row.status === 'running' ? 'running' : row.status === 'error' ? 'error' : '';
+                        html += '<tr class="' + cls + '"><td>' + row.step_name + '</td><td>' + row.type + '</td><td>' + row.status + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                    return html;
+                }
+
+                function updateDataTableForStep(step) {
+                    var container = document.getElementById("data-table-container");
+                    var panel = document.getElementById("data-table-panel");
+                    switch(step) {
+                        case 0:
+                            panel.querySelector("h3").textContent = "Workflow: etl_workflow";
+                            container.innerHTML = buildWorkflowTable(workflowData);
+                            break;
+                        case 1:
+                            panel.querySelector("h3").textContent = "Start Node";
+                            var d1 = JSON.parse(JSON.stringify(workflowData));
+                            d1[0].status = "running";
+                            container.innerHTML = buildWorkflowTable(d1);
+                            break;
+                        case 2:
+                            panel.querySelector("h3").textContent = "Workflow Steps";
+                            container.innerHTML = buildWorkflowTable(workflowData);
+                            break;
+                        case 3:
+                            panel.querySelector("h3").textContent = "Parallel Execution";
+                            var d3 = JSON.parse(JSON.stringify(workflowData));
+                            d3[0].status = "done";
+                            d3[1].status = "done";
+                            d3[2].status = "running";
+                            d3[3].status = "running";
+                            container.innerHTML = '<p style="color:#00ff00;font-size:0.8em;margin-bottom:8px;">Running in parallel:</p>' + buildWorkflowTable(d3);
+                            break;
+                        case 4:
+                            panel.querySelector("h3").textContent = "Execution Token";
+                            var d4 = JSON.parse(JSON.stringify(workflowData));
+                            d4[0].status = "done";
+                            d4[1].status = "done";
+                            d4[2].status = "done";
+                            d4[3].status = "done";
+                            d4[4].status = "running";
+                            container.innerHTML = buildWorkflowTable(d4);
+                            break;
+                        case 5:
+                            panel.querySelector("h3").textContent = "Error Handling";
+                            var d5 = JSON.parse(JSON.stringify(workflowData));
+                            d5[2].status = "error";
+                            container.innerHTML = '<p style="color:#ff0000;font-size:0.8em;margin-bottom:8px;">Retry attempt 3/3:</p>' + buildWorkflowTable(d5);
+                            break;
+                    }
+                }
+
+                var steps = [
             {title:"Welcome to Cloud Workflows!",description:"Workflows is a <strong>serverless orchestration service</strong>. Define steps in YAML, and Workflows executes them reliably with retries and error handling!",detail:"Workflows: Define steps in YAML, execute reliably!",cameraPos:{x:0,y:10,z:20},cameraTarget:{x:0,y:3,z:0}},
             {title:"Step 1: Start Node",description:"The <strong>green sphere</strong> is the Start node. Every workflow begins here. It can receive input parameters from the caller.",detail:"Workflows can be triggered by Cloud Scheduler, Pub/Sub, or HTTP calls.",cameraPos:{x:-12,y:8,z:15},cameraTarget:{x:-10,y:3,z:0}},
             {title:"Step 2: Workflow Steps",description:"The <strong>purple boxes</strong> are workflow steps. Each step can call an API, run a Cloud Function, or perform logic like conditionals and loops.",detail:"Steps can call any HTTP API, Cloud Functions, Cloud Run, or other GCP services.",cameraPos:{x:0,y:12,z:18},cameraTarget:{x:0,y:3,z:0}},
@@ -167,20 +244,21 @@
                 document.getElementById("status").textContent = "Recovered";
             }, 2000);
         }
-        function updateStep() {
-            var step = steps[currentStep];
-            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
-            document.getElementById("step-title").textContent = step.title;
-            document.getElementById("step-description").innerHTML = step.description;
-            document.getElementById("step-detail").innerHTML = step.detail;
-            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
-            document.getElementById("prev-btn").disabled = currentStep === 0;
-            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
-            animateCamera(step.cameraPos, step.cameraTarget);
-        }
-        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
-        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
-        function resetVisualization() { currentStep = 0; stopAutoPlay(); executionToken.visible = false; updateStep(); }
+                function updateStep() {
+                    var step = steps[currentStep];
+                    document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+                    document.getElementById("step-title").textContent = step.title;
+                    document.getElementById("step-description").innerHTML = step.description;
+                    document.getElementById("step-detail").innerHTML = step.detail;
+                    document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+                    document.getElementById("prev-btn").disabled = currentStep === 0;
+                    document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+                    animateCamera(step.cameraPos, step.cameraTarget);
+                    updateDataTableForStep(currentStep);
+                }
+                function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+                function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+                function resetVisualization() { currentStep = 0; stopAutoPlay(); executionToken.visible = false; updateStep(); }
         function animateCamera(targetPos, targetLookAt) {
             var startPos = camera.position.clone(), startTarget = controls.target.clone();
             var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);

@@ -37,8 +37,14 @@
         .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
         #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
         .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #7c4dff, #00ffff); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; }
-        .sim-btn:hover { transform: scale(1.05); }
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+                .sim-btn:hover { transform: scale(1.05); }
+                #data-table-panel { position: absolute; bottom: 200px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #7c4dff; border-radius: 10px; padding: 12px; max-width: 300px; z-index: 100; }
+                #data-table-panel h3 { color: #7c4dff; font-size: 0.9em; margin-bottom: 8px; }
+                .data-table { width: 100%; border-collapse: collapse; font-size: 0.75em; }
+                .data-table th { background: rgba(124,77,255,0.2); color: #7c4dff; padding: 4px 6px; text-align: left; border: 1px solid #7c4dff; }
+                .data-table td { padding: 4px 6px; border: 1px solid rgba(124,77,255,0.3); color: #fff; font-family: monospace; }
+                .data-table tr.active td { background: rgba(0,255,0,0.15); }
+                #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #7c4dff; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -82,12 +88,64 @@
         <div class="metric-row"><span class="metric-label">Lineage:</span><span class="metric-value" id="lineage">20</span></div>
         <div class="metric-row"><span class="metric-label">Searches:</span><span class="metric-value" id="searches">0</span></div>
     </div>
+    <div id="data-table-panel">
+        <h3>Data Assets</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
-        var assets = [], lineageLines = [], searchRing, searchCount = 0;
-        var steps = [
+                var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
+                var assets = [], lineageLines = [], searchRing, searchCount = 0;
+
+                var catalogData = [
+                    { asset: "customers", type: "BigQuery", tags: "PII" },
+                    { asset: "orders", type: "BigQuery", tags: "sales" },
+                    { asset: "logs/", type: "GCS", tags: "audit" },
+                    { asset: "events", type: "Pub/Sub", tags: "stream" }
+                ];
+
+                function buildCatalogTable(data) {
+                    var html = '<table class="data-table"><thead><tr><th>asset</th><th>type</th><th>tags</th></tr></thead><tbody>';
+                    data.forEach(function(row) {
+                        html += '<tr><td>' + row.asset + '</td><td>' + row.type + '</td><td>' + row.tags + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                    return html;
+                }
+
+                function updateDataTableForStep(step) {
+                    var container = document.getElementById("data-table-container");
+                    var panel = document.getElementById("data-table-panel");
+                    switch(step) {
+                        case 0:
+                            panel.querySelector("h3").textContent = "Data Assets";
+                            container.innerHTML = buildCatalogTable(catalogData);
+                            break;
+                        case 1:
+                            panel.querySelector("h3").textContent = "Discovered Assets";
+                            container.innerHTML = '<p style="color:#4285f4;font-size:0.8em;margin-bottom:8px;">Auto-discovered:</p>' + buildCatalogTable(catalogData);
+                            break;
+                        case 2:
+                            panel.querySelector("h3").textContent = "Metadata & Tags";
+                            container.innerHTML = '<p style="color:#7c4dff;font-size:0.8em;margin-bottom:8px;">Business context:</p>' + buildCatalogTable(catalogData);
+                            break;
+                        case 3:
+                            panel.querySelector("h3").textContent = "Data Lineage";
+                            container.innerHTML = '<p style="color:#00ffff;font-size:0.8em;margin-bottom:8px;">Flow: orders → analytics</p>' + buildCatalogTable(catalogData);
+                            break;
+                        case 4:
+                            panel.querySelector("h3").textContent = "Search Results";
+                            container.innerHTML = '<p style="color:#00ff00;font-size:0.8em;margin-bottom:8px;">Query: "PII tables"</p>' + buildCatalogTable([catalogData[0]]);
+                            break;
+                        case 5:
+                            panel.querySelector("h3").textContent = "Try Search";
+                            container.innerHTML = '<p style="color:#ff9800;font-size:0.8em;margin-bottom:8px;">Click buttons above:</p>' + buildCatalogTable(catalogData);
+                            break;
+                    }
+                }
+
+                var steps = [
             {title:"Welcome to Data Catalog!",description:"Data Catalog is a <strong>metadata management</strong> service. It helps you discover, understand, and manage all your data assets across GCP - like a library catalog for your data!",detail:"Metadata: Data about your data - schema, descriptions, tags, lineage.",cameraPos:{x:0,y:20,z:30},cameraTarget:{x:0,y:0,z:0}},
             {title:"Step 1: Data Assets",description:"Each <strong>glowing shape</strong> represents a data asset - BigQuery tables (blue), Cloud Storage buckets (green), or Pub/Sub topics (yellow). Data Catalog automatically discovers these!",detail:"Auto-discovery: Data Catalog scans your GCP projects automatically.",cameraPos:{x:15,y:15,z:20},cameraTarget:{x:0,y:0,z:0}},
             {title:"Step 2: Metadata & Tags",description:"Each asset has <strong>metadata</strong> - schema, descriptions, and custom tags. Tags help you organize and classify data (e.g., 'PII', 'sensitive', 'public').",detail:"Tags: Add business context to technical data assets.",cameraPos:{x:-15,y:15,z:20},cameraTarget:{x:0,y:0,z:0}},
@@ -143,20 +201,21 @@
         function showLineage() {
             lineageLines.forEach(function(l) { l.line.material.opacity = 1; setTimeout(function() { l.line.material.opacity = 0.3; }, 2000); });
         }
-        function updateStep() {
-            var step = steps[currentStep];
-            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
-            document.getElementById("step-title").textContent = step.title;
-            document.getElementById("step-description").innerHTML = step.description;
-            document.getElementById("step-detail").innerHTML = step.detail;
-            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
-            document.getElementById("prev-btn").disabled = currentStep === 0;
-            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
-            animateCamera(step.cameraPos, step.cameraTarget);
-        }
-        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
-        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
-        function resetVisualization() { currentStep = 0; stopAutoPlay(); searchCount = 0; document.getElementById("searches").textContent = "0"; updateStep(); }
+                function updateStep() {
+                    var step = steps[currentStep];
+                    document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+                    document.getElementById("step-title").textContent = step.title;
+                    document.getElementById("step-description").innerHTML = step.description;
+                    document.getElementById("step-detail").innerHTML = step.detail;
+                    document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+                    document.getElementById("prev-btn").disabled = currentStep === 0;
+                    document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+                    animateCamera(step.cameraPos, step.cameraTarget);
+                    updateDataTableForStep(currentStep);
+                }
+                function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+                function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+                function resetVisualization() { currentStep = 0; stopAutoPlay(); searchCount = 0; document.getElementById("searches").textContent = "0"; updateStep(); }
         function animateCamera(targetPos, targetLookAt) {
             var startPos = camera.position.clone(), startTarget = controls.target.clone();
             var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);

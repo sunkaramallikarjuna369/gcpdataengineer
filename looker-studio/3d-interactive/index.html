@@ -37,8 +37,14 @@
         .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
         #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
         .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #4285f4, #00ffff); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; }
-        .sim-btn:hover { transform: scale(1.05); }
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+                .sim-btn:hover { transform: scale(1.05); }
+                #data-table-panel { position: absolute; bottom: 200px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #4285f4; border-radius: 10px; padding: 12px; max-width: 300px; z-index: 100; }
+                #data-table-panel h3 { color: #4285f4; font-size: 0.9em; margin-bottom: 8px; }
+                .data-table { width: 100%; border-collapse: collapse; font-size: 0.75em; }
+                .data-table th { background: rgba(66,133,244,0.2); color: #4285f4; padding: 4px 6px; text-align: left; border: 1px solid #4285f4; }
+                .data-table td { padding: 4px 6px; border: 1px solid rgba(66,133,244,0.3); color: #fff; font-family: monospace; }
+                .data-table tr.active td { background: rgba(0,255,0,0.15); }
+                #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #4285f4; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -82,13 +88,71 @@
         <div class="metric-row"><span class="metric-label">Refresh:</span><span class="metric-value" id="refresh">Live</span></div>
         <div class="metric-row"><span class="metric-label">Viewers:</span><span class="metric-value" id="viewers">15</span></div>
     </div>
+    <div id="data-table-panel">
+        <h3>Dashboard: Sales Report</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
-        var chartBars = [], pieSlices = [], dataSource, dataFlows = [], chartCount = 2;
-        var barColors = [0x4285f4, 0xea4335, 0xfbbc04, 0x34a853, 0x9c27b0];
-        var steps = [
+                var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
+                var chartBars = [], pieSlices = [], dataSource, dataFlows = [], chartCount = 2;
+                var barColors = [0x4285f4, 0xea4335, 0xfbbc04, 0x34a853, 0x9c27b0];
+
+                var salesData = [
+                    { region: "North", sales: 45000, growth: "+12%" },
+                    { region: "South", sales: 32000, growth: "+8%" },
+                    { region: "East", sales: 28000, growth: "+15%" },
+                    { region: "West", sales: 51000, growth: "+5%" }
+                ];
+
+                function buildSalesTable(data) {
+                    var html = '<table class="data-table"><thead><tr><th>region</th><th>sales</th><th>growth</th></tr></thead><tbody>';
+                    data.forEach(function(row) {
+                        html += '<tr><td>' + row.region + '</td><td>$' + row.sales.toLocaleString() + '</td><td style="color:#00ff00">' + row.growth + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                    return html;
+                }
+
+                function updateDataTableForStep(step) {
+                    var container = document.getElementById("data-table-container");
+                    var panel = document.getElementById("data-table-panel");
+                    switch(step) {
+                        case 0:
+                            panel.querySelector("h3").textContent = "Dashboard: Sales Report";
+                            container.innerHTML = buildSalesTable(salesData);
+                            break;
+                        case 1:
+                            panel.querySelector("h3").textContent = "Data Source: BigQuery";
+                            container.innerHTML = '<p style="color:#4285f4;font-size:0.8em;margin-bottom:8px;">Query results:</p>' + buildSalesTable(salesData);
+                            break;
+                        case 2:
+                            panel.querySelector("h3").textContent = "Bar Chart Data";
+                            container.innerHTML = '<p style="color:#ea4335;font-size:0.8em;margin-bottom:8px;">Sales by region:</p>' + buildSalesTable(salesData);
+                            break;
+                        case 3:
+                            panel.querySelector("h3").textContent = "Pie Chart Data";
+                            var total = salesData.reduce(function(s, r) { return s + r.sales; }, 0);
+                            var pieHtml = '<table class="data-table"><thead><tr><th>region</th><th>%</th></tr></thead><tbody>';
+                            salesData.forEach(function(row) {
+                                pieHtml += '<tr><td>' + row.region + '</td><td>' + Math.round(row.sales / total * 100) + '%</td></tr>';
+                            });
+                            pieHtml += '</tbody></table>';
+                            container.innerHTML = '<p style="color:#fbbc04;font-size:0.8em;margin-bottom:8px;">Share of total:</p>' + pieHtml;
+                            break;
+                        case 4:
+                            panel.querySelector("h3").textContent = "Live Data Flow";
+                            container.innerHTML = '<p style="color:#00ff00;font-size:0.8em;margin-bottom:8px;">Auto-refresh: 15min</p>' + buildSalesTable(salesData);
+                            break;
+                        case 5:
+                            panel.querySelector("h3").textContent = "Interactive Dashboard";
+                            container.innerHTML = '<p style="color:#00ffff;font-size:0.8em;margin-bottom:8px;">Click to refresh:</p>' + buildSalesTable(salesData);
+                            break;
+                    }
+                }
+
+                var steps = [
             {title:"Welcome to Looker Studio!",description:"Looker Studio is Google's <strong>free data visualization</strong> tool. Connect to BigQuery, Sheets, or 800+ data sources and create beautiful interactive dashboards!",detail:"Looker Studio: Free, powerful, and easy to use for everyone!",cameraPos:{x:0,y:15,z:25},cameraTarget:{x:0,y:0,z:0}},
             {title:"Step 1: Data Source",description:"The <strong>blue box</strong> at the bottom is your data source - usually BigQuery. Looker Studio connects directly to your data and queries it in real-time!",detail:"Data Sources: BigQuery, Google Sheets, MySQL, PostgreSQL, and 800+ connectors.",cameraPos:{x:0,y:5,z:20},cameraTarget:{x:0,y:-5,z:0}},
             {title:"Step 2: Bar Charts",description:"The <strong>colorful bars</strong> on the left are a bar chart - perfect for comparing values across categories. Each bar represents a different metric!",detail:"Bar Charts: Great for comparing sales by region, users by month, etc.",cameraPos:{x:-10,y:10,z:18},cameraTarget:{x:-4,y:3,z:0}},
@@ -148,20 +212,21 @@
             chartCount++;
             document.getElementById("charts").textContent = chartCount;
         }
-        function updateStep() {
-            var step = steps[currentStep];
-            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
-            document.getElementById("step-title").textContent = step.title;
-            document.getElementById("step-description").innerHTML = step.description;
-            document.getElementById("step-detail").innerHTML = step.detail;
-            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
-            document.getElementById("prev-btn").disabled = currentStep === 0;
-            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
-            animateCamera(step.cameraPos, step.cameraTarget);
-        }
-        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
-        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
-        function resetVisualization() { currentStep = 0; stopAutoPlay(); chartCount = 2; document.getElementById("charts").textContent = "2"; updateStep(); }
+                function updateStep() {
+                    var step = steps[currentStep];
+                    document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+                    document.getElementById("step-title").textContent = step.title;
+                    document.getElementById("step-description").innerHTML = step.description;
+                    document.getElementById("step-detail").innerHTML = step.detail;
+                    document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+                    document.getElementById("prev-btn").disabled = currentStep === 0;
+                    document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+                    animateCamera(step.cameraPos, step.cameraTarget);
+                    updateDataTableForStep(currentStep);
+                }
+                function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+                function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+                function resetVisualization() { currentStep = 0; stopAutoPlay(); chartCount = 2; document.getElementById("charts").textContent = "2"; updateStep(); }
         function animateCamera(targetPos, targetLookAt) {
             var startPos = camera.position.clone(), startTarget = controls.target.clone();
             var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
