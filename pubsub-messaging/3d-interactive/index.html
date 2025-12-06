@@ -3,279 +3,450 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pub/Sub Messaging - 3D Interactive Visualization</title>
+    <title>Pub/Sub - Learn How Google's Messaging System Works</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
-            color: #fff;
-            overflow: hidden;
-            height: 100vh;
-        }
-        #canvas-container { width: 100%; height: 100vh; }
-        #info-panel {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.85);
-            border: 1px solid #00ffff;
-            border-radius: 10px;
-            padding: 20px;
-            max-width: 320px;
-            z-index: 100;
-        }
-        #info-panel h1 { color: #00ffff; font-size: 1.4em; margin-bottom: 10px; }
-        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
-        #stats {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.85);
-            border: 1px solid #ff00ff;
-            border-radius: 10px;
-            padding: 15px;
-            z-index: 100;
-        }
-        #stats h3 { color: #ff00ff; margin-bottom: 10px; }
-        .stat-row { display: flex; justify-content: space-between; margin: 5px 0; font-size: 0.85em; }
-        .stat-label { color: #888; }
-        .stat-value { color: #00ff00; font-family: monospace; }
-        #controls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 15px;
-            z-index: 100;
-        }
-        .control-btn {
-            background: rgba(0, 255, 255, 0.1);
-            border: 1px solid #00ffff;
-            color: #00ffff;
-            padding: 10px 20px;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .control-btn:hover { background: rgba(0, 255, 255, 0.3); }
-        .control-btn.active { background: #00ffff; color: #000; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%); color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; position: relative; }
+        #title-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ff00ff; border-radius: 15px; padding: 20px; max-width: 380px; box-shadow: 0 0 30px rgba(255,0,255,0.4); z-index: 100; }
+        #title-panel h1 { color: #ff00ff; font-size: 1.8em; margin-bottom: 8px; text-shadow: 0 0 15px #ff00ff; }
+        #title-panel .subtitle { color: #00ffff; font-size: 1em; margin-bottom: 12px; }
+        #title-panel .intro { color: #ccc; font-size: 0.9em; line-height: 1.6; }
+        #step-panel { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.95); border: 2px solid #00ffff; border-radius: 15px; padding: 25px 35px; max-width: 750px; width: 90%; box-shadow: 0 0 40px rgba(0,255,255,0.4); z-index: 100; text-align: center; }
+        #step-indicator { color: #ff00ff; font-size: 0.85em; margin-bottom: 8px; letter-spacing: 2px; }
+        #step-title { color: #00ffff; font-size: 1.4em; margin-bottom: 12px; text-shadow: 0 0 10px #00ffff; }
+        #step-description { color: #fff; font-size: 1.05em; line-height: 1.7; margin-bottom: 12px; }
+        #step-detail { color: #00ff00; font-size: 0.9em; font-style: italic; padding: 10px 15px; background: rgba(0,255,0,0.1); border-radius: 8px; border-left: 3px solid #00ff00; text-align: left; }
+        #nav-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .nav-btn { background: rgba(255,0,255,0.1); border: 2px solid #ff00ff; color: #ff00ff; padding: 12px 25px; border-radius: 25px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px; }
+        .nav-btn:hover { background: rgba(255,0,255,0.3); box-shadow: 0 0 20px rgba(255,0,255,0.5); transform: translateY(-2px); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+        .nav-btn.primary { background: #ff00ff; color: #000; }
+        #progress-bar { position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%); width: 60%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; z-index: 100; }
+        #progress-fill { height: 100%; background: linear-gradient(90deg, #ff00ff, #00ffff); border-radius: 3px; transition: width 0.5s ease; box-shadow: 0 0 10px #ff00ff; }
+        #legend-panel { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ffff00; border-radius: 15px; padding: 15px; min-width: 200px; z-index: 100; }
+        #legend-panel h3 { color: #ffff00; margin-bottom: 12px; font-size: 1em; }
+        .legend-item { display: flex; align-items: center; margin: 8px 0; padding: 6px; border-radius: 6px; transition: background 0.3s; }
+        .legend-item.active { background: rgba(255,255,255,0.15); }
+        .legend-color { width: 18px; height: 18px; border-radius: 4px; margin-right: 10px; }
+        .legend-text .name { color: #fff; font-weight: bold; font-size: 0.85em; }
+        .legend-text .desc { color: #888; font-size: 0.75em; }
+        #metrics-panel { position: absolute; top: 280px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00ff00; border-radius: 15px; padding: 15px; min-width: 180px; z-index: 100; }
+        #metrics-panel h3 { color: #00ff00; margin-bottom: 10px; font-size: 0.95em; }
+        .metric-row { display: flex; justify-content: space-between; margin: 6px 0; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .metric-label { color: #888; font-size: 0.8em; }
+        .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
+        #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
+        .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #ff00ff, #00ffff); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; transition: all 0.3s ease; }
+        .sim-btn:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(255,0,255,0.5); }
+        #tooltip { position: absolute; background: rgba(0,0,0,0.95); border: 2px solid #00ffff; border-radius: 10px; padding: 12px; max-width: 280px; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 200; }
+        #tooltip.visible { opacity: 1; }
+        #tooltip h4 { color: #00ffff; margin-bottom: 6px; font-size: 0.95em; }
+        #tooltip p { color: #ccc; font-size: 0.85em; line-height: 1.4; }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+        .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #ff00ff; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div id="loading"><div class="loader"></div><p style="color: #ff00ff; font-size: 1.1em;">Loading Pub/Sub Visualization...</p></div>
     <div id="canvas-container"></div>
-    
-    <div id="info-panel">
-        <h1>Pub/Sub Message Swarm</h1>
-        <p>Watch billions of messages orbit through the Pub/Sub system. Each particle is a message flowing from publishers to subscribers through topics.</p>
-        <p style="margin-top: 10px; color: #00ffff;">The swarm represents real-time message throughput.</p>
+    <div id="title-panel">
+        <h1>Pub/Sub</h1>
+        <div class="subtitle">Google's Global Messaging Service</div>
+        <div class="intro">Imagine a <strong>super-fast post office</strong> that delivers billions of letters per second! Pub/Sub lets different parts of your system talk to each other without knowing about each other.</div>
     </div>
-
-    <div id="stats">
+    <div id="sim-controls">
+        <button class="sim-btn" onclick="publishMessages()">Publish Messages</button>
+        <button class="sim-btn" onclick="simulateNack()">Simulate Failed Delivery</button>
+        <button class="sim-btn" onclick="toggleAutoPlay()" id="autoplay-btn">Auto-Play Story</button>
+    </div>
+    <div id="step-panel">
+        <div id="step-indicator">STEP 1 OF 7</div>
+        <div id="step-title">Welcome to Pub/Sub!</div>
+        <div id="step-description">Let's learn how Pub/Sub delivers messages between systems. Click "Next" to begin!</div>
+        <div id="step-detail">Pub/Sub can handle millions of messages per second with global reach!</div>
+    </div>
+    <div id="progress-bar"><div id="progress-fill" style="width: 14.28%"></div></div>
+    <div id="nav-controls">
+        <button class="nav-btn" id="prev-btn" onclick="previousStep()" disabled>Previous</button>
+        <button class="nav-btn" onclick="resetVisualization()">Reset</button>
+        <button class="nav-btn primary" id="next-btn" onclick="nextStep()">Next</button>
+    </div>
+    <div id="legend-panel">
+        <h3>What You See</h3>
+        <div class="legend-item" id="legend-publisher"><div class="legend-color" style="background: #00ffff;"></div><div class="legend-text"><div class="name">Publisher</div><div class="desc">Sends messages</div></div></div>
+        <div class="legend-item" id="legend-topic"><div class="legend-color" style="background: #ff00ff;"></div><div class="legend-text"><div class="name">Topic</div><div class="desc">Message category</div></div></div>
+        <div class="legend-item" id="legend-subscription"><div class="legend-color" style="background: #ff6600;"></div><div class="legend-text"><div class="name">Subscription</div><div class="desc">Message queue</div></div></div>
+        <div class="legend-item" id="legend-subscriber"><div class="legend-color" style="background: #00ff00;"></div><div class="legend-text"><div class="name">Subscriber</div><div class="desc">Receives messages</div></div></div>
+        <div class="legend-item" id="legend-deadletter"><div class="legend-color" style="background: #ff4444;"></div><div class="legend-text"><div class="name">Dead Letter</div><div class="desc">Failed messages</div></div></div>
+    </div>
+    <div id="metrics-panel">
         <h3>Live Metrics</h3>
-        <div class="stat-row">
-            <span class="stat-label">Messages/sec:</span>
-            <span class="stat-value" id="msg-rate">0</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">Unacked:</span>
-            <span class="stat-value" id="unacked">0</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">Oldest Unacked:</span>
-            <span class="stat-value" id="oldest">0s</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">Subscriptions:</span>
-            <span class="stat-value" id="subs">3</span>
-        </div>
+        <div class="metric-row"><span class="metric-label">Published:</span><span class="metric-value" id="published">0</span></div>
+        <div class="metric-row"><span class="metric-label">Delivered:</span><span class="metric-value" id="delivered">0</span></div>
+        <div class="metric-row"><span class="metric-label">Pending:</span><span class="metric-value" id="pending">0</span></div>
+        <div class="metric-row"><span class="metric-label">Dead Letter:</span><span class="metric-value" id="deadletter">0</span></div>
     </div>
-
-    <div id="controls">
-        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
-        <button class="control-btn" onclick="burstMessages()">Burst Messages</button>
-        <button class="control-btn" onclick="resetCamera()">Reset View</button>
-    </div>
-
+    <div id="tooltip"><h4 id="tooltip-title">Component</h4><p id="tooltip-desc">Description</p></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        let scene, camera, renderer, controls;
-        let topic, subscriptions = [];
-        let messageParticles;
-        let isAnimating = true;
+        var scene, camera, renderer, controls;
+        var currentStep = 0;
+        var isAutoPlaying = false;
+        var autoPlayInterval = null;
+        var publishers = [], topic, subscriptions = [], subscribers = [], deadLetterQueue;
+        var messages = [];
+        var publishedCount = 0, deliveredCount = 0, pendingCount = 0, deadLetterCount = 0;
+
+        var steps = [
+            { title: "Welcome to Pub/Sub!", description: "Pub/Sub is like a <strong>super-fast post office</strong> for your applications. Instead of apps talking directly to each other, they send messages through Pub/Sub. This makes systems more reliable and scalable!", detail: "Pub = Publish (send), Sub = Subscribe (receive). It's a 'decoupled' messaging system.", highlight: [], cameraPos: { x: 25, y: 20, z: 25 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 1: Publishers Send Messages", description: "<strong>Publishers</strong> are applications that send messages. They don't need to know WHO will receive the message - they just send it to a Topic. Think of it like dropping a letter in a mailbox.", detail: "Publishers can be: web servers logging events, IoT devices sending sensor data, apps triggering workflows.", highlight: ["publisher"], cameraPos: { x: -15, y: 12, z: 15 }, cameraTarget: { x: -8, y: 0, z: 0 } },
+            { title: "Step 2: Topics Organize Messages", description: "A <strong>Topic</strong> is like a category or channel. All messages about the same thing go to the same topic. For example: 'orders', 'user-signups', 'sensor-readings'.", detail: "Topics are named resources. Example: projects/my-project/topics/orders", highlight: ["topic"], cameraPos: { x: 0, y: 15, z: 18 }, cameraTarget: { x: 0, y: 2, z: 0 } },
+            { title: "Step 3: Subscriptions Queue Messages", description: "<strong>Subscriptions</strong> are like mailboxes attached to a topic. Each subscription gets a COPY of every message. Multiple subscriptions = multiple copies = fan-out pattern!", detail: "One topic can have many subscriptions. Each subscription delivers to different systems independently.", highlight: ["subscription"], cameraPos: { x: 8, y: 12, z: 15 }, cameraTarget: { x: 5, y: 0, z: 0 } },
+            { title: "Step 4: Subscribers Receive Messages", description: "<strong>Subscribers</strong> pull messages from subscriptions (or get them pushed). After processing, they send an <strong>ACK</strong> (acknowledgment) to confirm receipt.", detail: "Pull = subscriber asks for messages. Push = Pub/Sub sends to an endpoint (like Cloud Run).", highlight: ["subscriber"], cameraPos: { x: 15, y: 10, z: 15 }, cameraTarget: { x: 10, y: 0, z: 0 } },
+            { title: "Step 5: What If Delivery Fails?", description: "If a subscriber can't process a message, it sends a <strong>NACK</strong> (negative acknowledgment). Pub/Sub will retry! After too many failures, the message goes to a <strong>Dead Letter Queue</strong>.", detail: "Dead Letter Queue = a special topic for failed messages. You can investigate and reprocess them later.", highlight: ["deadletter"], cameraPos: { x: 12, y: 8, z: -12 }, cameraTarget: { x: 8, y: -3, z: -5 } },
+            { title: "Step 6: Why Use Pub/Sub?", description: "Pub/Sub provides: <strong>Decoupling</strong> (systems don't need to know about each other), <strong>Scalability</strong> (handles millions of messages), <strong>Reliability</strong> (at-least-once delivery), and <strong>Global reach</strong>!", detail: "Use cases: Event-driven architectures, streaming analytics, async workflows, IoT data ingestion.", highlight: ["publisher", "topic", "subscriber"], cameraPos: { x: 22, y: 18, z: 22 }, cameraTarget: { x: 0, y: 0, z: 0 } }
+        ];
+
+        var componentInfo = {
+            publisher: { title: "Publisher", desc: "An application that sends messages to a topic. Doesn't know or care who receives them." },
+            topic: { title: "Topic", desc: "A named resource that organizes messages by category. Publishers send here, subscriptions attach here." },
+            subscription: { title: "Subscription", desc: "A named resource representing a message queue. Gets a copy of every message from its topic." },
+            subscriber: { title: "Subscriber", desc: "An application that receives and processes messages from a subscription." },
+            deadletter: { title: "Dead Letter Queue", desc: "A special topic where failed messages go after too many delivery attempts." }
+        };
 
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x0a0a0a);
-
+            scene.fog = new THREE.FogExp2(0x0a0a0a, 0.012);
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 20, 30);
-
+            camera.position.set(25, 20, 25);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
-
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById("canvas-container").appendChild(renderer.domElement);
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
-
-            // Lights
-            scene.add(new THREE.AmbientLight(0x404040, 0.5));
-            const light = new THREE.PointLight(0x00ffff, 1, 100);
-            light.position.set(0, 20, 0);
-            scene.add(light);
-
-            // Create Topic (central sphere)
-            const topicGeom = new THREE.IcosahedronGeometry(3, 2);
-            const topicMat = new THREE.MeshPhongMaterial({
-                color: 0x00ffff,
-                emissive: 0x00ffff,
-                emissiveIntensity: 0.5,
-                wireframe: true
-            });
-            topic = new THREE.Mesh(topicGeom, topicMat);
-            scene.add(topic);
-
-            // Create Subscriptions (orbiting cubes)
-            const subColors = [0xff00ff, 0x00ff00, 0xffff00];
-            for (let i = 0; i < 3; i++) {
-                const subGeom = new THREE.BoxGeometry(2, 2, 2);
-                const subMat = new THREE.MeshPhongMaterial({
-                    color: subColors[i],
-                    emissive: subColors[i],
-                    emissiveIntensity: 0.3
-                });
-                const sub = new THREE.Mesh(subGeom, subMat);
-                sub.userData = { angle: (i * Math.PI * 2) / 3, radius: 12, speed: 0.01 };
-                subscriptions.push(sub);
-                scene.add(sub);
-            }
-
-            // Create Message Particles (swarm)
-            const particleCount = 2000;
-            const positions = new Float32Array(particleCount * 3);
-            const colors = new Float32Array(particleCount * 3);
-
-            for (let i = 0; i < particleCount; i++) {
-                const theta = Math.random() * Math.PI * 2;
-                const phi = Math.random() * Math.PI;
-                const r = 5 + Math.random() * 10;
-                
-                positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-                positions[i * 3 + 1] = r * Math.cos(phi);
-                positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
-
-                const color = new THREE.Color().setHSL(Math.random() * 0.3 + 0.5, 1, 0.5);
-                colors[i * 3] = color.r;
-                colors[i * 3 + 1] = color.g;
-                colors[i * 3 + 2] = color.b;
-            }
-
-            const particleGeom = new THREE.BufferGeometry();
-            particleGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            particleGeom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-            const particleMat = new THREE.PointsMaterial({
-                size: 0.15,
-                vertexColors: true,
-                transparent: true,
-                opacity: 0.8,
-                blending: THREE.AdditiveBlending
-            });
-
-            messageParticles = new THREE.Points(particleGeom, particleMat);
-            scene.add(messageParticles);
-
-            // Grid
-            const grid = new THREE.GridHelper(40, 40, 0x00ffff, 0x1a1a2e);
-            grid.position.y = -10;
-            scene.add(grid);
-
-            window.addEventListener('resize', onResize);
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 10;
+            controls.maxDistance = 60;
+            setupLighting();
+            createPublishers();
+            createTopic();
+            createSubscriptions();
+            createSubscribers();
+            createDeadLetterQueue();
+            createConnections();
+            createGrid();
+            window.addEventListener("resize", onWindowResize);
+            renderer.domElement.addEventListener("mousemove", onMouseMove);
+            setTimeout(function() { document.getElementById("loading").style.display = "none"; }, 800);
             animate();
-            simulateMetrics();
+            updateStep();
         }
 
-        function animate() {
-            requestAnimationFrame(animate);
+        function setupLighting() {
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            var l1 = new THREE.PointLight(0xff00ff, 1.5, 100); l1.position.set(0, 25, 0); scene.add(l1);
+            var l2 = new THREE.PointLight(0x00ffff, 1.2, 100); l2.position.set(-20, 15, 10); scene.add(l2);
+            var l3 = new THREE.PointLight(0x00ff00, 0.8, 100); l3.position.set(20, 15, -10); scene.add(l3);
+        }
 
-            if (isAnimating) {
-                // Rotate topic
-                topic.rotation.y += 0.005;
-                topic.rotation.x += 0.002;
+        function createPublishers() {
+            var positions = [{ x: -10, z: 4 }, { x: -10, z: 0 }, { x: -10, z: -4 }];
+            for (var i = 0; i < positions.length; i++) {
+                var group = new THREE.Group();
+                var geo = new THREE.SphereGeometry(1.2, 32, 32);
+                var mat = new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.5, transparent: true, opacity: 0.9 });
+                group.add(new THREE.Mesh(geo, mat));
+                var glowGeo = new THREE.SphereGeometry(1.5, 32, 32);
+                var glowMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.15, side: THREE.BackSide });
+                group.add(new THREE.Mesh(glowGeo, glowMat));
+                group.position.set(positions[i].x, 0, positions[i].z);
+                group.userData = { type: "publisher", index: i };
+                scene.add(group);
+                publishers.push(group);
+            }
+        }
 
-                // Orbit subscriptions
-                subscriptions.forEach(sub => {
-                    sub.userData.angle += sub.userData.speed;
-                    sub.position.x = Math.cos(sub.userData.angle) * sub.userData.radius;
-                    sub.position.z = Math.sin(sub.userData.angle) * sub.userData.radius;
-                    sub.rotation.y += 0.02;
-                });
+        function createTopic() {
+            var group = new THREE.Group();
+            var geo = new THREE.CylinderGeometry(2.5, 2.5, 4, 6);
+            var mat = new THREE.MeshPhongMaterial({ color: 0xff00ff, emissive: 0xff00ff, emissiveIntensity: 0.5, transparent: true, opacity: 0.9 });
+            group.add(new THREE.Mesh(geo, mat));
+            var wireGeo = new THREE.CylinderGeometry(2.7, 2.7, 4.2, 6);
+            var wireMat = new THREE.MeshBasicMaterial({ color: 0xff00ff, wireframe: true, transparent: true, opacity: 0.3 });
+            group.add(new THREE.Mesh(wireGeo, wireMat));
+            group.position.set(0, 2, 0);
+            group.userData = { type: "topic" };
+            scene.add(group);
+            topic = group;
+        }
 
-                // Animate message swarm
-                const positions = messageParticles.geometry.attributes.position.array;
-                for (let i = 0; i < positions.length; i += 3) {
-                    const x = positions[i];
-                    const y = positions[i + 1];
-                    const z = positions[i + 2];
-                    
-                    // Orbital motion around topic
-                    const angle = Math.atan2(z, x) + 0.01;
-                    const r = Math.sqrt(x * x + z * z);
-                    positions[i] = r * Math.cos(angle);
-                    positions[i + 2] = r * Math.sin(angle);
-                    positions[i + 1] += (Math.random() - 0.5) * 0.1;
-                    
-                    // Keep within bounds
-                    if (Math.abs(positions[i + 1]) > 10) {
-                        positions[i + 1] *= 0.9;
+        function createSubscriptions() {
+            var positions = [{ x: 6, z: 4 }, { x: 6, z: -4 }];
+            for (var i = 0; i < positions.length; i++) {
+                var group = new THREE.Group();
+                var geo = new THREE.BoxGeometry(2, 2, 2);
+                var mat = new THREE.MeshPhongMaterial({ color: 0xff6600, emissive: 0xff6600, emissiveIntensity: 0.4, transparent: true, opacity: 0.9 });
+                group.add(new THREE.Mesh(geo, mat));
+                var wireGeo = new THREE.BoxGeometry(2.2, 2.2, 2.2);
+                var wireMat = new THREE.MeshBasicMaterial({ color: 0xff6600, wireframe: true, transparent: true, opacity: 0.3 });
+                group.add(new THREE.Mesh(wireGeo, wireMat));
+                group.position.set(positions[i].x, 0, positions[i].z);
+                group.userData = { type: "subscription", index: i };
+                scene.add(group);
+                subscriptions.push(group);
+            }
+        }
+
+        function createSubscribers() {
+            var positions = [{ x: 12, z: 4 }, { x: 12, z: -4 }];
+            for (var i = 0; i < positions.length; i++) {
+                var group = new THREE.Group();
+                var geo = new THREE.ConeGeometry(1.2, 2.5, 32);
+                var mat = new THREE.MeshPhongMaterial({ color: 0x00ff00, emissive: 0x00ff00, emissiveIntensity: 0.5, transparent: true, opacity: 0.9 });
+                group.add(new THREE.Mesh(geo, mat));
+                var glowGeo = new THREE.ConeGeometry(1.5, 2.8, 32);
+                var glowMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.15, side: THREE.BackSide });
+                group.add(new THREE.Mesh(glowGeo, glowMat));
+                group.position.set(positions[i].x, 0, positions[i].z);
+                group.userData = { type: "subscriber", index: i };
+                scene.add(group);
+                subscribers.push(group);
+            }
+        }
+
+        function createDeadLetterQueue() {
+            var group = new THREE.Group();
+            var geo = new THREE.BoxGeometry(2, 2, 2);
+            var mat = new THREE.MeshPhongMaterial({ color: 0xff4444, emissive: 0xff4444, emissiveIntensity: 0.5, transparent: true, opacity: 0.9 });
+            group.add(new THREE.Mesh(geo, mat));
+            var wireGeo = new THREE.BoxGeometry(2.2, 2.2, 2.2);
+            var wireMat = new THREE.MeshBasicMaterial({ color: 0xff4444, wireframe: true, transparent: true, opacity: 0.4 });
+            group.add(new THREE.Mesh(wireGeo, wireMat));
+            group.position.set(6, -4, -8);
+            group.userData = { type: "deadletter" };
+            scene.add(group);
+            deadLetterQueue = group;
+        }
+
+        function createConnections() {
+            function createLine(start, end, color) {
+                var mat = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.4 });
+                var geo = new THREE.BufferGeometry().setFromPoints([start, end]);
+                scene.add(new THREE.Line(geo, mat));
+            }
+            for (var i = 0; i < publishers.length; i++) {
+                createLine(publishers[i].position.clone().setX(-8.5), new THREE.Vector3(-2.5, 2, 0), 0x00ffff);
+            }
+            for (var j = 0; j < subscriptions.length; j++) {
+                createLine(new THREE.Vector3(2.5, 2, 0), subscriptions[j].position.clone().setX(5), 0xff00ff);
+                createLine(subscriptions[j].position.clone().setX(7), subscribers[j].position.clone().setX(10.5), 0xff6600);
+            }
+            createLine(subscriptions[1].position.clone(), deadLetterQueue.position.clone(), 0xff4444);
+        }
+
+        function createGrid() {
+            var grid = new THREE.GridHelper(50, 50, 0xff00ff, 0x1a1a2e);
+            grid.position.y = -3;
+            grid.material.opacity = 0.25;
+            grid.material.transparent = true;
+            scene.add(grid);
+        }
+
+        function updateStep() {
+            var step = steps[currentStep];
+            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+            document.getElementById("step-title").textContent = step.title;
+            document.getElementById("step-description").innerHTML = step.description;
+            document.getElementById("step-detail").innerHTML = step.detail;
+            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+            document.getElementById("prev-btn").disabled = currentStep === 0;
+            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+            animateCamera(step.cameraPos, step.cameraTarget);
+            highlightComponents(step.highlight);
+        }
+
+        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+        function resetVisualization() {
+            currentStep = 0; stopAutoPlay(); updateStep();
+            publishedCount = 0; deliveredCount = 0; pendingCount = 0; deadLetterCount = 0;
+            updateMetrics();
+            for (var i = 0; i < messages.length; i++) scene.remove(messages[i]);
+            messages = [];
+        }
+
+        function updateMetrics() {
+            document.getElementById("published").textContent = publishedCount;
+            document.getElementById("delivered").textContent = deliveredCount;
+            document.getElementById("pending").textContent = pendingCount;
+            document.getElementById("deadletter").textContent = deadLetterCount;
+        }
+
+        function animateCamera(targetPos, targetLookAt) {
+            var startPos = camera.position.clone();
+            var startTarget = controls.target.clone();
+            var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
+            var endTarget = new THREE.Vector3(targetLookAt.x, targetLookAt.y, targetLookAt.z);
+            var startTime = Date.now();
+            function anim() {
+                var progress = Math.min((Date.now() - startTime) / 1000, 1);
+                var eased = 1 - Math.pow(1 - progress, 3);
+                camera.position.lerpVectors(startPos, endPos, eased);
+                controls.target.lerpVectors(startTarget, endTarget, eased);
+                if (progress < 1) requestAnimationFrame(anim);
+            }
+            anim();
+        }
+
+        function highlightComponents(types) {
+            var allObjects = [topic, deadLetterQueue].concat(publishers).concat(subscriptions).concat(subscribers);
+            for (var i = 0; i < allObjects.length; i++) {
+                var obj = allObjects[i];
+                if (obj) obj.traverse(function(c) { if (c.material && c.material.emissiveIntensity !== undefined) c.material.emissiveIntensity = 0.2; });
+            }
+            for (var j = 0; j < types.length; j++) {
+                var type = types[j];
+                if (type === "publisher") { for (var k = 0; k < publishers.length; k++) pulseObject(publishers[k]); }
+                else if (type === "topic") pulseObject(topic);
+                else if (type === "subscription") { for (var l = 0; l < subscriptions.length; l++) pulseObject(subscriptions[l]); }
+                else if (type === "subscriber") { for (var m = 0; m < subscribers.length; m++) pulseObject(subscribers[m]); }
+                else if (type === "deadletter") pulseObject(deadLetterQueue);
+            }
+        }
+
+        function pulseObject(obj) {
+            if (obj) obj.traverse(function(c) { if (c.material && c.material.emissiveIntensity !== undefined) c.material.emissiveIntensity = 0.8; });
+        }
+
+        function publishMessages() {
+            for (var i = 0; i < 5; i++) {
+                (function(idx) {
+                    setTimeout(function() { createMessage(publishers[idx % publishers.length].position.clone()); }, idx * 200);
+                })(i);
+            }
+        }
+
+        function createMessage(startPos) {
+            var geo = new THREE.SphereGeometry(0.3, 8, 8);
+            var mat = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.9 });
+            var msg = new THREE.Mesh(geo, mat);
+            msg.position.copy(startPos);
+            msg.userData = { phase: "toTopic", target: topic.position.clone(), speed: 0.15, failed: false };
+            scene.add(msg);
+            messages.push(msg);
+            publishedCount++;
+            pendingCount++;
+            updateMetrics();
+        }
+
+        function simulateNack() {
+            for (var i = 0; i < 3; i++) {
+                (function(idx) {
+                    setTimeout(function() {
+                        var msg = createMessage(publishers[0].position.clone());
+                        if (messages.length > 0) messages[messages.length - 1].userData.failed = true;
+                    }, idx * 300);
+                })(i);
+            }
+        }
+
+        function toggleAutoPlay() { if (isAutoPlaying) stopAutoPlay(); else startAutoPlay(); }
+        function startAutoPlay() {
+            isAutoPlaying = true;
+            document.getElementById("autoplay-btn").textContent = "Pause Story";
+            autoPlayInterval = setInterval(function() { if (currentStep < steps.length - 1) nextStep(); else stopAutoPlay(); }, 5000);
+        }
+        function stopAutoPlay() {
+            isAutoPlaying = false;
+            document.getElementById("autoplay-btn").textContent = "Auto-Play Story";
+            if (autoPlayInterval) { clearInterval(autoPlayInterval); autoPlayInterval = null; }
+        }
+
+        var raycaster = new THREE.Raycaster();
+        var mouse = new THREE.Vector2();
+        function onMouseMove(e) {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            var allObjects = [topic, deadLetterQueue].concat(publishers).concat(subscriptions).concat(subscribers);
+            var intersects = raycaster.intersectObjects(allObjects, true);
+            var tooltip = document.getElementById("tooltip");
+            if (intersects.length > 0) {
+                var obj = intersects[0].object;
+                while (obj.parent && !obj.userData.type) obj = obj.parent;
+                if (obj.userData.type) {
+                    var info = componentInfo[obj.userData.type];
+                    if (info) {
+                        tooltip.classList.add("visible");
+                        document.getElementById("tooltip-title").textContent = info.title;
+                        document.getElementById("tooltip-desc").textContent = info.desc;
+                        tooltip.style.left = (e.clientX + 15) + "px";
+                        tooltip.style.top = (e.clientY + 15) + "px";
+                        document.body.style.cursor = "pointer";
+                        return;
                     }
                 }
-                messageParticles.geometry.attributes.position.needsUpdate = true;
             }
-
-            controls.update();
-            renderer.render(scene, camera);
+            tooltip.classList.remove("visible");
+            document.body.style.cursor = "default";
         }
 
-        function onResize() {
+        function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        function toggleAnimation() {
-            isAnimating = !isAnimating;
-            event.target.textContent = isAnimating ? 'Pause' : 'Resume';
-            event.target.classList.toggle('active');
-        }
-
-        function burstMessages() {
-            // Add burst effect
-            const positions = messageParticles.geometry.attributes.position.array;
-            for (let i = 0; i < 100; i++) {
-                const idx = Math.floor(Math.random() * (positions.length / 3)) * 3;
-                positions[idx] *= 1.5;
-                positions[idx + 2] *= 1.5;
+        function animate() {
+            requestAnimationFrame(animate);
+            var t = Date.now() * 0.001;
+            if (topic) topic.rotation.y = t * 0.3;
+            for (var i = 0; i < publishers.length; i++) { publishers[i].position.y = Math.sin(t * 2 + i) * 0.2; }
+            for (var j = 0; j < subscriptions.length; j++) { subscriptions[j].rotation.y = t * 0.5 + j; }
+            for (var k = 0; k < subscribers.length; k++) { subscribers[k].rotation.y = -t * 0.4; subscribers[k].position.y = Math.sin(t * 1.5 + k) * 0.15; }
+            if (deadLetterQueue) { deadLetterQueue.rotation.x = t * 0.3; deadLetterQueue.rotation.z = t * 0.2; }
+            for (var m = messages.length - 1; m >= 0; m--) {
+                var msg = messages[m];
+                var dir = new THREE.Vector3().subVectors(msg.userData.target, msg.position);
+                if (dir.length() < 0.5) {
+                    if (msg.userData.phase === "toTopic") {
+                        msg.userData.phase = "toSub";
+                        msg.userData.target = subscriptions[Math.floor(Math.random() * subscriptions.length)].position.clone();
+                    } else if (msg.userData.phase === "toSub") {
+                        if (msg.userData.failed) {
+                            msg.userData.phase = "toDead";
+                            msg.userData.target = deadLetterQueue.position.clone();
+                        } else {
+                            msg.userData.phase = "toSubscriber";
+                            msg.userData.target = subscribers[Math.floor(Math.random() * subscribers.length)].position.clone();
+                        }
+                    } else if (msg.userData.phase === "toSubscriber") {
+                        scene.remove(msg);
+                        messages.splice(m, 1);
+                        deliveredCount++;
+                        pendingCount--;
+                        updateMetrics();
+                        continue;
+                    } else if (msg.userData.phase === "toDead") {
+                        scene.remove(msg);
+                        messages.splice(m, 1);
+                        deadLetterCount++;
+                        pendingCount--;
+                        updateMetrics();
+                        continue;
+                    }
+                }
+                dir.normalize().multiplyScalar(msg.userData.speed);
+                msg.position.add(dir);
             }
-            messageParticles.geometry.attributes.position.needsUpdate = true;
-        }
-
-        function resetCamera() {
-            camera.position.set(0, 20, 30);
-            controls.target.set(0, 0, 0);
-        }
-
-        function simulateMetrics() {
-            setInterval(() => {
-                document.getElementById('msg-rate').textContent = 
-                    Math.floor(Math.random() * 100000 + 50000).toLocaleString();
-                document.getElementById('unacked').textContent = 
-                    Math.floor(Math.random() * 5000);
-                document.getElementById('oldest').textContent = 
-                    Math.floor(Math.random() * 30) + 's';
-            }, 2000);
+            controls.update();
+            renderer.render(scene, camera);
         }
 
         init();

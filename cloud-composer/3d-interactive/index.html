@@ -3,274 +3,454 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloud Composer DAG - 3D Interactive Visualization</title>
+    <title>Cloud Composer - Learn How Google's Workflow Orchestration Works</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
-            color: #fff;
-            overflow: hidden;
-            height: 100vh;
-        }
-        #canvas-container { width: 100%; height: 100vh; }
-        #info-panel {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.85);
-            border: 1px solid #017cee;
-            border-radius: 10px;
-            padding: 20px;
-            max-width: 320px;
-            z-index: 100;
-        }
-        #info-panel h1 { color: #017cee; font-size: 1.4em; margin-bottom: 10px; }
-        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
-        #dag-status {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.85);
-            border: 1px solid #00ff00;
-            border-radius: 10px;
-            padding: 15px;
-            z-index: 100;
-        }
-        #dag-status h3 { color: #00ff00; margin-bottom: 10px; }
-        .task-status { display: flex; align-items: center; margin: 8px 0; font-size: 0.85em; }
-        .status-dot { width: 12px; height: 12px; border-radius: 50%; margin-right: 10px; }
-        .status-success { background: #00ff00; }
-        .status-running { background: #ffff00; animation: pulse 1s infinite; }
-        .status-pending { background: #888; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        #controls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 15px;
-            z-index: 100;
-        }
-        .control-btn {
-            background: rgba(1, 124, 238, 0.1);
-            border: 1px solid #017cee;
-            color: #017cee;
-            padding: 10px 20px;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .control-btn:hover { background: rgba(1, 124, 238, 0.3); }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%); color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; position: relative; }
+        #title-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00ff00; border-radius: 15px; padding: 20px; max-width: 380px; box-shadow: 0 0 30px rgba(0,255,0,0.4); z-index: 100; }
+        #title-panel h1 { color: #00ff00; font-size: 1.8em; margin-bottom: 8px; text-shadow: 0 0 15px #00ff00; }
+        #title-panel .subtitle { color: #ff6600; font-size: 1em; margin-bottom: 12px; }
+        #title-panel .intro { color: #ccc; font-size: 0.9em; line-height: 1.6; }
+        #step-panel { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.95); border: 2px solid #ff6600; border-radius: 15px; padding: 25px 35px; max-width: 750px; width: 90%; box-shadow: 0 0 40px rgba(255,102,0,0.4); z-index: 100; text-align: center; }
+        #step-indicator { color: #00ff00; font-size: 0.85em; margin-bottom: 8px; letter-spacing: 2px; }
+        #step-title { color: #ff6600; font-size: 1.4em; margin-bottom: 12px; text-shadow: 0 0 10px #ff6600; }
+        #step-description { color: #fff; font-size: 1.05em; line-height: 1.7; margin-bottom: 12px; }
+        #step-detail { color: #00ffff; font-size: 0.9em; font-style: italic; padding: 10px 15px; background: rgba(0,255,255,0.1); border-radius: 8px; border-left: 3px solid #00ffff; text-align: left; }
+        #nav-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .nav-btn { background: rgba(0,255,0,0.1); border: 2px solid #00ff00; color: #00ff00; padding: 12px 25px; border-radius: 25px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px; }
+        .nav-btn:hover { background: rgba(0,255,0,0.3); box-shadow: 0 0 20px rgba(0,255,0,0.5); transform: translateY(-2px); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+        .nav-btn.primary { background: #00ff00; color: #000; }
+        #progress-bar { position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%); width: 60%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; z-index: 100; }
+        #progress-fill { height: 100%; background: linear-gradient(90deg, #00ff00, #ff6600); border-radius: 3px; transition: width 0.5s ease; box-shadow: 0 0 10px #00ff00; }
+        #legend-panel { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ffff00; border-radius: 15px; padding: 15px; min-width: 200px; z-index: 100; }
+        #legend-panel h3 { color: #ffff00; margin-bottom: 12px; font-size: 1em; }
+        .legend-item { display: flex; align-items: center; margin: 8px 0; padding: 6px; border-radius: 6px; transition: background 0.3s; }
+        .legend-item.active { background: rgba(255,255,255,0.15); }
+        .legend-color { width: 18px; height: 18px; border-radius: 4px; margin-right: 10px; }
+        .legend-text .name { color: #fff; font-weight: bold; font-size: 0.85em; }
+        .legend-text .desc { color: #888; font-size: 0.75em; }
+        #metrics-panel { position: absolute; top: 280px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00ffff; border-radius: 15px; padding: 15px; min-width: 180px; z-index: 100; }
+        #metrics-panel h3 { color: #00ffff; margin-bottom: 10px; font-size: 0.95em; }
+        .metric-row { display: flex; justify-content: space-between; margin: 6px 0; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .metric-label { color: #888; font-size: 0.8em; }
+        .metric-value { color: #00ffff; font-family: monospace; font-weight: bold; font-size: 0.85em; }
+        #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
+        .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #00ff00, #ff6600); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; transition: all 0.3s ease; }
+        .sim-btn:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(0,255,0,0.5); }
+        #tooltip { position: absolute; background: rgba(0,0,0,0.95); border: 2px solid #ff6600; border-radius: 10px; padding: 12px; max-width: 280px; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 200; }
+        #tooltip.visible { opacity: 1; }
+        #tooltip h4 { color: #ff6600; margin-bottom: 6px; font-size: 0.95em; }
+        #tooltip p { color: #ccc; font-size: 0.85em; line-height: 1.4; }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+        .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #00ff00; border-right: 4px solid #ff6600; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div id="loading"><div class="loader"></div><p style="color: #00ff00; font-size: 1.1em;">Loading Cloud Composer Visualization...</p></div>
     <div id="canvas-container"></div>
-    
-    <div id="info-panel">
-        <h1>DAG Execution Flow</h1>
-        <p>Visualize a Directed Acyclic Graph (DAG) executing tasks. Watch data flow through the pipeline as tasks complete.</p>
-        <p style="margin-top: 10px; color: #017cee;">Click tasks to see details.</p>
+    <div id="title-panel">
+        <h1>Cloud Composer</h1>
+        <div class="subtitle">Managed Apache Airflow for Workflow Orchestration</div>
+        <div class="intro">Imagine a <strong>smart conductor</strong> leading an orchestra! Cloud Composer coordinates complex data workflows, making sure each task runs in the right order at the right time.</div>
     </div>
-
-    <div id="dag-status">
-        <h3>DAG: daily_etl_pipeline</h3>
-        <div class="task-status">
-            <div class="status-dot status-success"></div>
-            <span>extract_data</span>
-        </div>
-        <div class="task-status">
-            <div class="status-dot status-success"></div>
-            <span>transform_data</span>
-        </div>
-        <div class="task-status">
-            <div class="status-dot status-running"></div>
-            <span>load_to_bigquery</span>
-        </div>
-        <div class="task-status">
-            <div class="status-dot status-pending"></div>
-            <span>validate_data</span>
-        </div>
-        <div class="task-status">
-            <div class="status-dot status-pending"></div>
-            <span>send_notification</span>
-        </div>
+    <div id="sim-controls">
+        <button class="sim-btn" onclick="runDAG()">Run DAG</button>
+        <button class="sim-btn" onclick="simulateFailure()">Simulate Task Failure</button>
+        <button class="sim-btn" onclick="toggleAutoPlay()" id="autoplay-btn">Auto-Play Story</button>
     </div>
-
-    <div id="controls">
-        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
-        <button class="control-btn" onclick="triggerDag()">Trigger DAG</button>
-        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    <div id="step-panel">
+        <div id="step-indicator">STEP 1 OF 7</div>
+        <div id="step-title">Welcome to Cloud Composer!</div>
+        <div id="step-description">Let's learn how Cloud Composer orchestrates complex data workflows. Click "Next" to begin!</div>
+        <div id="step-detail">Cloud Composer is managed Apache Airflow - the industry standard for workflow orchestration!</div>
     </div>
-
+    <div id="progress-bar"><div id="progress-fill" style="width: 14.28%"></div></div>
+    <div id="nav-controls">
+        <button class="nav-btn" id="prev-btn" onclick="previousStep()" disabled>Previous</button>
+        <button class="nav-btn" onclick="resetVisualization()">Reset</button>
+        <button class="nav-btn primary" id="next-btn" onclick="nextStep()">Next</button>
+    </div>
+    <div id="legend-panel">
+        <h3>What You See</h3>
+        <div class="legend-item" id="legend-scheduler"><div class="legend-color" style="background: #00ffff;"></div><div class="legend-text"><div class="name">Scheduler</div><div class="desc">Triggers DAGs</div></div></div>
+        <div class="legend-item" id="legend-dag"><div class="legend-color" style="background: #ff6600;"></div><div class="legend-text"><div class="name">DAG</div><div class="desc">Workflow definition</div></div></div>
+        <div class="legend-item" id="legend-task"><div class="legend-color" style="background: #00ff00;"></div><div class="legend-text"><div class="name">Task</div><div class="desc">Single unit of work</div></div></div>
+        <div class="legend-item" id="legend-dependency"><div class="legend-color" style="background: #ff00ff;"></div><div class="legend-text"><div class="name">Dependency</div><div class="desc">Task order</div></div></div>
+        <div class="legend-item" id="legend-worker"><div class="legend-color" style="background: #ffff00;"></div><div class="legend-text"><div class="name">Worker</div><div class="desc">Executes tasks</div></div></div>
+    </div>
+    <div id="metrics-panel">
+        <h3>DAG Status</h3>
+        <div class="metric-row"><span class="metric-label">DAG Runs:</span><span class="metric-value" id="dag-runs">0</span></div>
+        <div class="metric-row"><span class="metric-label">Tasks Complete:</span><span class="metric-value" id="tasks-complete">0</span></div>
+        <div class="metric-row"><span class="metric-label">Tasks Failed:</span><span class="metric-value" id="tasks-failed">0</span></div>
+        <div class="metric-row"><span class="metric-label">Status:</span><span class="metric-value" id="dag-status">Idle</span></div>
+    </div>
+    <div id="tooltip"><h4 id="tooltip-title">Component</h4><p id="tooltip-desc">Description</p></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        let scene, camera, renderer, controls;
-        let tasks = [];
-        let connections = [];
-        let dataParticles = [];
-        let isAnimating = true;
+        var scene, camera, renderer, controls;
+        var currentStep = 0;
+        var isAutoPlaying = false;
+        var autoPlayInterval = null;
+        var scheduler, tasks = [], workers = [], dependencies = [];
+        var dagRuns = 0, tasksComplete = 0, tasksFailed = 0;
+        var isRunning = false;
 
-        const taskData = [
-            { name: 'extract', x: -12, y: 0, z: 0, color: 0x00ff00 },
-            { name: 'transform', x: -4, y: 3, z: 0, color: 0x00ff00 },
-            { name: 'load', x: 4, y: 0, z: 0, color: 0xffff00 },
-            { name: 'validate', x: 12, y: 3, z: 0, color: 0x888888 },
-            { name: 'notify', x: 12, y: -3, z: 0, color: 0x888888 }
+        var steps = [
+            { title: "Welcome to Cloud Composer!", description: "Cloud Composer is like a <strong>smart conductor</strong> for your data workflows. It makes sure tasks run in the right order, handles failures, and keeps everything on schedule!", detail: "Built on Apache Airflow, the most popular open-source workflow orchestration tool.", highlight: [], cameraPos: { x: 25, y: 20, z: 25 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 1: What is a DAG?", description: "A <strong>DAG</strong> (Directed Acyclic Graph) is your workflow definition. It's like a recipe that says: 'First do A, then B and C together, then D'. The arrows show which tasks depend on others.", detail: "DAG = Directed (has direction), Acyclic (no loops), Graph (connected nodes). Written in Python!", highlight: ["dag"], cameraPos: { x: 0, y: 25, z: 20 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 2: The Scheduler Triggers DAGs", description: "The <strong>Scheduler</strong> is the brain of Composer. It watches the clock and triggers DAGs based on their schedule (hourly, daily, etc.). It also decides which tasks are ready to run.", detail: "Schedules use cron expressions: '0 * * * *' = every hour, '0 0 * * *' = daily at midnight.", highlight: ["scheduler"], cameraPos: { x: -15, y: 15, z: 15 }, cameraTarget: { x: -8, y: 5, z: 0 } },
+            { title: "Step 3: Tasks Are Units of Work", description: "Each <strong>Task</strong> is a single unit of work - like 'extract data from API', 'transform with SQL', or 'load to BigQuery'. Tasks are defined using Operators (pre-built templates).", detail: "Common operators: BashOperator, PythonOperator, BigQueryOperator, DataflowOperator, GCSOperator.", highlight: ["task"], cameraPos: { x: 10, y: 12, z: 18 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 4: Dependencies Control Order", description: "<strong>Dependencies</strong> (the arrows) control task order. A task won't start until ALL its upstream tasks succeed. This ensures data is ready before the next step!", detail: "In Python: task_a >> task_b means 'task_b depends on task_a'. You can also use task_a >> [task_b, task_c] for parallel tasks.", highlight: ["dependency"], cameraPos: { x: 5, y: 18, z: 15 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 5: Workers Execute Tasks", description: "<strong>Workers</strong> are the machines that actually run your task code. Composer automatically scales workers up when busy and down when idle. You only pay for what you use!", detail: "Workers run in GKE (Kubernetes). Composer 2 uses autoscaling for cost efficiency.", highlight: ["worker"], cameraPos: { x: 0, y: 10, z: -18 }, cameraTarget: { x: 0, y: -3, z: -5 } },
+            { title: "Step 6: Handling Failures & Retries", description: "If a task fails, Composer can <strong>automatically retry</strong> it! You configure how many retries and how long to wait between them. Failed tasks turn red, successful ones turn green.", detail: "Best practice: Set retries=3, retry_delay=timedelta(minutes=5). Use on_failure_callback for alerts!", highlight: ["task", "scheduler"], cameraPos: { x: 22, y: 18, z: 22 }, cameraTarget: { x: 0, y: 0, z: 0 } }
         ];
 
-        const edges = [
-            [0, 1], [0, 2], [1, 2], [2, 3], [2, 4]
-        ];
+        var componentInfo = {
+            scheduler: { title: "Scheduler", desc: "The brain that triggers DAGs on schedule and decides which tasks are ready to run." },
+            dag: { title: "DAG (Workflow)", desc: "A Directed Acyclic Graph defining your workflow - tasks and their dependencies." },
+            task: { title: "Task", desc: "A single unit of work. Uses Operators like BashOperator, PythonOperator, BigQueryOperator." },
+            dependency: { title: "Dependency Arrow", desc: "Shows task order. Downstream tasks wait for upstream tasks to complete." },
+            worker: { title: "Worker", desc: "A compute node that executes task code. Composer autoscales workers based on load." }
+        };
 
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x0a0a0a);
-
+            scene.fog = new THREE.FogExp2(0x0a0a0a, 0.012);
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 10, 25);
-
+            camera.position.set(25, 20, 25);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
-
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById("canvas-container").appendChild(renderer.domElement);
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
-
-            // Lights
-            scene.add(new THREE.AmbientLight(0x404040, 0.5));
-            const light = new THREE.PointLight(0x017cee, 1, 100);
-            light.position.set(0, 20, 10);
-            scene.add(light);
-
-            // Create task nodes
-            taskData.forEach((task, i) => {
-                const geometry = new THREE.DodecahedronGeometry(1.5);
-                const material = new THREE.MeshPhongMaterial({
-                    color: task.color,
-                    emissive: task.color,
-                    emissiveIntensity: 0.3
-                });
-                const mesh = new THREE.Mesh(geometry, material);
-                mesh.position.set(task.x, task.y, task.z);
-                mesh.userData = { name: task.name, index: i };
-                tasks.push(mesh);
-                scene.add(mesh);
-
-                // Add glow
-                const glowGeom = new THREE.DodecahedronGeometry(2);
-                const glowMat = new THREE.MeshBasicMaterial({
-                    color: task.color,
-                    transparent: true,
-                    opacity: 0.1
-                });
-                const glow = new THREE.Mesh(glowGeom, glowMat);
-                mesh.add(glow);
-            });
-
-            // Create connections
-            edges.forEach(([from, to]) => {
-                const start = new THREE.Vector3(taskData[from].x, taskData[from].y, taskData[from].z);
-                const end = new THREE.Vector3(taskData[to].x, taskData[to].y, taskData[to].z);
-                
-                const points = [start, end];
-                const geometry = new THREE.BufferGeometry().setFromPoints(points);
-                const material = new THREE.LineBasicMaterial({ 
-                    color: 0x017cee, 
-                    transparent: true, 
-                    opacity: 0.5 
-                });
-                const line = new THREE.Line(geometry, material);
-                connections.push(line);
-                scene.add(line);
-            });
-
-            // Create data flow particles
-            for (let i = 0; i < 50; i++) {
-                const geometry = new THREE.SphereGeometry(0.2);
-                const material = new THREE.MeshBasicMaterial({
-                    color: 0x00ffff,
-                    transparent: true,
-                    opacity: 0.8
-                });
-                const particle = new THREE.Mesh(geometry, material);
-                particle.userData = {
-                    edge: Math.floor(Math.random() * edges.length),
-                    progress: Math.random(),
-                    speed: 0.005 + Math.random() * 0.01
-                };
-                dataParticles.push(particle);
-                scene.add(particle);
-            }
-
-            // Grid
-            const grid = new THREE.GridHelper(40, 40, 0x017cee, 0x1a1a2e);
-            grid.position.y = -5;
-            scene.add(grid);
-
-            window.addEventListener('resize', onResize);
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 10;
+            controls.maxDistance = 60;
+            setupLighting();
+            createScheduler();
+            createDAGTasks();
+            createWorkers();
+            createGrid();
+            window.addEventListener("resize", onWindowResize);
+            renderer.domElement.addEventListener("mousemove", onMouseMove);
+            setTimeout(function() { document.getElementById("loading").style.display = "none"; }, 800);
             animate();
+            updateStep();
         }
 
-        function animate() {
-            requestAnimationFrame(animate);
+        function setupLighting() {
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            var l1 = new THREE.PointLight(0x00ff00, 1.5, 100); l1.position.set(0, 25, 0); scene.add(l1);
+            var l2 = new THREE.PointLight(0xff6600, 1.2, 100); l2.position.set(-20, 15, 10); scene.add(l2);
+            var l3 = new THREE.PointLight(0x00ffff, 0.8, 100); l3.position.set(20, 15, -10); scene.add(l3);
+        }
 
-            if (isAnimating) {
-                // Rotate task nodes
-                tasks.forEach(task => {
-                    task.rotation.y += 0.01;
-                    task.rotation.x += 0.005;
-                });
+        function createScheduler() {
+            var group = new THREE.Group();
+            var geo = new THREE.IcosahedronGeometry(2, 1);
+            var mat = new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.5, transparent: true, opacity: 0.9 });
+            group.add(new THREE.Mesh(geo, mat));
+            var shellGeo = new THREE.IcosahedronGeometry(2.5, 1);
+            var shellMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent: true, opacity: 0.25 });
+            group.add(new THREE.Mesh(shellGeo, shellMat));
+            group.position.set(-10, 5, 0);
+            group.userData = { type: "scheduler" };
+            scene.add(group);
+            scheduler = group;
+        }
 
-                // Animate data particles along edges
-                dataParticles.forEach(particle => {
-                    const edge = edges[particle.userData.edge];
-                    const start = taskData[edge[0]];
-                    const end = taskData[edge[1]];
-                    
-                    particle.userData.progress += particle.userData.speed;
-                    if (particle.userData.progress > 1) {
-                        particle.userData.progress = 0;
-                        particle.userData.edge = Math.floor(Math.random() * edges.length);
-                    }
-
-                    const t = particle.userData.progress;
-                    particle.position.x = start.x + (end.x - start.x) * t;
-                    particle.position.y = start.y + (end.y - start.y) * t;
-                    particle.position.z = start.z + (end.z - start.z) * t;
-                });
+        function createDAGTasks() {
+            var taskPositions = [
+                { x: -4, y: 5, z: 0, name: "Extract", deps: [] },
+                { x: 2, y: 7, z: 3, name: "Transform A", deps: [0] },
+                { x: 2, y: 7, z: -3, name: "Transform B", deps: [0] },
+                { x: 2, y: 3, z: 0, name: "Validate", deps: [0] },
+                { x: 8, y: 5, z: 0, name: "Load", deps: [1, 2, 3] }
+            ];
+            for (var i = 0; i < taskPositions.length; i++) {
+                var pos = taskPositions[i];
+                var group = new THREE.Group();
+                var geo = new THREE.BoxGeometry(2, 2, 2);
+                var mat = new THREE.MeshPhongMaterial({ color: 0x00ff00, emissive: 0x00ff00, emissiveIntensity: 0.3, transparent: true, opacity: 0.9 });
+                var mesh = new THREE.Mesh(geo, mat);
+                group.add(mesh);
+                var wireGeo = new THREE.BoxGeometry(2.2, 2.2, 2.2);
+                var wireMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true, transparent: true, opacity: 0.3 });
+                group.add(new THREE.Mesh(wireGeo, wireMat));
+                group.position.set(pos.x, pos.y, pos.z);
+                group.userData = { type: "task", index: i, name: pos.name, status: "pending", deps: pos.deps, mesh: mesh };
+                scene.add(group);
+                tasks.push(group);
+                for (var j = 0; j < pos.deps.length; j++) {
+                    createDependencyArrow(tasks[pos.deps[j]].position, group.position);
+                }
             }
-
-            controls.update();
-            renderer.render(scene, camera);
+            createDependencyArrow(scheduler.position, tasks[0].position);
         }
 
-        function onResize() {
+        function createDependencyArrow(from, to) {
+            var dir = new THREE.Vector3().subVectors(to, from);
+            var len = dir.length() - 2;
+            var arrowHelper = new THREE.ArrowHelper(dir.normalize(), from.clone().add(dir.clone().multiplyScalar(1)), len, 0xff00ff, 0.8, 0.4);
+            arrowHelper.userData = { type: "dependency" };
+            scene.add(arrowHelper);
+            dependencies.push(arrowHelper);
+        }
+
+        function createWorkers() {
+            var positions = [{ x: 0, z: -8 }, { x: -5, z: -8 }, { x: 5, z: -8 }];
+            for (var i = 0; i < positions.length; i++) {
+                var group = new THREE.Group();
+                var geo = new THREE.OctahedronGeometry(1.2);
+                var mat = new THREE.MeshPhongMaterial({ color: 0xffff00, emissive: 0xffff00, emissiveIntensity: 0.4, transparent: true, opacity: 0.9 });
+                group.add(new THREE.Mesh(geo, mat));
+                group.position.set(positions[i].x, -2, positions[i].z);
+                group.userData = { type: "worker", index: i, busy: false };
+                scene.add(group);
+                workers.push(group);
+            }
+        }
+
+        function createGrid() {
+            var grid = new THREE.GridHelper(50, 50, 0x00ff00, 0x1a1a2e);
+            grid.position.y = -5;
+            grid.material.opacity = 0.25;
+            grid.material.transparent = true;
+            scene.add(grid);
+        }
+
+        function updateStep() {
+            var step = steps[currentStep];
+            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+            document.getElementById("step-title").textContent = step.title;
+            document.getElementById("step-description").innerHTML = step.description;
+            document.getElementById("step-detail").innerHTML = step.detail;
+            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+            document.getElementById("prev-btn").disabled = currentStep === 0;
+            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+            animateCamera(step.cameraPos, step.cameraTarget);
+            highlightComponents(step.highlight);
+        }
+
+        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+        function resetVisualization() {
+            currentStep = 0; stopAutoPlay(); updateStep();
+            dagRuns = 0; tasksComplete = 0; tasksFailed = 0;
+            updateMetrics();
+            for (var i = 0; i < tasks.length; i++) {
+                tasks[i].userData.status = "pending";
+                setTaskColor(tasks[i], 0x00ff00);
+            }
+            document.getElementById("dag-status").textContent = "Idle";
+        }
+
+        function updateMetrics() {
+            document.getElementById("dag-runs").textContent = dagRuns;
+            document.getElementById("tasks-complete").textContent = tasksComplete;
+            document.getElementById("tasks-failed").textContent = tasksFailed;
+        }
+
+        function setTaskColor(task, color) {
+            task.traverse(function(c) {
+                if (c.material && !c.material.wireframe) {
+                    c.material.color.setHex(color);
+                    c.material.emissive.setHex(color);
+                }
+            });
+        }
+
+        function animateCamera(targetPos, targetLookAt) {
+            var startPos = camera.position.clone();
+            var startTarget = controls.target.clone();
+            var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
+            var endTarget = new THREE.Vector3(targetLookAt.x, targetLookAt.y, targetLookAt.z);
+            var startTime = Date.now();
+            function anim() {
+                var progress = Math.min((Date.now() - startTime) / 1000, 1);
+                var eased = 1 - Math.pow(1 - progress, 3);
+                camera.position.lerpVectors(startPos, endPos, eased);
+                controls.target.lerpVectors(startTarget, endTarget, eased);
+                if (progress < 1) requestAnimationFrame(anim);
+            }
+            anim();
+        }
+
+        function highlightComponents(types) {
+            var allObjects = [scheduler].concat(tasks).concat(workers);
+            for (var i = 0; i < allObjects.length; i++) {
+                var obj = allObjects[i];
+                if (obj) obj.traverse(function(c) { if (c.material && c.material.emissiveIntensity !== undefined) c.material.emissiveIntensity = 0.2; });
+            }
+            for (var j = 0; j < types.length; j++) {
+                var type = types[j];
+                if (type === "scheduler") pulseObject(scheduler);
+                else if (type === "task" || type === "dag") { for (var k = 0; k < tasks.length; k++) pulseObject(tasks[k]); }
+                else if (type === "worker") { for (var l = 0; l < workers.length; l++) pulseObject(workers[l]); }
+                else if (type === "dependency") { for (var m = 0; m < dependencies.length; m++) dependencies[m].setColor(0xffffff); }
+            }
+        }
+
+        function pulseObject(obj) {
+            if (obj) obj.traverse(function(c) { if (c.material && c.material.emissiveIntensity !== undefined) c.material.emissiveIntensity = 0.8; });
+        }
+
+        function runDAG() {
+            if (isRunning) return;
+            isRunning = true;
+            dagRuns++;
+            document.getElementById("dag-status").textContent = "Running";
+            updateMetrics();
+            for (var i = 0; i < tasks.length; i++) {
+                tasks[i].userData.status = "pending";
+                setTaskColor(tasks[i], 0x00ff00);
+            }
+            executeTask(0);
+        }
+
+        function executeTask(index) {
+            if (index >= tasks.length) {
+                isRunning = false;
+                document.getElementById("dag-status").textContent = "Success";
+                return;
+            }
+            var task = tasks[index];
+            var deps = task.userData.deps;
+            var allDepsComplete = true;
+            for (var i = 0; i < deps.length; i++) {
+                if (tasks[deps[i]].userData.status !== "success") {
+                    allDepsComplete = false;
+                    break;
+                }
+            }
+            if (!allDepsComplete) {
+                setTimeout(function() { executeTask(index); }, 200);
+                return;
+            }
+            setTaskColor(task, 0xffff00);
+            task.userData.status = "running";
+            setTimeout(function() {
+                task.userData.status = "success";
+                setTaskColor(task, 0x00ffff);
+                tasksComplete++;
+                updateMetrics();
+                for (var j = index + 1; j < tasks.length; j++) {
+                    if (tasks[j].userData.status === "pending") {
+                        executeTask(j);
+                    }
+                }
+                if (index === tasks.length - 1) {
+                    isRunning = false;
+                    document.getElementById("dag-status").textContent = "Success";
+                }
+            }, 800 + Math.random() * 400);
+            if (index < tasks.length - 1) {
+                setTimeout(function() { executeTask(index + 1); }, 100);
+            }
+        }
+
+        function simulateFailure() {
+            if (isRunning) return;
+            isRunning = true;
+            dagRuns++;
+            document.getElementById("dag-status").textContent = "Running";
+            updateMetrics();
+            for (var i = 0; i < tasks.length; i++) {
+                tasks[i].userData.status = "pending";
+                setTaskColor(tasks[i], 0x00ff00);
+            }
+            setTaskColor(tasks[0], 0xffff00);
+            setTimeout(function() {
+                setTaskColor(tasks[0], 0x00ffff);
+                tasks[0].userData.status = "success";
+                tasksComplete++;
+                updateMetrics();
+                setTaskColor(tasks[1], 0xffff00);
+                setTimeout(function() {
+                    setTaskColor(tasks[1], 0xff4444);
+                    tasks[1].userData.status = "failed";
+                    tasksFailed++;
+                    updateMetrics();
+                    document.getElementById("dag-status").textContent = "Failed";
+                    isRunning = false;
+                }, 1000);
+            }, 1000);
+        }
+
+        function toggleAutoPlay() { if (isAutoPlaying) stopAutoPlay(); else startAutoPlay(); }
+        function startAutoPlay() {
+            isAutoPlaying = true;
+            document.getElementById("autoplay-btn").textContent = "Pause Story";
+            autoPlayInterval = setInterval(function() { if (currentStep < steps.length - 1) nextStep(); else stopAutoPlay(); }, 5000);
+        }
+        function stopAutoPlay() {
+            isAutoPlaying = false;
+            document.getElementById("autoplay-btn").textContent = "Auto-Play Story";
+            if (autoPlayInterval) { clearInterval(autoPlayInterval); autoPlayInterval = null; }
+        }
+
+        var raycaster = new THREE.Raycaster();
+        var mouse = new THREE.Vector2();
+        function onMouseMove(e) {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            var allObjects = [scheduler].concat(tasks).concat(workers);
+            var intersects = raycaster.intersectObjects(allObjects, true);
+            var tooltip = document.getElementById("tooltip");
+            if (intersects.length > 0) {
+                var obj = intersects[0].object;
+                while (obj.parent && !obj.userData.type) obj = obj.parent;
+                if (obj.userData.type) {
+                    var info = componentInfo[obj.userData.type];
+                    if (info) {
+                        tooltip.classList.add("visible");
+                        document.getElementById("tooltip-title").textContent = info.title + (obj.userData.name ? ": " + obj.userData.name : "");
+                        document.getElementById("tooltip-desc").textContent = info.desc;
+                        tooltip.style.left = (e.clientX + 15) + "px";
+                        tooltip.style.top = (e.clientY + 15) + "px";
+                        document.body.style.cursor = "pointer";
+                        return;
+                    }
+                }
+            }
+            tooltip.classList.remove("visible");
+            document.body.style.cursor = "default";
+        }
+
+        function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        function toggleAnimation() {
-            isAnimating = !isAnimating;
-            event.target.textContent = isAnimating ? 'Pause' : 'Resume';
-        }
-
-        function triggerDag() {
-            // Reset all tasks to pending, then animate through
-            tasks.forEach((task, i) => {
-                setTimeout(() => {
-                    task.material.color.setHex(0x00ff00);
-                    task.material.emissive.setHex(0x00ff00);
-                }, i * 1000);
-            });
-        }
-
-        function resetCamera() {
-            camera.position.set(0, 10, 25);
-            controls.target.set(0, 0, 0);
+        function animate() {
+            requestAnimationFrame(animate);
+            var t = Date.now() * 0.001;
+            if (scheduler) {
+                scheduler.rotation.y = t * 0.5;
+                scheduler.children[1].rotation.y = -t * 0.3;
+            }
+            for (var i = 0; i < tasks.length; i++) {
+                tasks[i].rotation.y = t * 0.2 + i * 0.5;
+                if (tasks[i].userData.status === "running") {
+                    tasks[i].position.y = tasks[i].userData.originalY || tasks[i].position.y;
+                    tasks[i].position.y += Math.sin(t * 5) * 0.1;
+                }
+            }
+            for (var j = 0; j < workers.length; j++) {
+                workers[j].rotation.y = t + j;
+                workers[j].rotation.x = Math.sin(t + j) * 0.3;
+            }
+            controls.update();
+            renderer.render(scene, camera);
         }
 
         init();

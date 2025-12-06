@@ -3,128 +3,274 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloud Spanner - 3D Interactive</title>
+    <title>Cloud Spanner - Learn How Google's Global Database Works</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
-        #canvas-container { width: 100%; height: 100vh; }
-        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #673ab7; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
-        #info-panel h1 { color: #673ab7; font-size: 1.3em; margin-bottom: 10px; }
-        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
-        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
-        .control-btn { background: rgba(103,58,183,0.1); border: 1px solid #673ab7; color: #673ab7; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
-        .control-btn:hover { background: rgba(103,58,183,0.3); }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%); color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; position: relative; }
+        #title-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00ff00; border-radius: 15px; padding: 20px; max-width: 380px; box-shadow: 0 0 30px rgba(0,255,0,0.4); z-index: 100; }
+        #title-panel h1 { color: #00ff00; font-size: 1.8em; margin-bottom: 8px; text-shadow: 0 0 15px #00ff00; }
+        #title-panel .subtitle { color: #ff00ff; font-size: 1em; margin-bottom: 12px; }
+        #title-panel .intro { color: #ccc; font-size: 0.9em; line-height: 1.6; }
+        #step-panel { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.95); border: 2px solid #ff00ff; border-radius: 15px; padding: 25px 35px; max-width: 750px; width: 90%; box-shadow: 0 0 40px rgba(255,0,255,0.4); z-index: 100; text-align: center; }
+        #step-indicator { color: #00ff00; font-size: 0.85em; margin-bottom: 8px; letter-spacing: 2px; }
+        #step-title { color: #ff00ff; font-size: 1.4em; margin-bottom: 12px; text-shadow: 0 0 10px #ff00ff; }
+        #step-description { color: #fff; font-size: 1.05em; line-height: 1.7; margin-bottom: 12px; }
+        #step-detail { color: #00ffff; font-size: 0.9em; font-style: italic; padding: 10px 15px; background: rgba(0,255,255,0.1); border-radius: 8px; border-left: 3px solid #00ffff; text-align: left; }
+        #nav-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .nav-btn { background: rgba(0,255,0,0.1); border: 2px solid #00ff00; color: #00ff00; padding: 12px 25px; border-radius: 25px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px; }
+        .nav-btn:hover { background: rgba(0,255,0,0.3); box-shadow: 0 0 20px rgba(0,255,0,0.5); transform: translateY(-2px); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+        .nav-btn.primary { background: #00ff00; color: #000; }
+        #progress-bar { position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%); width: 60%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; z-index: 100; }
+        #progress-fill { height: 100%; background: linear-gradient(90deg, #00ff00, #ff00ff); border-radius: 3px; transition: width 0.5s ease; }
+        #legend-panel { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ffff00; border-radius: 15px; padding: 15px; min-width: 200px; z-index: 100; }
+        #legend-panel h3 { color: #ffff00; margin-bottom: 12px; font-size: 1em; }
+        .legend-item { display: flex; align-items: center; margin: 8px 0; padding: 6px; border-radius: 6px; }
+        .legend-color { width: 18px; height: 18px; border-radius: 4px; margin-right: 10px; }
+        .legend-text .name { color: #fff; font-weight: bold; font-size: 0.85em; }
+        .legend-text .desc { color: #888; font-size: 0.75em; }
+        #metrics-panel { position: absolute; top: 260px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00ffff; border-radius: 15px; padding: 15px; min-width: 180px; z-index: 100; }
+        #metrics-panel h3 { color: #00ffff; margin-bottom: 10px; font-size: 0.95em; }
+        .metric-row { display: flex; justify-content: space-between; margin: 6px 0; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .metric-label { color: #888; font-size: 0.8em; }
+        .metric-value { color: #00ffff; font-family: monospace; font-weight: bold; font-size: 0.85em; }
+        #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
+        .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #00ff00, #ff00ff); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; transition: all 0.3s ease; }
+        .sim-btn:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(0,255,0,0.5); }
+        #tooltip { position: absolute; background: rgba(0,0,0,0.95); border: 2px solid #ff00ff; border-radius: 10px; padding: 12px; max-width: 280px; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 200; }
+        #tooltip.visible { opacity: 1; }
+        #tooltip h4 { color: #ff00ff; margin-bottom: 6px; font-size: 0.95em; }
+        #tooltip p { color: #ccc; font-size: 0.85em; line-height: 1.4; }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+        .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #00ff00; border-right: 4px solid #ff00ff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div id="loading"><div class="loader"></div><p style="color: #00ff00; font-size: 1.1em;">Loading Cloud Spanner Visualization...</p></div>
     <div id="canvas-container"></div>
-    <div id="info-panel">
+    <div id="title-panel">
         <h1>Cloud Spanner</h1>
-        <p>Globally distributed relational database. Watch data replicate across regions with strong consistency via TrueTime.</p>
+        <div class="subtitle">Globally Distributed Relational Database</div>
+        <div class="intro">Imagine a <strong>SQL database that spans the entire planet</strong>! Spanner gives you the power of relational databases with unlimited scale and global consistency.</div>
     </div>
-    <div id="controls">
-        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
-        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    <div id="sim-controls">
+        <button class="sim-btn" onclick="runTransaction()">Run Transaction</button>
+        <button class="sim-btn" onclick="showTrueTime()">Show TrueTime Sync</button>
+        <button class="sim-btn" onclick="toggleAutoPlay()" id="autoplay-btn">Auto-Play Story</button>
     </div>
+    <div id="step-panel">
+        <div id="step-indicator">STEP 1 OF 6</div>
+        <div id="step-title">Welcome to Cloud Spanner!</div>
+        <div id="step-description">Let's learn how Spanner provides global consistency with SQL. Click "Next" to begin!</div>
+        <div id="step-detail">Spanner offers 99.999% availability (5 nines) - only 5 minutes of downtime per YEAR!</div>
+    </div>
+    <div id="progress-bar"><div id="progress-fill" style="width: 16.67%"></div></div>
+    <div id="nav-controls">
+        <button class="nav-btn" id="prev-btn" onclick="previousStep()" disabled>Previous</button>
+        <button class="nav-btn" onclick="resetVisualization()">Reset</button>
+        <button class="nav-btn primary" id="next-btn" onclick="nextStep()">Next</button>
+    </div>
+    <div id="legend-panel">
+        <h3>What You See</h3>
+        <div class="legend-item"><div class="legend-color" style="background: #00ff00;"></div><div class="legend-text"><div class="name">Instance</div><div class="desc">Compute allocation</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ff00ff;"></div><div class="legend-text"><div class="name">Database</div><div class="desc">SQL database</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #00ffff;"></div><div class="legend-text"><div class="name">Node</div><div class="desc">Processing unit</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ff6600;"></div><div class="legend-text"><div class="name">Split</div><div class="desc">Data shard</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ffff00;"></div><div class="legend-text"><div class="name">TrueTime</div><div class="desc">Global clock</div></div></div>
+    </div>
+    <div id="metrics-panel">
+        <h3>Instance Metrics</h3>
+        <div class="metric-row"><span class="metric-label">Nodes:</span><span class="metric-value" id="nodes">3</span></div>
+        <div class="metric-row"><span class="metric-label">QPS:</span><span class="metric-value" id="qps">0</span></div>
+        <div class="metric-row"><span class="metric-label">Latency:</span><span class="metric-value" id="latency">0 ms</span></div>
+        <div class="metric-row"><span class="metric-label">Regions:</span><span class="metric-value" id="regions">3</span></div>
+    </div>
+    <div id="tooltip"><h4 id="tooltip-title">Component</h4><p id="tooltip-desc">Description</p></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        let scene, camera, renderer, controls, isAnimating = true;
-        let regions = [], replicationParticles = [];
-        
+        var scene, camera, renderer, controls;
+        var currentStep = 0;
+        var isAutoPlaying = false;
+        var autoPlayInterval = null;
+        var regions = [], splits = [], trueTimeRing;
+        var qps = 0;
+
+        var steps = [
+            { title: "Welcome to Cloud Spanner!", description: "Spanner is the <strong>only database</strong> that combines SQL, unlimited scale, and global consistency. It's what Google uses for AdWords and Google Play!", detail: "Spanner offers 99.999% availability (5 nines) - only 5 minutes of downtime per YEAR!", highlight: [], cameraPos: { x: 30, y: 20, z: 30 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 1: Instances and Databases", description: "An <strong>Instance</strong> is your Spanner deployment with allocated compute. Inside, you create <strong>Databases</strong> with tables, just like traditional SQL.", detail: "Instances can be regional (one region) or multi-regional (multiple regions for global apps).", highlight: ["instance"], cameraPos: { x: 0, y: 25, z: 25 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 2: SQL with Unlimited Scale", description: "Write normal <strong>SQL queries</strong> - SELECT, JOIN, transactions - but Spanner scales horizontally. Add more nodes to handle more load!", detail: "Spanner uses a Google-proprietary SQL dialect. Most standard SQL works, with some extensions.", highlight: ["database"], cameraPos: { x: 20, y: 15, z: 20 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 3: TrueTime Makes Magic Happen", description: "<strong>TrueTime</strong> is Google's secret sauce - atomic clocks and GPS in every data center. This enables globally consistent transactions!", detail: "TrueTime guarantees timestamps are accurate within a few milliseconds worldwide. No other database has this!", highlight: ["truetime"], cameraPos: { x: 0, y: 30, z: 15 }, cameraTarget: { x: 0, y: 5, z: 0 } },
+            { title: "Step 4: Automatic Sharding", description: "Spanner automatically <strong>shards</strong> (splits) your data across nodes based on primary key. You don't manage shards - Spanner does it for you!", detail: "Design primary keys to avoid hot spots. Use UUIDs or composite keys, not sequential integers.", highlight: ["split"], cameraPos: { x: -20, y: 15, z: 20 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 5: When to Use Spanner", description: "Use Spanner for: <strong>Global apps</strong> needing consistency, <strong>Financial systems</strong> requiring ACID, <strong>Gaming</strong> with global leaderboards, <strong>Inventory</strong> systems.", detail: "Spanner is premium-priced. For single-region apps, consider Cloud SQL or AlloyDB first.", highlight: [], cameraPos: { x: 25, y: 20, z: 25 }, cameraTarget: { x: 0, y: 0, z: 0 } }
+        ];
+
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x0a0a0a);
+            scene.fog = new THREE.FogExp2(0x0a0a0a, 0.01);
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 20, 30);
+            camera.position.set(30, 20, 30);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById("canvas-container").appendChild(renderer.domElement);
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
-            
-            scene.add(new THREE.AmbientLight(0x404040, 0.5));
-            const light = new THREE.PointLight(0x673ab7, 1, 100);
-            light.position.set(0, 20, 10);
-            scene.add(light);
-            
-            // Create regions (globe-like distribution)
-            const regionData = [
-                { name: 'US', x: -10, z: 0, color: 0x673ab7 },
-                { name: 'EU', x: 5, z: -8, color: 0x673ab7 },
-                { name: 'Asia', x: 10, z: 5, color: 0x673ab7 }
-            ];
-            
-            regionData.forEach((r, i) => {
-                const geom = new THREE.IcosahedronGeometry(3, 1);
-                const mat = new THREE.MeshPhongMaterial({ color: r.color, emissive: r.color, emissiveIntensity: 0.3 });
-                const region = new THREE.Mesh(geom, mat);
-                region.position.set(r.x, 0, r.z);
-                regions.push(region);
-                scene.add(region);
-                
-                // Connect regions
-                regionData.forEach((r2, j) => {
-                    if (j > i) {
-                        const points = [new THREE.Vector3(r.x, 0, r.z), new THREE.Vector3(r2.x, 0, r2.z)];
-                        const lineGeom = new THREE.BufferGeometry().setFromPoints(points);
-                        const lineMat = new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.5 });
-                        scene.add(new THREE.Line(lineGeom, lineMat));
-                    }
-                });
-            });
-            
-            // Replication particles
-            for (let i = 0; i < 30; i++) {
-                const geom = new THREE.SphereGeometry(0.2);
-                const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-                const p = new THREE.Mesh(geom, mat);
-                p.userData = { from: Math.floor(Math.random() * 3), to: Math.floor(Math.random() * 3), progress: Math.random() };
-                if (p.userData.from === p.userData.to) p.userData.to = (p.userData.to + 1) % 3;
-                replicationParticles.push(p);
-                scene.add(p);
-            }
-            
-            const grid = new THREE.GridHelper(40, 40, 0x673ab7, 0x1a1a2e);
-            grid.position.y = -8;
-            scene.add(grid);
-            
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
+            controls.dampingFactor = 0.05;
+            setupLighting();
+            createGlobe();
+            createRegions();
+            createTrueTimeRing();
+            createGrid();
+            window.addEventListener("resize", onWindowResize);
+            setTimeout(function() { document.getElementById("loading").style.display = "none"; }, 800);
             animate();
+            updateStep();
         }
-        
+
+        function setupLighting() {
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            var l1 = new THREE.PointLight(0x00ff00, 1.5, 100); l1.position.set(0, 30, 0); scene.add(l1);
+            var l2 = new THREE.PointLight(0xff00ff, 1.2, 100); l2.position.set(-25, 15, 15); scene.add(l2);
+        }
+
+        function createGlobe() {
+            var geo = new THREE.SphereGeometry(8, 32, 32);
+            var mat = new THREE.MeshPhongMaterial({ color: 0x1a1a2e, emissive: 0x00ff00, emissiveIntensity: 0.1, transparent: true, opacity: 0.3, wireframe: true });
+            var globe = new THREE.Mesh(geo, mat);
+            scene.add(globe);
+        }
+
+        function createRegions() {
+            var positions = [
+                { x: 0, y: 8, z: 0, name: "US" },
+                { x: -7, y: 4, z: 5, name: "EU" },
+                { x: 7, y: 4, z: 5, name: "Asia" }
+            ];
+            positions.forEach(function(pos) {
+                var group = new THREE.Group();
+                var geo = new THREE.IcosahedronGeometry(2, 0);
+                var mat = new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.5, transparent: true, opacity: 0.9 });
+                group.add(new THREE.Mesh(geo, mat));
+                for (var i = 0; i < 3; i++) {
+                    var splitGeo = new THREE.BoxGeometry(1, 0.5, 1);
+                    var splitMat = new THREE.MeshPhongMaterial({ color: 0xff6600, emissive: 0xff6600, emissiveIntensity: 0.4 });
+                    var split = new THREE.Mesh(splitGeo, splitMat);
+                    split.position.set(-1.5 + i * 1.5, -2.5, 0);
+                    group.add(split);
+                    splits.push(split);
+                }
+                group.position.set(pos.x, pos.y, pos.z);
+                group.userData = { type: "instance", name: pos.name };
+                scene.add(group);
+                regions.push(group);
+            });
+            for (var i = 0; i < regions.length; i++) {
+                for (var j = i + 1; j < regions.length; j++) {
+                    var mat = new THREE.LineBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.3 });
+                    var geo = new THREE.BufferGeometry().setFromPoints([regions[i].position, regions[j].position]);
+                    scene.add(new THREE.Line(geo, mat));
+                }
+            }
+        }
+
+        function createTrueTimeRing() {
+            var geo = new THREE.TorusGeometry(12, 0.3, 16, 64);
+            var mat = new THREE.MeshPhongMaterial({ color: 0xffff00, emissive: 0xffff00, emissiveIntensity: 0.5, transparent: true, opacity: 0.6 });
+            trueTimeRing = new THREE.Mesh(geo, mat);
+            trueTimeRing.rotation.x = Math.PI / 2;
+            trueTimeRing.position.y = 5;
+            scene.add(trueTimeRing);
+        }
+
+        function createGrid() {
+            var grid = new THREE.GridHelper(60, 60, 0x00ff00, 0x1a1a2e);
+            grid.position.y = -10;
+            grid.material.opacity = 0.2;
+            grid.material.transparent = true;
+            scene.add(grid);
+        }
+
+        function runTransaction() {
+            qps += Math.floor(Math.random() * 500) + 200;
+            document.getElementById("qps").textContent = qps;
+            document.getElementById("latency").textContent = Math.floor(Math.random() * 10 + 5) + " ms";
+            regions.forEach(function(region, i) {
+                setTimeout(function() {
+                    region.children[0].material.emissiveIntensity = 1;
+                    setTimeout(function() { region.children[0].material.emissiveIntensity = 0.5; }, 300);
+                }, i * 150);
+            });
+        }
+
+        function showTrueTime() {
+            trueTimeRing.material.emissiveIntensity = 1;
+            setTimeout(function() { trueTimeRing.material.emissiveIntensity = 0.5; }, 1000);
+        }
+
+        function updateStep() {
+            var step = steps[currentStep];
+            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+            document.getElementById("step-title").textContent = step.title;
+            document.getElementById("step-description").innerHTML = step.description;
+            document.getElementById("step-detail").innerHTML = step.detail;
+            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+            document.getElementById("prev-btn").disabled = currentStep === 0;
+            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+            animateCamera(step.cameraPos, step.cameraTarget);
+        }
+
+        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+        function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); qps = 0; }
+
+        function animateCamera(targetPos, targetLookAt) {
+            var startPos = camera.position.clone();
+            var startTarget = controls.target.clone();
+            var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
+            var endTarget = new THREE.Vector3(targetLookAt.x, targetLookAt.y, targetLookAt.z);
+            var startTime = Date.now();
+            function anim() {
+                var progress = Math.min((Date.now() - startTime) / 1000, 1);
+                var eased = 1 - Math.pow(1 - progress, 3);
+                camera.position.lerpVectors(startPos, endPos, eased);
+                controls.target.lerpVectors(startTarget, endTarget, eased);
+                if (progress < 1) requestAnimationFrame(anim);
+            }
+            anim();
+        }
+
+        function toggleAutoPlay() { if (isAutoPlaying) stopAutoPlay(); else startAutoPlay(); }
+        function startAutoPlay() {
+            isAutoPlaying = true;
+            document.getElementById("autoplay-btn").textContent = "Pause Story";
+            autoPlayInterval = setInterval(function() { if (currentStep < steps.length - 1) nextStep(); else stopAutoPlay(); }, 5000);
+        }
+        function stopAutoPlay() {
+            isAutoPlaying = false;
+            document.getElementById("autoplay-btn").textContent = "Auto-Play Story";
+            if (autoPlayInterval) { clearInterval(autoPlayInterval); autoPlayInterval = null; }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
         function animate() {
             requestAnimationFrame(animate);
-            if (isAnimating) {
-                regions.forEach(r => { r.rotation.y += 0.01; r.rotation.x += 0.005; });
-                
-                replicationParticles.forEach(p => {
-                    p.userData.progress += 0.01;
-                    if (p.userData.progress > 1) {
-                        p.userData.progress = 0;
-                        p.userData.from = p.userData.to;
-                        p.userData.to = Math.floor(Math.random() * 3);
-                        if (p.userData.from === p.userData.to) p.userData.to = (p.userData.to + 1) % 3;
-                    }
-                    const from = regions[p.userData.from].position;
-                    const to = regions[p.userData.to].position;
-                    const t = p.userData.progress;
-                    p.position.x = from.x + (to.x - from.x) * t;
-                    p.position.y = Math.sin(t * Math.PI) * 5;
-                    p.position.z = from.z + (to.z - from.z) * t;
-                });
-            }
+            var t = Date.now() * 0.001;
+            regions.forEach(function(region, i) { region.rotation.y = t * 0.3 + i; });
+            if (trueTimeRing) trueTimeRing.rotation.z = t * 0.2;
+            splits.forEach(function(split, i) { split.rotation.y = t * 0.5 + i * 0.5; });
             controls.update();
             renderer.render(scene, camera);
         }
-        
-        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
-        function resetCamera() { camera.position.set(0, 20, 30); controls.target.set(0, 0, 0); }
-        
+
         init();
     </script>
 </body>

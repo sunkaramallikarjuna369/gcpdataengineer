@@ -3,140 +3,187 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Datastream CDC - 3D Interactive</title>
+    <title>Datastream - Learn Change Data Capture</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
-        #canvas-container { width: 100%; height: 100vh; }
-        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #ff5722; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
-        #info-panel h1 { color: #ff5722; font-size: 1.3em; margin-bottom: 10px; }
-        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
-        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
-        .control-btn { background: rgba(255,87,34,0.1); border: 1px solid #ff5722; color: #ff5722; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
-        .control-btn:hover { background: rgba(255,87,34,0.3); }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%); color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; position: relative; }
+        #title-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ff5722; border-radius: 15px; padding: 20px; max-width: 380px; box-shadow: 0 0 30px rgba(255,87,34,0.4); z-index: 100; }
+        #title-panel h1 { color: #ff5722; font-size: 1.8em; margin-bottom: 8px; text-shadow: 0 0 15px #ff5722; }
+        #title-panel .subtitle { color: #00ffff; font-size: 1em; margin-bottom: 12px; }
+        #title-panel .intro { color: #ccc; font-size: 0.9em; line-height: 1.6; }
+        #step-panel { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.95); border: 2px solid #00ffff; border-radius: 15px; padding: 25px 35px; max-width: 750px; width: 90%; box-shadow: 0 0 40px rgba(0,255,255,0.3); z-index: 100; text-align: center; }
+        #step-indicator { color: #ff5722; font-size: 0.85em; margin-bottom: 8px; letter-spacing: 2px; }
+        #step-title { color: #00ffff; font-size: 1.4em; margin-bottom: 12px; text-shadow: 0 0 10px #00ffff; }
+        #step-description { color: #fff; font-size: 1.05em; line-height: 1.7; margin-bottom: 12px; }
+        #step-detail { color: #00ff00; font-size: 0.9em; font-style: italic; padding: 10px 15px; background: rgba(0,255,0,0.1); border-radius: 8px; border-left: 3px solid #00ff00; text-align: left; }
+        #nav-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .nav-btn { background: rgba(255,87,34,0.1); border: 2px solid #ff5722; color: #ff5722; padding: 12px 25px; border-radius: 25px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: all 0.3s ease; }
+        .nav-btn:hover { background: rgba(255,87,34,0.3); box-shadow: 0 0 20px rgba(255,87,34,0.5); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.primary { background: #ff5722; color: #fff; }
+        #progress-bar { position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%); width: 60%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; z-index: 100; }
+        #progress-fill { height: 100%; background: linear-gradient(90deg, #ff5722, #00ffff); border-radius: 3px; transition: width 0.5s ease; }
+        #legend-panel { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ff9800; border-radius: 15px; padding: 15px; min-width: 200px; z-index: 100; }
+        #legend-panel h3 { color: #ff9800; margin-bottom: 12px; font-size: 1em; }
+        .legend-item { display: flex; align-items: center; margin: 8px 0; }
+        .legend-color { width: 18px; height: 18px; border-radius: 4px; margin-right: 10px; }
+        .legend-text .name { color: #fff; font-weight: bold; font-size: 0.85em; }
+        .legend-text .desc { color: #888; font-size: 0.75em; }
+        #metrics-panel { position: absolute; top: 260px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00ff00; border-radius: 15px; padding: 15px; min-width: 180px; z-index: 100; }
+        #metrics-panel h3 { color: #00ff00; margin-bottom: 10px; font-size: 0.95em; }
+        .metric-row { display: flex; justify-content: space-between; margin: 6px 0; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .metric-label { color: #888; font-size: 0.8em; }
+        .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
+        #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
+        .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #ff5722, #ff9800); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; }
+        .sim-btn:hover { transform: scale(1.05); }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+        .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #ff5722; border-right: 4px solid #ff9800; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div id="loading"><div class="loader"></div><p style="color: #ff5722;">Loading Datastream...</p></div>
     <div id="canvas-container"></div>
-    <div id="info-panel">
-        <h1>Datastream CDC</h1>
-        <p>Watch database changes flow in real-time. INSERTs (green), UPDATEs (yellow), and DELETEs (red) stream to BigQuery.</p>
+    <div id="title-panel">
+        <h1>Datastream</h1>
+        <div class="subtitle">Change Data Capture (CDC)</div>
+        <div class="intro">Like a <strong>live news reporter</strong> for your database! Datastream watches for changes and instantly streams them to BigQuery or Cloud Storage.</div>
     </div>
-    <div id="controls">
-        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
-        <button class="control-btn" onclick="triggerChange()">Trigger Change</button>
-        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    <div id="sim-controls">
+        <button class="sim-btn" onclick="triggerInsert()">INSERT Record</button>
+        <button class="sim-btn" onclick="triggerUpdate()">UPDATE Record</button>
+        <button class="sim-btn" onclick="triggerDelete()">DELETE Record</button>
+        <button class="sim-btn" onclick="toggleAutoPlay()" id="autoplay-btn">Auto-Play Story</button>
+    </div>
+    <div id="step-panel">
+        <div id="step-indicator">STEP 1 OF 6</div>
+        <div id="step-title">Welcome to Datastream!</div>
+        <div id="step-description">Learn how Change Data Capture works. Click "Next" to begin!</div>
+        <div id="step-detail">Datastream: Real-time database replication to BigQuery!</div>
+    </div>
+    <div id="progress-bar"><div id="progress-fill" style="width: 16.67%"></div></div>
+    <div id="nav-controls">
+        <button class="nav-btn" id="prev-btn" onclick="previousStep()" disabled>Previous</button>
+        <button class="nav-btn" onclick="resetVisualization()">Reset</button>
+        <button class="nav-btn primary" id="next-btn" onclick="nextStep()">Next</button>
+    </div>
+    <div id="legend-panel">
+        <h3>Change Types</h3>
+        <div class="legend-item"><div class="legend-color" style="background: #9c27b0;"></div><div class="legend-text"><div class="name">Source DB</div><div class="desc">MySQL/PostgreSQL/Oracle</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #4285f4;"></div><div class="legend-text"><div class="name">Destination</div><div class="desc">BigQuery/GCS</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #00ff00;"></div><div class="legend-text"><div class="name">INSERT</div><div class="desc">New record added</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ffff00;"></div><div class="legend-text"><div class="name">UPDATE</div><div class="desc">Record modified</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ff0000;"></div><div class="legend-text"><div class="name">DELETE</div><div class="desc">Record removed</div></div></div>
+    </div>
+    <div id="metrics-panel">
+        <h3>CDC Metrics</h3>
+        <div class="metric-row"><span class="metric-label">Inserts:</span><span class="metric-value" id="inserts">0</span></div>
+        <div class="metric-row"><span class="metric-label">Updates:</span><span class="metric-value" id="updates">0</span></div>
+        <div class="metric-row"><span class="metric-label">Deletes:</span><span class="metric-value" id="deletes">0</span></div>
+        <div class="metric-row"><span class="metric-label">Lag:</span><span class="metric-value" id="lag">0 ms</span></div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        let scene, camera, renderer, controls, isAnimating = true;
-        let sourceDB, destBQ, cdcEvents = [];
-        
+        var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
+        var sourceDB, destBQ, cdcEvents = [], insertCount = 0, updateCount = 0, deleteCount = 0;
+        var steps = [
+            {title:"Welcome to Datastream!",description:"Datastream is a <strong>Change Data Capture (CDC)</strong> service. It watches your database for changes and instantly streams them to BigQuery or Cloud Storage!",detail:"CDC: Capture every INSERT, UPDATE, DELETE as it happens in real-time.",cameraPos:{x:0,y:15,z:25},cameraTarget:{x:0,y:0,z:0}},
+            {title:"Step 1: Source Database",description:"The <strong>purple cylinder</strong> is your source database - MySQL, PostgreSQL, or Oracle. Datastream reads the database's transaction log to detect changes.",detail:"Transaction logs: Every database keeps a log of all changes for recovery.",cameraPos:{x:-12,y:10,z:18},cameraTarget:{x:-10,y:0,z:0}},
+            {title:"Step 2: Change Detection",description:"When you INSERT, UPDATE, or DELETE a record, Datastream <strong>instantly detects</strong> the change from the transaction log - no polling needed!",detail:"Log-based CDC: More efficient than polling, captures every change.",cameraPos:{x:-8,y:12,z:15},cameraTarget:{x:-5,y:0,z:0}},
+            {title:"Step 3: Streaming Pipeline",description:"Changes flow through the <strong>streaming pipeline</strong> (the gray tube). Each change event contains the operation type, timestamp, and data.",detail:"Events include: operation (I/U/D), before/after values, timestamp.",cameraPos:{x:0,y:15,z:20},cameraTarget:{x:0,y:0,z:0}},
+            {title:"Step 4: Destination",description:"The <strong>blue box</strong> is BigQuery or Cloud Storage. Changes arrive in near real-time, keeping your analytics data fresh!",detail:"Destinations: BigQuery (analytics), GCS (data lake), or both!",cameraPos:{x:12,y:10,z:18},cameraTarget:{x:10,y:0,z:0}},
+            {title:"Step 5: Try It!",description:"Click <strong>'INSERT Record'</strong>, <strong>'UPDATE Record'</strong>, or <strong>'DELETE Record'</strong> to see different change types stream from source to destination!",detail:"Watch the colors: Green=INSERT, Yellow=UPDATE, Red=DELETE.",cameraPos:{x:0,y:15,z:25},cameraTarget:{x:0,y:0,z:0}}
+        ];
         function init() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0a0a0a);
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 15, 25);
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            
+            scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0a0a); scene.fog = new THREE.FogExp2(0x0a0a0a, 0.015);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000); camera.position.set(0, 15, 25);
+            renderer = new THREE.WebGLRenderer({antialias:true}); renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById("canvas-container").appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
             scene.add(new THREE.AmbientLight(0x404040, 0.5));
-            const light = new THREE.PointLight(0xff5722, 1, 100);
-            light.position.set(0, 20, 10);
-            scene.add(light);
-            
-            // Source database
-            const sourceGeom = new THREE.CylinderGeometry(3, 3, 4, 32);
-            const sourceMat = new THREE.MeshPhongMaterial({ color: 0x9c27b0, emissive: 0x9c27b0, emissiveIntensity: 0.3 });
-            sourceDB = new THREE.Mesh(sourceGeom, sourceMat);
-            sourceDB.position.set(-10, 0, 0);
-            scene.add(sourceDB);
-            
-            // Destination BigQuery
-            const destGeom = new THREE.BoxGeometry(5, 3, 5);
-            const destMat = new THREE.MeshPhongMaterial({ color: 0x4285f4, emissive: 0x4285f4, emissiveIntensity: 0.3 });
-            destBQ = new THREE.Mesh(destGeom, destMat);
-            destBQ.position.set(10, 0, 0);
-            scene.add(destBQ);
-            
-            // Connection pipe
-            const pipeGeom = new THREE.CylinderGeometry(0.3, 0.3, 15, 16);
-            const pipeMat = new THREE.MeshBasicMaterial({ color: 0x444444 });
-            const pipe = new THREE.Mesh(pipeGeom, pipeMat);
-            pipe.rotation.z = Math.PI / 2;
-            pipe.position.set(0, 0, 0);
-            scene.add(pipe);
-            
-            const grid = new THREE.GridHelper(40, 40, 0xff5722, 0x1a1a2e);
-            grid.position.y = -5;
-            scene.add(grid);
-            
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-            
-            setInterval(triggerChange, 800);
-            animate();
+            var l1 = new THREE.PointLight(0xff5722, 1.5, 100); l1.position.set(0, 25, 0); scene.add(l1);
+            var sourceGeom = new THREE.CylinderGeometry(3, 3, 4, 32);
+            var sourceMat = new THREE.MeshPhongMaterial({color:0x9c27b0, emissive:0x9c27b0, emissiveIntensity:0.3});
+            sourceDB = new THREE.Mesh(sourceGeom, sourceMat); sourceDB.position.set(-10, 0, 0); scene.add(sourceDB);
+            var destGeom = new THREE.BoxGeometry(5, 3, 5);
+            var destMat = new THREE.MeshPhongMaterial({color:0x4285f4, emissive:0x4285f4, emissiveIntensity:0.3});
+            destBQ = new THREE.Mesh(destGeom, destMat); destBQ.position.set(10, 0, 0); scene.add(destBQ);
+            var pipeGeom = new THREE.CylinderGeometry(0.3, 0.3, 15, 16);
+            var pipeMat = new THREE.MeshBasicMaterial({color:0x444444});
+            var pipe = new THREE.Mesh(pipeGeom, pipeMat); pipe.rotation.z = Math.PI / 2; scene.add(pipe);
+            var grid = new THREE.GridHelper(40, 40, 0xff5722, 0x1a1a2e); grid.position.y = -5; grid.material.opacity = 0.25; grid.material.transparent = true; scene.add(grid);
+            window.addEventListener("resize", function() { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+            setTimeout(function() { document.getElementById("loading").style.display = "none"; }, 800);
+            animate(); updateStep();
         }
-        
-        function triggerChange() {
-            const changeTypes = [
-                { color: 0x00ff00, name: 'INSERT' },
-                { color: 0xffff00, name: 'UPDATE' },
-                { color: 0xff0000, name: 'DELETE' }
-            ];
-            const type = changeTypes[Math.floor(Math.random() * changeTypes.length)];
-            
-            const geom = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-            const mat = new THREE.MeshBasicMaterial({ color: type.color });
-            const event = new THREE.Mesh(geom, mat);
+        function createCDCEvent(color) {
+            var geom = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+            var mat = new THREE.MeshBasicMaterial({color:color});
+            var event = new THREE.Mesh(geom, mat);
             event.position.copy(sourceDB.position);
             event.position.y += (Math.random() - 0.5) * 2;
-            event.userData = { progress: 0, speed: 0.02 + Math.random() * 0.02 };
-            cdcEvents.push(event);
-            scene.add(event);
-            
-            // Flash source
+            event.userData = {progress: 0, speed: 0.02 + Math.random() * 0.02};
+            cdcEvents.push(event); scene.add(event);
             sourceDB.material.emissiveIntensity = 0.8;
-            setTimeout(() => sourceDB.material.emissiveIntensity = 0.3, 100);
+            setTimeout(function() { sourceDB.material.emissiveIntensity = 0.3; }, 100);
         }
-        
+        function triggerInsert() { createCDCEvent(0x00ff00); insertCount++; document.getElementById("inserts").textContent = insertCount; }
+        function triggerUpdate() { createCDCEvent(0xffff00); updateCount++; document.getElementById("updates").textContent = updateCount; }
+        function triggerDelete() { createCDCEvent(0xff0000); deleteCount++; document.getElementById("deletes").textContent = deleteCount; }
+        function updateStep() {
+            var step = steps[currentStep];
+            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+            document.getElementById("step-title").textContent = step.title;
+            document.getElementById("step-description").innerHTML = step.description;
+            document.getElementById("step-detail").innerHTML = step.detail;
+            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+            document.getElementById("prev-btn").disabled = currentStep === 0;
+            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+            animateCamera(step.cameraPos, step.cameraTarget);
+        }
+        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+        function resetVisualization() { currentStep = 0; stopAutoPlay(); insertCount = 0; updateCount = 0; deleteCount = 0; document.getElementById("inserts").textContent = "0"; document.getElementById("updates").textContent = "0"; document.getElementById("deletes").textContent = "0"; updateStep(); }
+        function animateCamera(targetPos, targetLookAt) {
+            var startPos = camera.position.clone(), startTarget = controls.target.clone();
+            var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
+            var endTarget = new THREE.Vector3(targetLookAt.x, targetLookAt.y, targetLookAt.z);
+            var startTime = Date.now();
+            function anim() {
+                var progress = Math.min((Date.now() - startTime) / 1000, 1);
+                var eased = 1 - Math.pow(1 - progress, 3);
+                camera.position.lerpVectors(startPos, endPos, eased);
+                controls.target.lerpVectors(startTarget, endTarget, eased);
+                if (progress < 1) requestAnimationFrame(anim);
+            }
+            anim();
+        }
+        function toggleAutoPlay() { if (isAutoPlaying) stopAutoPlay(); else startAutoPlay(); }
+        function startAutoPlay() { isAutoPlaying = true; document.getElementById("autoplay-btn").textContent = "Pause Story"; autoPlayInterval = setInterval(function() { if (currentStep < steps.length - 1) nextStep(); else stopAutoPlay(); }, 5000); }
+        function stopAutoPlay() { isAutoPlaying = false; document.getElementById("autoplay-btn").textContent = "Auto-Play Story"; if (autoPlayInterval) { clearInterval(autoPlayInterval); autoPlayInterval = null; } }
         function animate() {
             requestAnimationFrame(animate);
-            if (isAnimating) {
-                sourceDB.rotation.y += 0.01;
-                destBQ.rotation.y += 0.005;
-                
-                cdcEvents.forEach((e, i) => {
-                    e.userData.progress += e.userData.speed;
-                    const t = e.userData.progress;
-                    
-                    e.position.x = sourceDB.position.x + (destBQ.position.x - sourceDB.position.x) * t;
-                    e.position.y = Math.sin(t * Math.PI) * 3;
-                    e.rotation.x += 0.1;
-                    e.rotation.y += 0.1;
-                    
-                    if (t >= 1) {
-                        destBQ.material.emissiveIntensity = 0.6;
-                        setTimeout(() => destBQ.material.emissiveIntensity = 0.3, 100);
-                        scene.remove(e);
-                        cdcEvents.splice(i, 1);
-                    }
-                });
+            sourceDB.rotation.y += 0.01;
+            destBQ.rotation.y += 0.005;
+            document.getElementById("lag").textContent = Math.floor(Math.random() * 50 + 10) + " ms";
+            for (var i = cdcEvents.length - 1; i >= 0; i--) {
+                var e = cdcEvents[i];
+                e.userData.progress += e.userData.speed;
+                var t = e.userData.progress;
+                e.position.x = sourceDB.position.x + (destBQ.position.x - sourceDB.position.x) * t;
+                e.position.y = Math.sin(t * Math.PI) * 3;
+                e.rotation.x += 0.1; e.rotation.y += 0.1;
+                if (t >= 1) {
+                    destBQ.material.emissiveIntensity = 0.6;
+                    setTimeout(function() { destBQ.material.emissiveIntensity = 0.3; }, 100);
+                    scene.remove(e); cdcEvents.splice(i, 1);
+                }
             }
-            controls.update();
-            renderer.render(scene, camera);
+            controls.update(); renderer.render(scene, camera);
         }
-        
-        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
-        function resetCamera() { camera.position.set(0, 15, 25); controls.target.set(0, 0, 0); }
-        
         init();
     </script>
 </body>

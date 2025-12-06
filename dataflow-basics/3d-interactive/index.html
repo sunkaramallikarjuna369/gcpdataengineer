@@ -3,467 +3,400 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dataflow Pipeline - 3D Interactive Visualization</title>
+    <title>Dataflow - Learn How Google's Data Pipeline Works</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
-            color: #fff;
-            overflow: hidden;
-            height: 100vh;
-        }
-
-        #canvas-container {
-            width: 100%;
-            height: 100vh;
-            position: relative;
-        }
-
-        #info-panel {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.85);
-            border: 1px solid #ff6f00;
-            border-radius: 10px;
-            padding: 20px;
-            max-width: 350px;
-            box-shadow: 0 0 30px rgba(255, 111, 0, 0.3);
-            z-index: 100;
-        }
-
-        #info-panel h1 {
-            color: #ff6f00;
-            font-size: 1.5em;
-            margin-bottom: 10px;
-            text-shadow: 0 0 10px #ff6f00;
-        }
-
-        #info-panel p {
-            color: #aaa;
-            font-size: 0.9em;
-            line-height: 1.6;
-        }
-
-        #controls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 15px;
-            z-index: 100;
-        }
-
-        .control-btn {
-            background: rgba(255, 111, 0, 0.1);
-            border: 1px solid #ff6f00;
-            color: #ff6f00;
-            padding: 12px 24px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 0.9em;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .control-btn:hover {
-            background: rgba(255, 111, 0, 0.3);
-            box-shadow: 0 0 20px rgba(255, 111, 0, 0.5);
-        }
-
-        .control-btn.active {
-            background: #ff6f00;
-            color: #000;
-        }
-
-        #tooltip {
-            position: absolute;
-            background: rgba(0, 0, 0, 0.9);
-            border: 1px solid #00ffff;
-            border-radius: 8px;
-            padding: 15px;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            max-width: 300px;
-            z-index: 200;
-        }
-
-        #tooltip h3 {
-            color: #00ffff;
-            margin-bottom: 8px;
-        }
-
-        #tooltip p {
-            color: #ccc;
-            font-size: 0.85em;
-        }
-
-        #stats {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.85);
-            border: 1px solid #00ff00;
-            border-radius: 10px;
-            padding: 15px;
-            z-index: 100;
-        }
-
-        #stats h3 {
-            color: #00ff00;
-            margin-bottom: 10px;
-        }
-
-        .stat-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 5px 0;
-            font-size: 0.85em;
-        }
-
-        .stat-label { color: #888; }
-        .stat-value { color: #00ff00; font-family: monospace; }
-
-        #pipeline-stages {
-            position: absolute;
-            bottom: 80px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.85);
-            border: 1px solid #444;
-            border-radius: 10px;
-            padding: 15px;
-            z-index: 100;
-        }
-
-        #pipeline-stages h4 {
-            color: #fff;
-            margin-bottom: 10px;
-        }
-
-        .stage-item {
-            display: flex;
-            align-items: center;
-            margin: 8px 0;
-            font-size: 0.8em;
-        }
-
-        .stage-color {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            margin-right: 10px;
-        }
-
-        #loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            z-index: 300;
-        }
-
-        .loader {
-            width: 60px;
-            height: 60px;
-            border: 3px solid #333;
-            border-top: 3px solid #ff6f00;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%); color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; position: relative; }
+        #title-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ff6600; border-radius: 15px; padding: 20px; max-width: 380px; box-shadow: 0 0 30px rgba(255,102,0,0.4); z-index: 100; }
+        #title-panel h1 { color: #ff6600; font-size: 1.8em; margin-bottom: 8px; text-shadow: 0 0 15px #ff6600; }
+        #title-panel .subtitle { color: #00ffff; font-size: 1em; margin-bottom: 12px; }
+        #title-panel .intro { color: #ccc; font-size: 0.9em; line-height: 1.6; }
+        #step-panel { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.95); border: 2px solid #00ffff; border-radius: 15px; padding: 25px 35px; max-width: 750px; width: 90%; box-shadow: 0 0 40px rgba(0,255,255,0.4); z-index: 100; text-align: center; }
+        #step-indicator { color: #ff6600; font-size: 0.85em; margin-bottom: 8px; letter-spacing: 2px; }
+        #step-title { color: #00ffff; font-size: 1.4em; margin-bottom: 12px; text-shadow: 0 0 10px #00ffff; }
+        #step-description { color: #fff; font-size: 1.05em; line-height: 1.7; margin-bottom: 12px; }
+        #step-detail { color: #00ff00; font-size: 0.9em; font-style: italic; padding: 10px 15px; background: rgba(0,255,0,0.1); border-radius: 8px; border-left: 3px solid #00ff00; text-align: left; }
+        #nav-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .nav-btn { background: rgba(255,102,0,0.1); border: 2px solid #ff6600; color: #ff6600; padding: 12px 25px; border-radius: 25px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px; }
+        .nav-btn:hover { background: rgba(255,102,0,0.3); box-shadow: 0 0 20px rgba(255,102,0,0.5); transform: translateY(-2px); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+        .nav-btn.primary { background: #ff6600; color: #000; }
+        #progress-bar { position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%); width: 60%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; z-index: 100; }
+        #progress-fill { height: 100%; background: linear-gradient(90deg, #ff6600, #00ffff); border-radius: 3px; transition: width 0.5s ease; box-shadow: 0 0 10px #ff6600; }
+        #legend-panel { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ffff00; border-radius: 15px; padding: 15px; min-width: 200px; z-index: 100; }
+        #legend-panel h3 { color: #ffff00; margin-bottom: 12px; font-size: 1em; }
+        .legend-item { display: flex; align-items: center; margin: 8px 0; padding: 6px; border-radius: 6px; transition: background 0.3s; }
+        .legend-item.active { background: rgba(255,255,255,0.15); }
+        .legend-color { width: 18px; height: 18px; border-radius: 4px; margin-right: 10px; }
+        .legend-text .name { color: #fff; font-weight: bold; font-size: 0.85em; }
+        .legend-text .desc { color: #888; font-size: 0.75em; }
+        #metrics-panel { position: absolute; top: 280px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00ff00; border-radius: 15px; padding: 15px; min-width: 180px; z-index: 100; }
+        #metrics-panel h3 { color: #00ff00; margin-bottom: 10px; font-size: 0.95em; }
+        .metric-row { display: flex; justify-content: space-between; margin: 6px 0; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .metric-label { color: #888; font-size: 0.8em; }
+        .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
+        #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
+        .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #ff6600, #00ffff); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; transition: all 0.3s ease; }
+        .sim-btn:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(255,102,0,0.5); }
+        #tooltip { position: absolute; background: rgba(0,0,0,0.95); border: 2px solid #00ffff; border-radius: 10px; padding: 12px; max-width: 280px; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 200; }
+        #tooltip.visible { opacity: 1; }
+        #tooltip h4 { color: #00ffff; margin-bottom: 6px; font-size: 0.95em; }
+        #tooltip p { color: #ccc; font-size: 0.85em; line-height: 1.4; }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+        .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #ff6600; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-    <div id="loading">
-        <div class="loader"></div>
-        <p>Loading Dataflow Pipeline...</p>
-    </div>
-
+    <div id="loading"><div class="loader"></div><p style="color: #ff6600; font-size: 1.1em;">Loading Dataflow Visualization...</p></div>
     <div id="canvas-container"></div>
-
-    <div id="info-panel">
-        <h1>Dataflow Pipeline</h1>
-        <p>Watch data flow through an Apache Beam pipeline. Each glowing particle represents a data element being processed through transforms.</p>
-        <p style="margin-top: 10px; color: #ff6f00;">Click on pipeline stages to see details.</p>
+    <div id="title-panel">
+        <h1>Dataflow</h1>
+        <div class="subtitle">Google's Unified Stream & Batch Processing</div>
+        <div class="intro">Imagine a <strong>magical conveyor belt factory</strong> that can process millions of items per second! Dataflow transforms your data as it flows through, whether it comes all at once (batch) or continuously (streaming).</div>
     </div>
-
-    <div id="stats">
-        <h3>Pipeline Metrics</h3>
-        <div class="stat-row">
-            <span class="stat-label">Elements/sec:</span>
-            <span class="stat-value" id="throughput">0</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">Workers:</span>
-            <span class="stat-value" id="workers">0</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">CPU Utilization:</span>
-            <span class="stat-value" id="cpu">0%</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">Backlog:</span>
-            <span class="stat-value" id="backlog">0</span>
-        </div>
+    <div id="sim-controls">
+        <button class="sim-btn" onclick="runStreamingDemo()">Run Streaming Demo</button>
+        <button class="sim-btn" onclick="runBatchDemo()">Run Batch Demo</button>
+        <button class="sim-btn" onclick="toggleAutoPlay()" id="autoplay-btn">Auto-Play Story</button>
     </div>
-
-    <div id="pipeline-stages">
-        <h4>Pipeline Stages</h4>
-        <div class="stage-item">
-            <div class="stage-color" style="background: #00ffff;"></div>
-            <span>Source (Read)</span>
-        </div>
-        <div class="stage-item">
-            <div class="stage-color" style="background: #ff6f00;"></div>
-            <span>Transform (ParDo)</span>
-        </div>
-        <div class="stage-item">
-            <div class="stage-color" style="background: #ff00ff;"></div>
-            <span>GroupByKey</span>
-        </div>
-        <div class="stage-item">
-            <div class="stage-color" style="background: #00ff00;"></div>
-            <span>Sink (Write)</span>
-        </div>
+    <div id="step-panel">
+        <div id="step-indicator">STEP 1 OF 7</div>
+        <div id="step-title">Welcome to Dataflow!</div>
+        <div id="step-description">Let's learn how Dataflow processes data through pipelines. Click "Next" to begin!</div>
+        <div id="step-detail">Dataflow is based on Apache Beam - write once, run anywhere!</div>
     </div>
-
-    <div id="controls">
-        <button class="control-btn" onclick="toggleAnimation()">Pause Flow</button>
-        <button class="control-btn" onclick="toggleSpeed()">Speed: Normal</button>
-        <button class="control-btn" onclick="resetCamera()">Reset View</button>
-        <button class="control-btn" onclick="toggleWorkers()">Scale Workers</button>
+    <div id="progress-bar"><div id="progress-fill" style="width: 14.28%"></div></div>
+    <div id="nav-controls">
+        <button class="nav-btn" id="prev-btn" onclick="previousStep()" disabled>Previous</button>
+        <button class="nav-btn" onclick="resetVisualization()">Reset</button>
+        <button class="nav-btn primary" id="next-btn" onclick="nextStep()">Next</button>
     </div>
-
-    <div id="tooltip">
-        <h3 id="tooltip-title">Stage</h3>
-        <p id="tooltip-desc">Description</p>
+    <div id="legend-panel">
+        <h3>What You See</h3>
+        <div class="legend-item" id="legend-source"><div class="legend-color" style="background: #00ffff;"></div><div class="legend-text"><div class="name">Source</div><div class="desc">Where data comes from</div></div></div>
+        <div class="legend-item" id="legend-transform"><div class="legend-color" style="background: #ff6600;"></div><div class="legend-text"><div class="name">Transform</div><div class="desc">Changes the data</div></div></div>
+        <div class="legend-item" id="legend-window"><div class="legend-color" style="background: #ff00ff;"></div><div class="legend-text"><div class="name">Window</div><div class="desc">Groups by time</div></div></div>
+        <div class="legend-item" id="legend-sink"><div class="legend-color" style="background: #00ff00;"></div><div class="legend-text"><div class="name">Sink</div><div class="desc">Where results go</div></div></div>
+        <div class="legend-item" id="legend-worker"><div class="legend-color" style="background: #ffff00;"></div><div class="legend-text"><div class="name">Workers</div><div class="desc">Computers doing work</div></div></div>
     </div>
-
+    <div id="metrics-panel">
+        <h3>Live Metrics</h3>
+        <div class="metric-row"><span class="metric-label">Elements/sec:</span><span class="metric-value" id="throughput">0</span></div>
+        <div class="metric-row"><span class="metric-label">Workers:</span><span class="metric-value" id="workers">0</span></div>
+        <div class="metric-row"><span class="metric-label">Latency:</span><span class="metric-value" id="latency">0 ms</span></div>
+        <div class="metric-row"><span class="metric-label">Backlog:</span><span class="metric-value" id="backlog">0</span></div>
+    </div>
+    <div id="tooltip"><h4 id="tooltip-title">Component</h4><p id="tooltip-desc">Description</p></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        let scene, camera, renderer, controls;
-        let pipelineStages = [];
-        let dataParticles = [];
-        let isAnimating = true;
-        let speedMultiplier = 1;
-        let workerCount = 4;
+        var scene, camera, renderer, controls;
+        var currentStep = 0;
+        var isAutoPlaying = false;
+        var autoPlayInterval = null;
+        var source, transforms = [], windowNode, sink, workers = [];
+        var dataParticles = [];
+        var isRunning = false;
 
-        const stageData = {
-            source: {
-                title: "Source (ReadFromPubSub)",
-                desc: "Reads unbounded data from Pub/Sub subscription. Each message becomes a PCollection element."
-            },
-            transform1: {
-                title: "ParDo Transform",
-                desc: "Applies a user-defined function to each element. Supports side inputs and outputs."
-            },
-            groupby: {
-                title: "GroupByKey",
-                desc: "Groups elements by key. In streaming, uses windows to bound the grouping."
-            },
-            transform2: {
-                title: "Combine Transform",
-                desc: "Aggregates values per key using associative and commutative operations."
-            },
-            sink: {
-                title: "Sink (WriteToBigQuery)",
-                desc: "Writes results to BigQuery using streaming inserts or batch loads."
-            }
+        var steps = [
+            { title: "Welcome to Dataflow!", description: "Dataflow is like a <strong>magical factory</strong> for data. Data comes in one end, gets transformed (changed, filtered, combined), and comes out the other end - all automatically!", detail: "Dataflow uses Apache Beam, which means you write your code once and it can run on different systems!", highlight: [], cameraPos: { x: 25, y: 18, z: 25 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 1: Data Enters the Source", description: "Data enters through a <strong>Source</strong>. This could be messages from Pub/Sub, files from Cloud Storage, or rows from BigQuery. Think of it as the <strong>loading dock</strong> where raw materials arrive.", detail: "Sources can be 'bounded' (files with a known end) or 'unbounded' (endless streams like Pub/Sub).", highlight: ["source"], cameraPos: { x: -15, y: 10, z: 15 }, cameraTarget: { x: -12, y: 0, z: 0 } },
+            { title: "Step 2: Transforms Change the Data", description: "Data flows through <strong>Transforms</strong> - these are like workers on an assembly line. Each transform does one job: filter bad data, convert formats, calculate values, or combine records.", detail: "Common transforms: Map (change each item), Filter (keep only some), GroupByKey (combine by category), Combine (aggregate like SUM).", highlight: ["transform"], cameraPos: { x: 0, y: 12, z: 18 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 3: Windows Group Data by Time", description: "For streaming data, <strong>Windows</strong> group data into time buckets. Imagine sorting mail by the hour it arrived. This lets you answer questions like 'How many orders in the last 5 minutes?'", detail: "Window types: Fixed (every 5 min), Sliding (5 min windows every 1 min), Session (gaps in activity).", highlight: ["window"], cameraPos: { x: 8, y: 10, z: 15 }, cameraTarget: { x: 5, y: 0, z: 0 } },
+            { title: "Step 4: Workers Do the Heavy Lifting", description: "Behind the scenes, <strong>Workers</strong> (virtual machines) actually run your code. Dataflow automatically adds more workers when busy and removes them when idle - this is called <strong>autoscaling</strong>!", detail: "You only pay for what you use. Dataflow can scale from 1 to 1000+ workers automatically!", highlight: ["workers"], cameraPos: { x: 0, y: 20, z: 20 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 5: Results Go to the Sink", description: "Finally, processed data arrives at the <strong>Sink</strong> - its final destination. This could be BigQuery for analytics, Cloud Storage for archiving, or another Pub/Sub topic for downstream systems.", detail: "Dataflow guarantees 'exactly-once' processing - each record is processed exactly one time, no duplicates!", highlight: ["sink"], cameraPos: { x: 15, y: 10, z: 15 }, cameraTarget: { x: 12, y: 0, z: 0 } },
+            { title: "Step 6: Streaming vs Batch", description: "Dataflow handles both <strong>Streaming</strong> (continuous, real-time) and <strong>Batch</strong> (process all at once) with the SAME code! Streaming is like a river that never stops. Batch is like processing a lake.", detail: "Use streaming for real-time dashboards, fraud detection, IoT. Use batch for daily reports, historical analysis.", highlight: ["source", "sink"], cameraPos: { x: 22, y: 15, z: 22 }, cameraTarget: { x: 0, y: 0, z: 0 } }
+        ];
+
+        var componentInfo = {
+            source: { title: "Source (Input)", desc: "Where data enters the pipeline. Can read from Pub/Sub, GCS, BigQuery, Kafka, and more." },
+            transform: { title: "Transform (ParDo)", desc: "Applies your code to each element. Can filter, map, or split data into multiple outputs." },
+            window: { title: "Window", desc: "Groups unbounded data into finite chunks by time. Essential for streaming aggregations." },
+            sink: { title: "Sink (Output)", desc: "Where processed data goes. Can write to BigQuery, GCS, Pub/Sub, Bigtable, and more." },
+            worker: { title: "Worker (VM)", desc: "A virtual machine running your pipeline code. Dataflow manages these automatically." }
         };
 
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x0a0a0a);
-            scene.fog = new THREE.Fog(0x0a0a0a, 30, 100);
-
+            scene.fog = new THREE.FogExp2(0x0a0a0a, 0.015);
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 15, 25);
-
+            camera.position.set(25, 18, 25);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
-
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById("canvas-container").appendChild(renderer.domElement);
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
-
-            // Lights
-            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
-            scene.add(ambientLight);
-
-            const pointLight1 = new THREE.PointLight(0xff6f00, 1, 100);
-            pointLight1.position.set(0, 20, 0);
-            scene.add(pointLight1);
-
-            const pointLight2 = new THREE.PointLight(0x00ffff, 0.5, 100);
-            pointLight2.position.set(-20, 10, 10);
-            scene.add(pointLight2);
-
-            createPipeline();
-            createDataParticles();
+            controls.minDistance = 10;
+            controls.maxDistance = 60;
+            setupLighting();
+            createSource();
+            createTransforms();
+            createWindow();
+            createSink();
             createWorkers();
-
-            // Grid
-            const gridHelper = new THREE.GridHelper(40, 40, 0xff6f00, 0x1a1a2e);
-            gridHelper.position.y = -3;
-            scene.add(gridHelper);
-
-            document.getElementById('loading').style.display = 'none';
-
-            window.addEventListener('resize', onWindowResize);
-            renderer.domElement.addEventListener('mousemove', onMouseMove);
-            renderer.domElement.addEventListener('click', onClick);
-
+            createConnections();
+            createGrid();
+            window.addEventListener("resize", onWindowResize);
+            renderer.domElement.addEventListener("mousemove", onMouseMove);
+            setTimeout(function() { document.getElementById("loading").style.display = "none"; }, 800);
             animate();
-            simulateMetrics();
+            updateStep();
         }
 
-        function createPipeline() {
-            const stages = [
-                { x: -15, color: 0x00ffff, type: 'source', shape: 'cylinder' },
-                { x: -7, color: 0xff6f00, type: 'transform1', shape: 'box' },
-                { x: 0, color: 0xff00ff, type: 'groupby', shape: 'octahedron' },
-                { x: 7, color: 0xff6f00, type: 'transform2', shape: 'box' },
-                { x: 15, color: 0x00ff00, type: 'sink', shape: 'cylinder' }
-            ];
-
-            stages.forEach((stage, i) => {
-                let geometry;
-                if (stage.shape === 'cylinder') {
-                    geometry = new THREE.CylinderGeometry(2, 2, 3, 32);
-                } else if (stage.shape === 'octahedron') {
-                    geometry = new THREE.OctahedronGeometry(2.5);
-                } else {
-                    geometry = new THREE.BoxGeometry(3, 3, 3);
-                }
-
-                const material = new THREE.MeshPhongMaterial({
-                    color: stage.color,
-                    emissive: stage.color,
-                    emissiveIntensity: 0.3,
-                    transparent: true,
-                    opacity: 0.8
-                });
-
-                const mesh = new THREE.Mesh(geometry, material);
-                mesh.position.set(stage.x, 0, 0);
-                mesh.userData = { type: stage.type };
-                scene.add(mesh);
-                pipelineStages.push(mesh);
-
-                // Add glow
-                const glowGeom = geometry.clone();
-                const glowMat = new THREE.MeshBasicMaterial({
-                    color: stage.color,
-                    transparent: true,
-                    opacity: 0.1,
-                    side: THREE.BackSide
-                });
-                const glow = new THREE.Mesh(glowGeom, glowMat);
-                glow.scale.multiplyScalar(1.3);
-                mesh.add(glow);
-
-                // Connection pipes
-                if (i < stages.length - 1) {
-                    const pipeGeom = new THREE.CylinderGeometry(0.3, 0.3, 5, 16);
-                    const pipeMat = new THREE.MeshPhongMaterial({
-                        color: 0x444444,
-                        emissive: 0x222222,
-                        transparent: true,
-                        opacity: 0.6
-                    });
-                    const pipe = new THREE.Mesh(pipeGeom, pipeMat);
-                    pipe.rotation.z = Math.PI / 2;
-                    pipe.position.set(stage.x + 3.5, 0, 0);
-                    scene.add(pipe);
-                }
-            });
+        function setupLighting() {
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            var l1 = new THREE.PointLight(0xff6600, 1.5, 100); l1.position.set(0, 25, 0); scene.add(l1);
+            var l2 = new THREE.PointLight(0x00ffff, 1.2, 100); l2.position.set(-20, 15, 10); scene.add(l2);
+            var l3 = new THREE.PointLight(0x00ff00, 0.8, 100); l3.position.set(20, 15, -10); scene.add(l3);
         }
 
-        function createDataParticles() {
-            const particleCount = 200;
-            
-            for (let i = 0; i < particleCount; i++) {
-                const geometry = new THREE.SphereGeometry(0.15, 8, 8);
-                const hue = Math.random();
-                const color = new THREE.Color().setHSL(hue, 1, 0.5);
-                const material = new THREE.MeshBasicMaterial({
-                    color: color,
-                    transparent: true,
-                    opacity: 0.8
-                });
-                
-                const particle = new THREE.Mesh(geometry, material);
-                particle.position.set(
-                    -18 + Math.random() * 2,
-                    (Math.random() - 0.5) * 2,
-                    (Math.random() - 0.5) * 4
-                );
-                particle.userData = {
-                    speed: 0.05 + Math.random() * 0.05,
-                    offset: Math.random() * Math.PI * 2,
-                    baseY: particle.position.y,
-                    baseZ: particle.position.z
-                };
-                
-                scene.add(particle);
-                dataParticles.push(particle);
+        function createSource() {
+            var group = new THREE.Group();
+            var geo = new THREE.CylinderGeometry(2, 2.5, 3, 32);
+            var mat = new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.5, transparent: true, opacity: 0.9 });
+            group.add(new THREE.Mesh(geo, mat));
+            var glowGeo = new THREE.CylinderGeometry(2.2, 2.7, 3.2, 32);
+            var glowMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.15, side: THREE.BackSide });
+            group.add(new THREE.Mesh(glowGeo, glowMat));
+            group.position.set(-12, 0, 0);
+            group.userData = { type: "source" };
+            scene.add(group);
+            source = group;
+        }
+
+        function createTransforms() {
+            var positions = [-6, 0, 6];
+            for (var i = 0; i < positions.length; i++) {
+                var group = new THREE.Group();
+                var geo = new THREE.BoxGeometry(2.5, 2.5, 2.5);
+                var mat = new THREE.MeshPhongMaterial({ color: 0xff6600, emissive: 0xff6600, emissiveIntensity: 0.4, transparent: true, opacity: 0.9 });
+                group.add(new THREE.Mesh(geo, mat));
+                var wireGeo = new THREE.BoxGeometry(2.7, 2.7, 2.7);
+                var wireMat = new THREE.MeshBasicMaterial({ color: 0xff6600, wireframe: true, transparent: true, opacity: 0.3 });
+                group.add(new THREE.Mesh(wireGeo, wireMat));
+                group.position.set(positions[i], 0, 0);
+                group.userData = { type: "transform", index: i };
+                scene.add(group);
+                transforms.push(group);
             }
+        }
+
+        function createWindow() {
+            var group = new THREE.Group();
+            var geo = new THREE.TorusGeometry(2, 0.5, 16, 32);
+            var mat = new THREE.MeshPhongMaterial({ color: 0xff00ff, emissive: 0xff00ff, emissiveIntensity: 0.5, transparent: true, opacity: 0.8 });
+            group.add(new THREE.Mesh(geo, mat));
+            var innerGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.3, 32);
+            var innerMat = new THREE.MeshBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0.2 });
+            var inner = new THREE.Mesh(innerGeo, innerMat);
+            inner.rotation.x = Math.PI / 2;
+            group.add(inner);
+            group.position.set(3, 0, 0);
+            group.rotation.y = Math.PI / 2;
+            group.userData = { type: "window" };
+            scene.add(group);
+            windowNode = group;
+        }
+
+        function createSink() {
+            var group = new THREE.Group();
+            var geo = new THREE.CylinderGeometry(2.5, 2, 3, 32);
+            var mat = new THREE.MeshPhongMaterial({ color: 0x00ff00, emissive: 0x00ff00, emissiveIntensity: 0.5, transparent: true, opacity: 0.9 });
+            group.add(new THREE.Mesh(geo, mat));
+            var glowGeo = new THREE.CylinderGeometry(2.7, 2.2, 3.2, 32);
+            var glowMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.15, side: THREE.BackSide });
+            group.add(new THREE.Mesh(glowGeo, glowMat));
+            group.position.set(12, 0, 0);
+            group.userData = { type: "sink" };
+            scene.add(group);
+            sink = group;
         }
 
         function createWorkers() {
-            // Worker visualization will be added dynamically
+            var positions = [{ x: -6, z: 6 }, { x: 0, z: 6 }, { x: 6, z: 6 }, { x: -6, z: -6 }, { x: 0, z: -6 }, { x: 6, z: -6 }];
+            for (var i = 0; i < positions.length; i++) {
+                var group = new THREE.Group();
+                var geo = new THREE.OctahedronGeometry(1);
+                var mat = new THREE.MeshPhongMaterial({ color: 0xffff00, emissive: 0xffff00, emissiveIntensity: 0.3, transparent: true, opacity: 0.8 });
+                group.add(new THREE.Mesh(geo, mat));
+                group.position.set(positions[i].x, -3, positions[i].z);
+                group.userData = { type: "worker", index: i, active: false };
+                scene.add(group);
+                workers.push(group);
+            }
         }
 
-        function animate() {
-            requestAnimationFrame(animate);
-
-            if (isAnimating) {
-                // Animate pipeline stages
-                pipelineStages.forEach((stage, i) => {
-                    stage.rotation.y += 0.005;
-                    if (stage.userData.type === 'groupby') {
-                        stage.rotation.x += 0.01;
-                    }
-                });
-
-                // Animate data particles
-                dataParticles.forEach(particle => {
-                    particle.position.x += particle.userData.speed * speedMultiplier;
-                    particle.position.y = particle.userData.baseY + Math.sin(Date.now() * 0.002 + particle.userData.offset) * 0.3;
-                    
-                    // Reset when reaching end
-                    if (particle.position.x > 18) {
-                        particle.position.x = -18;
-                        particle.position.z = (Math.random() - 0.5) * 4;
-                    }
-                    
-                    // Slow down at GroupByKey (shuffle)
-                    if (particle.position.x > -2 && particle.position.x < 2) {
-                        particle.position.z += (Math.random() - 0.5) * 0.1;
-                    }
-                });
+        function createConnections() {
+            function createPipe(start, end, color) {
+                var dir = new THREE.Vector3().subVectors(end, start);
+                var len = dir.length();
+                var geo = new THREE.CylinderGeometry(0.2, 0.2, len, 8);
+                var mat = new THREE.MeshPhongMaterial({ color: color, emissive: color, emissiveIntensity: 0.2, transparent: true, opacity: 0.5 });
+                var pipe = new THREE.Mesh(geo, mat);
+                pipe.position.copy(start).add(dir.multiplyScalar(0.5));
+                pipe.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+                scene.add(pipe);
             }
+            createPipe(new THREE.Vector3(-10, 0, 0), new THREE.Vector3(-7.5, 0, 0), 0x00ffff);
+            createPipe(new THREE.Vector3(-4.5, 0, 0), new THREE.Vector3(-1.5, 0, 0), 0xff6600);
+            createPipe(new THREE.Vector3(1.5, 0, 0), new THREE.Vector3(4.5, 0, 0), 0xff6600);
+            createPipe(new THREE.Vector3(7.5, 0, 0), new THREE.Vector3(10, 0, 0), 0x00ff00);
+        }
 
-            controls.update();
-            renderer.render(scene, camera);
+        function createGrid() {
+            var grid = new THREE.GridHelper(50, 50, 0xff6600, 0x1a1a2e);
+            grid.position.y = -5;
+            grid.material.opacity = 0.25;
+            grid.material.transparent = true;
+            scene.add(grid);
+        }
+
+        function updateStep() {
+            var step = steps[currentStep];
+            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+            document.getElementById("step-title").textContent = step.title;
+            document.getElementById("step-description").innerHTML = step.description;
+            document.getElementById("step-detail").innerHTML = step.detail;
+            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+            document.getElementById("prev-btn").disabled = currentStep === 0;
+            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+            animateCamera(step.cameraPos, step.cameraTarget);
+            highlightComponents(step.highlight);
+        }
+
+        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+        function resetVisualization() {
+            currentStep = 0; stopAutoPlay(); updateStep();
+            document.getElementById("throughput").textContent = "0";
+            document.getElementById("workers").textContent = "0";
+            document.getElementById("latency").textContent = "0 ms";
+            document.getElementById("backlog").textContent = "0";
+            for (var i = 0; i < dataParticles.length; i++) scene.remove(dataParticles[i]);
+            dataParticles = [];
+        }
+
+        function animateCamera(targetPos, targetLookAt) {
+            var startPos = camera.position.clone();
+            var startTarget = controls.target.clone();
+            var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
+            var endTarget = new THREE.Vector3(targetLookAt.x, targetLookAt.y, targetLookAt.z);
+            var startTime = Date.now();
+            function anim() {
+                var progress = Math.min((Date.now() - startTime) / 1000, 1);
+                var eased = 1 - Math.pow(1 - progress, 3);
+                camera.position.lerpVectors(startPos, endPos, eased);
+                controls.target.lerpVectors(startTarget, endTarget, eased);
+                if (progress < 1) requestAnimationFrame(anim);
+            }
+            anim();
+        }
+
+        function highlightComponents(types) {
+            var allObjects = [source, windowNode, sink].concat(transforms).concat(workers);
+            for (var i = 0; i < allObjects.length; i++) {
+                var obj = allObjects[i];
+                if (obj) obj.traverse(function(c) { if (c.material && c.material.emissiveIntensity !== undefined) c.material.emissiveIntensity = 0.2; });
+            }
+            for (var j = 0; j < types.length; j++) {
+                var type = types[j];
+                if (type === "source") pulseObject(source);
+                else if (type === "transform") { for (var k = 0; k < transforms.length; k++) pulseObject(transforms[k]); }
+                else if (type === "window") pulseObject(windowNode);
+                else if (type === "sink") pulseObject(sink);
+                else if (type === "workers") { for (var l = 0; l < workers.length; l++) pulseObject(workers[l]); }
+            }
+        }
+
+        function pulseObject(obj) {
+            if (obj) obj.traverse(function(c) { if (c.material && c.material.emissiveIntensity !== undefined) c.material.emissiveIntensity = 0.8; });
+        }
+
+        function runStreamingDemo() {
+            if (isRunning) return;
+            isRunning = true;
+            var count = 0;
+            var interval = setInterval(function() {
+                if (count >= 50) { clearInterval(interval); isRunning = false; return; }
+                createDataParticle();
+                count++;
+                document.getElementById("throughput").textContent = Math.floor(Math.random() * 5000 + 1000);
+                document.getElementById("workers").textContent = Math.floor(Math.random() * 4 + 2);
+                document.getElementById("latency").textContent = Math.floor(Math.random() * 100 + 50) + " ms";
+                document.getElementById("backlog").textContent = Math.floor(Math.random() * 100);
+            }, 100);
+        }
+
+        function runBatchDemo() {
+            if (isRunning) return;
+            isRunning = true;
+            for (var i = 0; i < 30; i++) {
+                (function(idx) {
+                    setTimeout(function() { createDataParticle(); }, idx * 50);
+                })(i);
+            }
+            document.getElementById("throughput").textContent = "50000";
+            document.getElementById("workers").textContent = "6";
+            document.getElementById("latency").textContent = "N/A";
+            document.getElementById("backlog").textContent = "0";
+            setTimeout(function() { isRunning = false; }, 2000);
+        }
+
+        function createDataParticle() {
+            var geo = new THREE.SphereGeometry(0.2, 8, 8);
+            var colors = [0x00ffff, 0xff6600, 0xff00ff, 0x00ff00];
+            var mat = new THREE.MeshBasicMaterial({ color: colors[Math.floor(Math.random() * colors.length)], transparent: true, opacity: 0.9 });
+            var particle = new THREE.Mesh(geo, mat);
+            particle.position.set(-14, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2);
+            particle.userData = { speed: 0.15 + Math.random() * 0.1 };
+            scene.add(particle);
+            dataParticles.push(particle);
+        }
+
+        function toggleAutoPlay() { if (isAutoPlaying) stopAutoPlay(); else startAutoPlay(); }
+        function startAutoPlay() {
+            isAutoPlaying = true;
+            document.getElementById("autoplay-btn").textContent = "Pause Story";
+            autoPlayInterval = setInterval(function() { if (currentStep < steps.length - 1) nextStep(); else stopAutoPlay(); }, 5000);
+        }
+        function stopAutoPlay() {
+            isAutoPlaying = false;
+            document.getElementById("autoplay-btn").textContent = "Auto-Play Story";
+            if (autoPlayInterval) { clearInterval(autoPlayInterval); autoPlayInterval = null; }
+        }
+
+        var raycaster = new THREE.Raycaster();
+        var mouse = new THREE.Vector2();
+        function onMouseMove(e) {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            var allObjects = [source, windowNode, sink].concat(transforms).concat(workers);
+            var intersects = raycaster.intersectObjects(allObjects, true);
+            var tooltip = document.getElementById("tooltip");
+            if (intersects.length > 0) {
+                var obj = intersects[0].object;
+                while (obj.parent && !obj.userData.type) obj = obj.parent;
+                if (obj.userData.type) {
+                    var info = componentInfo[obj.userData.type];
+                    if (info) {
+                        tooltip.classList.add("visible");
+                        document.getElementById("tooltip-title").textContent = info.title;
+                        document.getElementById("tooltip-desc").textContent = info.desc;
+                        tooltip.style.left = (e.clientX + 15) + "px";
+                        tooltip.style.top = (e.clientY + 15) + "px";
+                        document.body.style.cursor = "pointer";
+                        return;
+                    }
+                }
+            }
+            tooltip.classList.remove("visible");
+            document.body.style.cursor = "default";
         }
 
         function onWindowResize() {
@@ -472,83 +405,22 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        function onMouseMove(event) {
-            const tooltip = document.getElementById('tooltip');
-            const raycaster = new THREE.Raycaster();
-            const mouse = new THREE.Vector2();
-
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(pipelineStages);
-
-            if (intersects.length > 0) {
-                const obj = intersects[0].object;
-                const data = stageData[obj.userData.type];
-
-                if (data) {
-                    tooltip.style.opacity = '1';
-                    tooltip.style.left = event.clientX + 15 + 'px';
-                    tooltip.style.top = event.clientY + 15 + 'px';
-                    document.getElementById('tooltip-title').textContent = data.title;
-                    document.getElementById('tooltip-desc').textContent = data.desc;
-                }
-            } else {
-                tooltip.style.opacity = '0';
+        function animate() {
+            requestAnimationFrame(animate);
+            var t = Date.now() * 0.001;
+            if (source) source.rotation.y = t * 0.3;
+            if (sink) sink.rotation.y = -t * 0.3;
+            if (windowNode) windowNode.rotation.x = t * 0.5;
+            for (var i = 0; i < transforms.length; i++) { transforms[i].rotation.y = t * 0.4 + i; transforms[i].rotation.x = Math.sin(t + i) * 0.2; }
+            for (var j = 0; j < workers.length; j++) { workers[j].rotation.y = t + j; workers[j].position.y = -3 + Math.sin(t * 2 + j) * 0.2; }
+            for (var k = dataParticles.length - 1; k >= 0; k--) {
+                var p = dataParticles[k];
+                p.position.x += p.userData.speed;
+                p.position.y += Math.sin(t * 5 + k) * 0.02;
+                if (p.position.x > 14) { scene.remove(p); dataParticles.splice(k, 1); }
             }
-        }
-
-        function onClick(event) {
-            const raycaster = new THREE.Raycaster();
-            const mouse = new THREE.Vector2();
-
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(pipelineStages);
-
-            if (intersects.length > 0) {
-                const obj = intersects[0].object;
-                const scale = obj.scale.clone();
-                obj.scale.multiplyScalar(1.2);
-                setTimeout(() => obj.scale.copy(scale), 200);
-            }
-        }
-
-        function toggleAnimation() {
-            isAnimating = !isAnimating;
-            event.target.textContent = isAnimating ? 'Pause Flow' : 'Resume Flow';
-            event.target.classList.toggle('active');
-        }
-
-        function toggleSpeed() {
-            speedMultiplier = speedMultiplier === 1 ? 2 : speedMultiplier === 2 ? 0.5 : 1;
-            const label = speedMultiplier === 1 ? 'Normal' : speedMultiplier === 2 ? 'Fast' : 'Slow';
-            event.target.textContent = `Speed: ${label}`;
-        }
-
-        function resetCamera() {
-            camera.position.set(0, 15, 25);
-            controls.target.set(0, 0, 0);
-        }
-
-        function toggleWorkers() {
-            workerCount = workerCount === 4 ? 8 : workerCount === 8 ? 2 : 4;
-            document.getElementById('workers').textContent = workerCount;
-        }
-
-        function simulateMetrics() {
-            setInterval(() => {
-                document.getElementById('throughput').textContent = 
-                    Math.floor(Math.random() * 50000 + 10000).toLocaleString();
-                document.getElementById('workers').textContent = workerCount;
-                document.getElementById('cpu').textContent = 
-                    Math.floor(Math.random() * 30 + 50) + '%';
-                document.getElementById('backlog').textContent = 
-                    Math.floor(Math.random() * 1000);
-            }, 2000);
+            controls.update();
+            renderer.render(scene, camera);
         }
 
         init();

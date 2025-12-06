@@ -3,130 +3,189 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloud Functions - 3D Interactive</title>
+    <title>Cloud Functions - Learn Serverless Event-Driven Computing</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
-        #canvas-container { width: 100%; height: 100vh; }
-        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #00c853; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
-        #info-panel h1 { color: #00c853; font-size: 1.3em; margin-bottom: 10px; }
-        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
-        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
-        .control-btn { background: rgba(0,200,83,0.1); border: 1px solid #00c853; color: #00c853; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
-        .control-btn:hover { background: rgba(0,200,83,0.3); }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%); color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; position: relative; }
+        #title-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00c853; border-radius: 15px; padding: 20px; max-width: 380px; box-shadow: 0 0 30px rgba(0,200,83,0.4); z-index: 100; }
+        #title-panel h1 { color: #00c853; font-size: 1.8em; margin-bottom: 8px; text-shadow: 0 0 15px #00c853; }
+        #title-panel .subtitle { color: #ffff00; font-size: 1em; margin-bottom: 12px; }
+        #title-panel .intro { color: #ccc; font-size: 0.9em; line-height: 1.6; }
+        #step-panel { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.95); border: 2px solid #ffff00; border-radius: 15px; padding: 25px 35px; max-width: 750px; width: 90%; box-shadow: 0 0 40px rgba(255,255,0,0.3); z-index: 100; text-align: center; }
+        #step-indicator { color: #00c853; font-size: 0.85em; margin-bottom: 8px; letter-spacing: 2px; }
+        #step-title { color: #ffff00; font-size: 1.4em; margin-bottom: 12px; text-shadow: 0 0 10px #ffff00; }
+        #step-description { color: #fff; font-size: 1.05em; line-height: 1.7; margin-bottom: 12px; }
+        #step-detail { color: #00ff00; font-size: 0.9em; font-style: italic; padding: 10px 15px; background: rgba(0,255,0,0.1); border-radius: 8px; border-left: 3px solid #00ff00; text-align: left; }
+        #nav-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .nav-btn { background: rgba(0,200,83,0.1); border: 2px solid #00c853; color: #00c853; padding: 12px 25px; border-radius: 25px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: all 0.3s ease; }
+        .nav-btn:hover { background: rgba(0,200,83,0.3); box-shadow: 0 0 20px rgba(0,200,83,0.5); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.primary { background: #00c853; color: #000; }
+        #progress-bar { position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%); width: 60%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; z-index: 100; }
+        #progress-fill { height: 100%; background: linear-gradient(90deg, #00c853, #ffff00); border-radius: 3px; transition: width 0.5s ease; }
+        #legend-panel { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ff9800; border-radius: 15px; padding: 15px; min-width: 200px; z-index: 100; }
+        #legend-panel h3 { color: #ff9800; margin-bottom: 12px; font-size: 1em; }
+        .legend-item { display: flex; align-items: center; margin: 8px 0; }
+        .legend-color { width: 18px; height: 18px; border-radius: 4px; margin-right: 10px; }
+        .legend-text .name { color: #fff; font-weight: bold; font-size: 0.85em; }
+        .legend-text .desc { color: #888; font-size: 0.75em; }
+        #metrics-panel { position: absolute; top: 240px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00ff00; border-radius: 15px; padding: 15px; min-width: 180px; z-index: 100; }
+        #metrics-panel h3 { color: #00ff00; margin-bottom: 10px; font-size: 0.95em; }
+        .metric-row { display: flex; justify-content: space-between; margin: 6px 0; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .metric-label { color: #888; font-size: 0.8em; }
+        .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
+        #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
+        .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #00c853, #ffff00); border: none; color: #000; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; }
+        .sim-btn:hover { transform: scale(1.05); }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+        .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #00c853; border-right: 4px solid #ffff00; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div id="loading"><div class="loader"></div><p style="color: #00c853;">Loading Cloud Functions...</p></div>
     <div id="canvas-container"></div>
-    <div id="info-panel">
+    <div id="title-panel">
         <h1>Cloud Functions</h1>
-        <p>Serverless event-driven functions. Watch events trigger function executions that scale automatically.</p>
+        <div class="subtitle">Serverless Event-Driven Computing</div>
+        <div class="intro">Imagine <strong>tiny workers that wake up only when needed</strong>! Cloud Functions run your code in response to events - no servers to manage!</div>
     </div>
-    <div id="controls">
-        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
-        <button class="control-btn" onclick="triggerEvent()">Trigger Event</button>
-        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    <div id="sim-controls">
+        <button class="sim-btn" onclick="triggerHTTP()">HTTP Request</button>
+        <button class="sim-btn" onclick="triggerPubSub()">Pub/Sub Event</button>
+        <button class="sim-btn" onclick="toggleAutoPlay()" id="autoplay-btn">Auto-Play Story</button>
+    </div>
+    <div id="step-panel">
+        <div id="step-indicator">STEP 1 OF 6</div>
+        <div id="step-title">Welcome to Cloud Functions!</div>
+        <div id="step-description">Learn how serverless functions work. Click "Next" to begin!</div>
+        <div id="step-detail">Cloud Functions: Write code, deploy, and let Google handle the rest!</div>
+    </div>
+    <div id="progress-bar"><div id="progress-fill" style="width: 16.67%"></div></div>
+    <div id="nav-controls">
+        <button class="nav-btn" id="prev-btn" onclick="previousStep()" disabled>Previous</button>
+        <button class="nav-btn" onclick="resetVisualization()">Reset</button>
+        <button class="nav-btn primary" id="next-btn" onclick="nextStep()">Next</button>
+    </div>
+    <div id="legend-panel">
+        <h3>What You See</h3>
+        <div class="legend-item"><div class="legend-color" style="background: #4285f4;"></div><div class="legend-text"><div class="name">Event Source</div><div class="desc">HTTP, Pub/Sub, Storage</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #00c853;"></div><div class="legend-text"><div class="name">Function</div><div class="desc">Your code</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ffff00;"></div><div class="legend-text"><div class="name">Event</div><div class="desc">Trigger signal</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ff5722;"></div><div class="legend-text"><div class="name">Execution</div><div class="desc">Function running</div></div></div>
+    </div>
+    <div id="metrics-panel">
+        <h3>Function Metrics</h3>
+        <div class="metric-row"><span class="metric-label">Invocations:</span><span class="metric-value" id="invocations">0</span></div>
+        <div class="metric-row"><span class="metric-label">Avg Latency:</span><span class="metric-value" id="latency">0 ms</span></div>
+        <div class="metric-row"><span class="metric-label">Active:</span><span class="metric-value" id="active">0</span></div>
+        <div class="metric-row"><span class="metric-label">Errors:</span><span class="metric-value" id="errors">0</span></div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        let scene, camera, renderer, controls, isAnimating = true;
-        let functionNodes = [], events = [], executions = [];
-        
+        var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
+        var functionNodes = [], events = [], eventSource, invocationCount = 0;
+        var steps = [
+            {title:"Welcome to Cloud Functions!",description:"Cloud Functions is <strong>serverless computing</strong>. You write code, Google runs it when events happen. No servers to manage!",detail:"Cloud Functions: Write code, deploy, and let Google handle the rest!",cameraPos:{x:0,y:15,z:25},cameraTarget:{x:0,y:0,z:0}},
+            {title:"Step 1: Event Sources",description:"The <strong>blue sphere</strong> in the center represents event sources. Events can come from HTTP requests, Pub/Sub messages, Cloud Storage uploads, and more!",detail:"Triggers: HTTP, Pub/Sub, Cloud Storage, Firestore, Firebase, Scheduler...",cameraPos:{x:0,y:10,z:18},cameraTarget:{x:0,y:0,z:0}},
+            {title:"Step 2: Your Functions",description:"The <strong>green torus knots</strong> around the edge are your functions. Each function is a piece of code waiting to be triggered!",detail:"Functions can be written in Node.js, Python, Go, Java, .NET, Ruby, or PHP.",cameraPos:{x:10,y:8,z:15},cameraTarget:{x:8,y:0,z:0}},
+            {title:"Step 3: Event Triggers",description:"When an event occurs, a <strong>yellow particle</strong> flies from the source to the function. This triggers the function to execute!",detail:"Click 'HTTP Request' or 'Pub/Sub Event' to see events trigger functions!",cameraPos:{x:0,y:20,z:20},cameraTarget:{x:0,y:0,z:0}},
+            {title:"Step 4: Function Execution",description:"When triggered, the function <strong>lights up bright green</strong>. It processes the event and returns a response. Then it goes back to sleep!",detail:"Functions scale automatically: 0 to 1000+ instances based on demand.",cameraPos:{x:-10,y:12,z:18},cameraTarget:{x:-8,y:0,z:0}},
+            {title:"Step 5: Pay Per Use",description:"You only pay when functions run! <strong>No idle costs</strong>. Perfect for sporadic workloads, webhooks, and event processing.",detail:"Pricing: $0.40 per million invocations + compute time. First 2M free!",cameraPos:{x:0,y:15,z:25},cameraTarget:{x:0,y:0,z:0}}
+        ];
         function init() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0a0a0a);
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 15, 25);
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            
+            scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0a0a); scene.fog = new THREE.FogExp2(0x0a0a0a, 0.015);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000); camera.position.set(0, 15, 25);
+            renderer = new THREE.WebGLRenderer({antialias:true}); renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById("canvas-container").appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
             scene.add(new THREE.AmbientLight(0x404040, 0.5));
-            const light = new THREE.PointLight(0x00c853, 1, 100);
-            light.position.set(0, 20, 10);
-            scene.add(light);
-            
-            // Function nodes (lambda symbols)
-            for (let i = 0; i < 5; i++) {
-                const angle = (i / 5) * Math.PI * 2;
-                const geom = new THREE.TorusKnotGeometry(1, 0.3, 64, 8);
-                const mat = new THREE.MeshPhongMaterial({ color: 0x00c853, emissive: 0x00c853, emissiveIntensity: 0.2 });
-                const node = new THREE.Mesh(geom, mat);
+            var l1 = new THREE.PointLight(0x00c853, 1.5, 100); l1.position.set(0, 25, 0); scene.add(l1);
+            for (var i = 0; i < 5; i++) {
+                var angle = (i / 5) * Math.PI * 2;
+                var geom = new THREE.TorusKnotGeometry(1, 0.3, 64, 8);
+                var mat = new THREE.MeshPhongMaterial({color:0x00c853, emissive:0x00c853, emissiveIntensity:0.2});
+                var node = new THREE.Mesh(geom, mat);
                 node.position.set(Math.cos(angle) * 8, 0, Math.sin(angle) * 8);
-                node.userData = { angle, active: false };
-                functionNodes.push(node);
-                scene.add(node);
+                node.userData = {angle: angle};
+                functionNodes.push(node); scene.add(node);
             }
-            
-            // Event sources (center)
-            const eventGeom = new THREE.IcosahedronGeometry(2, 1);
-            const eventMat = new THREE.MeshPhongMaterial({ color: 0x4285f4, emissive: 0x4285f4, emissiveIntensity: 0.3, wireframe: true });
-            const eventSource = new THREE.Mesh(eventGeom, eventMat);
-            scene.add(eventSource);
-            
-            const grid = new THREE.GridHelper(40, 40, 0x00c853, 0x1a1a2e);
-            grid.position.y = -5;
-            scene.add(grid);
-            
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-            
-            setInterval(triggerEvent, 2000);
-            animate();
+            var eventGeom = new THREE.IcosahedronGeometry(2, 1);
+            var eventMat = new THREE.MeshPhongMaterial({color:0x4285f4, emissive:0x4285f4, emissiveIntensity:0.3, wireframe:true});
+            eventSource = new THREE.Mesh(eventGeom, eventMat); scene.add(eventSource);
+            var grid = new THREE.GridHelper(40, 40, 0x00c853, 0x1a1a2e); grid.position.y = -5; grid.material.opacity = 0.25; grid.material.transparent = true; scene.add(grid);
+            window.addEventListener("resize", function() { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+            setTimeout(function() { document.getElementById("loading").style.display = "none"; }, 800);
+            setInterval(function() { if (Math.random() > 0.7) triggerEvent(); }, 2000);
+            animate(); updateStep();
         }
-        
+        function triggerHTTP() { triggerEvent(); document.getElementById("latency").textContent = Math.floor(Math.random() * 100 + 50) + " ms"; }
+        function triggerPubSub() { triggerEvent(); triggerEvent(); document.getElementById("latency").textContent = Math.floor(Math.random() * 200 + 100) + " ms"; }
         function triggerEvent() {
-            const targetNode = functionNodes[Math.floor(Math.random() * functionNodes.length)];
-            
-            // Create event particle
-            const geom = new THREE.SphereGeometry(0.3);
-            const mat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-            const event = new THREE.Mesh(geom, mat);
+            var targetNode = functionNodes[Math.floor(Math.random() * functionNodes.length)];
+            var geom = new THREE.SphereGeometry(0.3);
+            var mat = new THREE.MeshBasicMaterial({color:0xffff00});
+            var event = new THREE.Mesh(geom, mat);
             event.position.set(0, 0, 0);
-            event.userData = { target: targetNode, progress: 0 };
-            events.push(event);
-            scene.add(event);
+            event.userData = {target: targetNode, progress: 0};
+            events.push(event); scene.add(event);
+            invocationCount++;
+            document.getElementById("invocations").textContent = invocationCount;
+            document.getElementById("active").textContent = events.length;
         }
-        
+        function updateStep() {
+            var step = steps[currentStep];
+            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+            document.getElementById("step-title").textContent = step.title;
+            document.getElementById("step-description").innerHTML = step.description;
+            document.getElementById("step-detail").innerHTML = step.detail;
+            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+            document.getElementById("prev-btn").disabled = currentStep === 0;
+            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+            animateCamera(step.cameraPos, step.cameraTarget);
+        }
+        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+        function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); }
+        function animateCamera(targetPos, targetLookAt) {
+            var startPos = camera.position.clone(), startTarget = controls.target.clone();
+            var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
+            var endTarget = new THREE.Vector3(targetLookAt.x, targetLookAt.y, targetLookAt.z);
+            var startTime = Date.now();
+            function anim() {
+                var progress = Math.min((Date.now() - startTime) / 1000, 1);
+                var eased = 1 - Math.pow(1 - progress, 3);
+                camera.position.lerpVectors(startPos, endPos, eased);
+                controls.target.lerpVectors(startTarget, endTarget, eased);
+                if (progress < 1) requestAnimationFrame(anim);
+            }
+            anim();
+        }
+        function toggleAutoPlay() { if (isAutoPlaying) stopAutoPlay(); else startAutoPlay(); }
+        function startAutoPlay() { isAutoPlaying = true; document.getElementById("autoplay-btn").textContent = "Pause Story"; autoPlayInterval = setInterval(function() { if (currentStep < steps.length - 1) nextStep(); else stopAutoPlay(); }, 5000); }
+        function stopAutoPlay() { isAutoPlaying = false; document.getElementById("autoplay-btn").textContent = "Auto-Play Story"; if (autoPlayInterval) { clearInterval(autoPlayInterval); autoPlayInterval = null; } }
         function animate() {
             requestAnimationFrame(animate);
-            if (isAnimating) {
-                functionNodes.forEach(n => {
-                    n.rotation.x += 0.01;
-                    n.rotation.y += 0.02;
-                });
-                
-                events.forEach((e, i) => {
-                    e.userData.progress += 0.03;
-                    const t = e.userData.progress;
-                    const target = e.userData.target;
-                    
-                    e.position.x = target.position.x * t;
-                    e.position.y = Math.sin(t * Math.PI) * 5;
-                    e.position.z = target.position.z * t;
-                    
-                    if (t >= 1) {
-                        // Trigger function execution
-                        target.material.emissiveIntensity = 0.8;
-                        setTimeout(() => target.material.emissiveIntensity = 0.2, 500);
-                        scene.remove(e);
-                        events.splice(i, 1);
-                    }
-                });
-            }
-            controls.update();
-            renderer.render(scene, camera);
+            eventSource.rotation.y += 0.01;
+            functionNodes.forEach(function(n) { n.rotation.x += 0.01; n.rotation.y += 0.02; });
+            events.forEach(function(e, i) {
+                e.userData.progress += 0.03;
+                var t = e.userData.progress;
+                var target = e.userData.target;
+                e.position.x = target.position.x * t;
+                e.position.y = Math.sin(t * Math.PI) * 5;
+                e.position.z = target.position.z * t;
+                if (t >= 1) {
+                    target.material.emissiveIntensity = 0.8;
+                    setTimeout(function() { target.material.emissiveIntensity = 0.2; }, 500);
+                    scene.remove(e); events.splice(i, 1);
+                    document.getElementById("active").textContent = events.length;
+                }
+            });
+            controls.update(); renderer.render(scene, camera);
         }
-        
-        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
-        function resetCamera() { camera.position.set(0, 15, 25); controls.target.set(0, 0, 0); }
-        
         init();
     </script>
 </body>

@@ -3,141 +3,198 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Looker Studio - 3D Interactive</title>
+    <title>Looker Studio - Learn Data Visualization</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
-        #canvas-container { width: 100%; height: 100vh; }
-        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #4285f4; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
-        #info-panel h1 { color: #4285f4; font-size: 1.3em; margin-bottom: 10px; }
-        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
-        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
-        .control-btn { background: rgba(66,133,244,0.1); border: 1px solid #4285f4; color: #4285f4; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
-        .control-btn:hover { background: rgba(66,133,244,0.3); }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%); color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; position: relative; }
+        #title-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.9); border: 2px solid #4285f4; border-radius: 15px; padding: 20px; max-width: 380px; box-shadow: 0 0 30px rgba(66,133,244,0.4); z-index: 100; }
+        #title-panel h1 { color: #4285f4; font-size: 1.8em; margin-bottom: 8px; text-shadow: 0 0 15px #4285f4; }
+        #title-panel .subtitle { color: #00ffff; font-size: 1em; margin-bottom: 12px; }
+        #title-panel .intro { color: #ccc; font-size: 0.9em; line-height: 1.6; }
+        #step-panel { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.95); border: 2px solid #00ffff; border-radius: 15px; padding: 25px 35px; max-width: 750px; width: 90%; box-shadow: 0 0 40px rgba(0,255,255,0.3); z-index: 100; text-align: center; }
+        #step-indicator { color: #4285f4; font-size: 0.85em; margin-bottom: 8px; letter-spacing: 2px; }
+        #step-title { color: #00ffff; font-size: 1.4em; margin-bottom: 12px; text-shadow: 0 0 10px #00ffff; }
+        #step-description { color: #fff; font-size: 1.05em; line-height: 1.7; margin-bottom: 12px; }
+        #step-detail { color: #00ff00; font-size: 0.9em; font-style: italic; padding: 10px 15px; background: rgba(0,255,0,0.1); border-radius: 8px; border-left: 3px solid #00ff00; text-align: left; }
+        #nav-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .nav-btn { background: rgba(66,133,244,0.1); border: 2px solid #4285f4; color: #4285f4; padding: 12px 25px; border-radius: 25px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: all 0.3s ease; }
+        .nav-btn:hover { background: rgba(66,133,244,0.3); box-shadow: 0 0 20px rgba(66,133,244,0.5); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.primary { background: #4285f4; color: #fff; }
+        #progress-bar { position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%); width: 60%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; z-index: 100; }
+        #progress-fill { height: 100%; background: linear-gradient(90deg, #4285f4, #00ffff); border-radius: 3px; transition: width 0.5s ease; }
+        #legend-panel { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ff9800; border-radius: 15px; padding: 15px; min-width: 200px; z-index: 100; }
+        #legend-panel h3 { color: #ff9800; margin-bottom: 12px; font-size: 1em; }
+        .legend-item { display: flex; align-items: center; margin: 8px 0; }
+        .legend-color { width: 18px; height: 18px; border-radius: 4px; margin-right: 10px; }
+        .legend-text .name { color: #fff; font-weight: bold; font-size: 0.85em; }
+        .legend-text .desc { color: #888; font-size: 0.75em; }
+        #metrics-panel { position: absolute; top: 240px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00ff00; border-radius: 15px; padding: 15px; min-width: 180px; z-index: 100; }
+        #metrics-panel h3 { color: #00ff00; margin-bottom: 10px; font-size: 0.95em; }
+        .metric-row { display: flex; justify-content: space-between; margin: 6px 0; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .metric-label { color: #888; font-size: 0.8em; }
+        .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
+        #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
+        .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #4285f4, #00ffff); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; }
+        .sim-btn:hover { transform: scale(1.05); }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+        .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #4285f4; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div id="loading"><div class="loader"></div><p style="color: #4285f4;">Loading Looker Studio...</p></div>
     <div id="canvas-container"></div>
-    <div id="info-panel">
-        <h1>Looker Studio Dashboard</h1>
-        <p>Interactive dashboard visualization. Watch data flow from BigQuery to charts and graphs in real-time.</p>
+    <div id="title-panel">
+        <h1>Looker Studio</h1>
+        <div class="subtitle">Data Visualization & Dashboards</div>
+        <div class="intro">Like a <strong>magic picture maker</strong> for your data! Looker Studio turns numbers into beautiful charts and dashboards that tell stories.</div>
     </div>
-    <div id="controls">
-        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
-        <button class="control-btn" onclick="refreshData()">Refresh Data</button>
-        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    <div id="sim-controls">
+        <button class="sim-btn" onclick="refreshData()">Refresh Data</button>
+        <button class="sim-btn" onclick="addChart()">Add Chart</button>
+        <button class="sim-btn" onclick="toggleAutoPlay()" id="autoplay-btn">Auto-Play Story</button>
+    </div>
+    <div id="step-panel">
+        <div id="step-indicator">STEP 1 OF 6</div>
+        <div id="step-title">Welcome to Looker Studio!</div>
+        <div id="step-description">Learn how data visualization works. Click "Next" to begin!</div>
+        <div id="step-detail">Looker Studio: Turn data into insights with beautiful dashboards!</div>
+    </div>
+    <div id="progress-bar"><div id="progress-fill" style="width: 16.67%"></div></div>
+    <div id="nav-controls">
+        <button class="nav-btn" id="prev-btn" onclick="previousStep()" disabled>Previous</button>
+        <button class="nav-btn" onclick="resetVisualization()">Reset</button>
+        <button class="nav-btn primary" id="next-btn" onclick="nextStep()">Next</button>
+    </div>
+    <div id="legend-panel">
+        <h3>Dashboard Components</h3>
+        <div class="legend-item"><div class="legend-color" style="background: #4285f4;"></div><div class="legend-text"><div class="name">Data Source</div><div class="desc">BigQuery connection</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ea4335;"></div><div class="legend-text"><div class="name">Bar Chart</div><div class="desc">Compare values</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #fbbc04;"></div><div class="legend-text"><div class="name">Pie Chart</div><div class="desc">Show proportions</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #00ff00;"></div><div class="legend-text"><div class="name">Data Flow</div><div class="desc">Live data updates</div></div></div>
+    </div>
+    <div id="metrics-panel">
+        <h3>Dashboard Stats</h3>
+        <div class="metric-row"><span class="metric-label">Charts:</span><span class="metric-value" id="charts">2</span></div>
+        <div class="metric-row"><span class="metric-label">Data Points:</span><span class="metric-value" id="datapoints">1,250</span></div>
+        <div class="metric-row"><span class="metric-label">Refresh:</span><span class="metric-value" id="refresh">Live</span></div>
+        <div class="metric-row"><span class="metric-label">Viewers:</span><span class="metric-value" id="viewers">15</span></div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        let scene, camera, renderer, controls, isAnimating = true;
-        let chartBars = [], pieSlices = [], dataSource, dataFlows = [];
-        
+        var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
+        var chartBars = [], pieSlices = [], dataSource, dataFlows = [], chartCount = 2;
+        var barColors = [0x4285f4, 0xea4335, 0xfbbc04, 0x34a853, 0x9c27b0];
+        var steps = [
+            {title:"Welcome to Looker Studio!",description:"Looker Studio is Google's <strong>free data visualization</strong> tool. Connect to BigQuery, Sheets, or 800+ data sources and create beautiful interactive dashboards!",detail:"Looker Studio: Free, powerful, and easy to use for everyone!",cameraPos:{x:0,y:15,z:25},cameraTarget:{x:0,y:0,z:0}},
+            {title:"Step 1: Data Source",description:"The <strong>blue box</strong> at the bottom is your data source - usually BigQuery. Looker Studio connects directly to your data and queries it in real-time!",detail:"Data Sources: BigQuery, Google Sheets, MySQL, PostgreSQL, and 800+ connectors.",cameraPos:{x:0,y:5,z:20},cameraTarget:{x:0,y:-5,z:0}},
+            {title:"Step 2: Bar Charts",description:"The <strong>colorful bars</strong> on the left are a bar chart - perfect for comparing values across categories. Each bar represents a different metric!",detail:"Bar Charts: Great for comparing sales by region, users by month, etc.",cameraPos:{x:-10,y:10,z:18},cameraTarget:{x:-4,y:3,z:0}},
+            {title:"Step 3: Pie Charts",description:"The <strong>colorful circle</strong> on the right is a pie chart - perfect for showing how parts make up a whole. Each slice is a percentage!",detail:"Pie Charts: Great for market share, budget allocation, demographics.",cameraPos:{x:10,y:10,z:18},cameraTarget:{x:8,y:2,z:0}},
+            {title:"Step 4: Live Data Flow",description:"The <strong>green particles</strong> show data flowing from BigQuery to your charts. Looker Studio can refresh automatically to show the latest data!",detail:"Live Data: Set refresh intervals from 15 minutes to real-time.",cameraPos:{x:0,y:20,z:20},cameraTarget:{x:0,y:0,z:0}},
+            {title:"Step 5: Try It!",description:"Click <strong>'Refresh Data'</strong> to see the charts update with new values, or <strong>'Add Chart'</strong> to add more visualizations to your dashboard!",detail:"Sharing: Dashboards can be shared with anyone via link or embedded.",cameraPos:{x:0,y:15,z:25},cameraTarget:{x:0,y:0,z:0}}
+        ];
         function init() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0a0a0a);
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 15, 25);
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            
+            scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0a0a); scene.fog = new THREE.FogExp2(0x0a0a0a, 0.015);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000); camera.position.set(0, 15, 25);
+            renderer = new THREE.WebGLRenderer({antialias:true}); renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById("canvas-container").appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
             scene.add(new THREE.AmbientLight(0x404040, 0.5));
-            const light = new THREE.PointLight(0x4285f4, 1, 100);
-            light.position.set(0, 20, 10);
-            scene.add(light);
-            
-            // Data source (BigQuery)
-            const sourceGeom = new THREE.BoxGeometry(3, 2, 3);
-            const sourceMat = new THREE.MeshPhongMaterial({ color: 0x4285f4, emissive: 0x4285f4, emissiveIntensity: 0.3 });
-            dataSource = new THREE.Mesh(sourceGeom, sourceMat);
-            dataSource.position.set(0, -5, 0);
-            scene.add(dataSource);
-            
-            // Bar chart
-            const barColors = [0x4285f4, 0xea4335, 0xfbbc04, 0x34a853, 0x9c27b0];
-            for (let i = 0; i < 5; i++) {
-                const height = 2 + Math.random() * 4;
-                const geom = new THREE.BoxGeometry(1, height, 1);
-                const mat = new THREE.MeshPhongMaterial({ color: barColors[i], emissive: barColors[i], emissiveIntensity: 0.2 });
-                const bar = new THREE.Mesh(geom, mat);
+            var l1 = new THREE.PointLight(0x4285f4, 1.5, 100); l1.position.set(0, 25, 0); scene.add(l1);
+            var sourceGeom = new THREE.BoxGeometry(3, 2, 3);
+            var sourceMat = new THREE.MeshPhongMaterial({color:0x4285f4, emissive:0x4285f4, emissiveIntensity:0.3});
+            dataSource = new THREE.Mesh(sourceGeom, sourceMat); dataSource.position.set(0, -5, 0); scene.add(dataSource);
+            for (var i = 0; i < 5; i++) {
+                var height = 2 + Math.random() * 4;
+                var geom = new THREE.BoxGeometry(1, height, 1);
+                var mat = new THREE.MeshPhongMaterial({color:barColors[i], emissive:barColors[i], emissiveIntensity:0.2});
+                var bar = new THREE.Mesh(geom, mat);
                 bar.position.set(-8 + i * 2, height / 2, 0);
-                bar.userData = { targetHeight: height };
-                chartBars.push(bar);
-                scene.add(bar);
+                bar.userData = {targetHeight: height, baseHeight: height};
+                chartBars.push(bar); scene.add(bar);
             }
-            
-            // Pie chart (simplified as segments)
-            for (let i = 0; i < 4; i++) {
-                const geom = new THREE.CylinderGeometry(2, 2, 0.5, 32, 1, false, i * Math.PI / 2, Math.PI / 2);
-                const mat = new THREE.MeshPhongMaterial({ color: barColors[i], emissive: barColors[i], emissiveIntensity: 0.2 });
-                const slice = new THREE.Mesh(geom, mat);
-                slice.position.set(8, 2, 0);
-                slice.rotation.x = Math.PI / 2;
-                pieSlices.push(slice);
-                scene.add(slice);
+            for (var i = 0; i < 4; i++) {
+                var geom = new THREE.CylinderGeometry(2, 2, 0.5, 32, 1, false, i * Math.PI / 2, Math.PI / 2);
+                var mat = new THREE.MeshPhongMaterial({color:barColors[i], emissive:barColors[i], emissiveIntensity:0.2});
+                var slice = new THREE.Mesh(geom, mat);
+                slice.position.set(8, 2, 0); slice.rotation.x = Math.PI / 2;
+                pieSlices.push(slice); scene.add(slice);
             }
-            
-            // Data flows
-            for (let i = 0; i < 30; i++) {
-                const geom = new THREE.SphereGeometry(0.15);
-                const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-                const flow = new THREE.Mesh(geom, mat);
-                flow.userData = { target: Math.random() > 0.5 ? 'bar' : 'pie', progress: Math.random() };
-                dataFlows.push(flow);
-                scene.add(flow);
+            for (var i = 0; i < 30; i++) {
+                var geom = new THREE.SphereGeometry(0.15);
+                var mat = new THREE.MeshBasicMaterial({color:0x00ff00});
+                var flow = new THREE.Mesh(geom, mat);
+                flow.userData = {target: Math.random() > 0.5 ? 'bar' : 'pie', progress: Math.random()};
+                dataFlows.push(flow); scene.add(flow);
             }
-            
-            const grid = new THREE.GridHelper(40, 40, 0x4285f4, 0x1a1a2e);
-            grid.position.y = -8;
-            scene.add(grid);
-            
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-            animate();
+            var grid = new THREE.GridHelper(40, 40, 0x4285f4, 0x1a1a2e); grid.position.y = -8; grid.material.opacity = 0.25; grid.material.transparent = true; scene.add(grid);
+            window.addEventListener("resize", function() { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+            setTimeout(function() { document.getElementById("loading").style.display = "none"; }, 800);
+            animate(); updateStep();
         }
-        
-        function animate() {
-            requestAnimationFrame(animate);
-            if (isAnimating) {
-                dataSource.rotation.y += 0.01;
-                pieSlices.forEach(s => s.parent && (s.rotation.z += 0.01));
-                
-                dataFlows.forEach(f => {
-                    f.userData.progress += 0.02;
-                    if (f.userData.progress > 1) f.userData.progress = 0;
-                    
-                    const t = f.userData.progress;
-                    const targetX = f.userData.target === 'bar' ? -4 : 8;
-                    const targetY = f.userData.target === 'bar' ? 3 : 2;
-                    
-                    f.position.x = dataSource.position.x + (targetX - dataSource.position.x) * t;
-                    f.position.y = dataSource.position.y + (targetY - dataSource.position.y) * t + Math.sin(t * Math.PI) * 3;
-                    f.position.z = Math.sin(t * Math.PI * 2) * 2;
-                });
-            }
-            controls.update();
-            renderer.render(scene, camera);
-        }
-        
-        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
-        
         function refreshData() {
-            chartBars.forEach(bar => {
+            chartBars.forEach(function(bar) {
                 bar.userData.targetHeight = 2 + Math.random() * 4;
-                const newHeight = bar.userData.targetHeight;
-                bar.scale.y = newHeight / bar.geometry.parameters.height;
+                var newHeight = bar.userData.targetHeight;
+                bar.scale.y = newHeight / bar.userData.baseHeight;
                 bar.position.y = newHeight / 2;
             });
+            document.getElementById("datapoints").textContent = Math.floor(Math.random() * 5000 + 1000).toLocaleString();
         }
-        
-        function resetCamera() { camera.position.set(0, 15, 25); controls.target.set(0, 0, 0); }
-        
+        function addChart() {
+            chartCount++;
+            document.getElementById("charts").textContent = chartCount;
+        }
+        function updateStep() {
+            var step = steps[currentStep];
+            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+            document.getElementById("step-title").textContent = step.title;
+            document.getElementById("step-description").innerHTML = step.description;
+            document.getElementById("step-detail").innerHTML = step.detail;
+            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+            document.getElementById("prev-btn").disabled = currentStep === 0;
+            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+            animateCamera(step.cameraPos, step.cameraTarget);
+        }
+        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+        function resetVisualization() { currentStep = 0; stopAutoPlay(); chartCount = 2; document.getElementById("charts").textContent = "2"; updateStep(); }
+        function animateCamera(targetPos, targetLookAt) {
+            var startPos = camera.position.clone(), startTarget = controls.target.clone();
+            var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
+            var endTarget = new THREE.Vector3(targetLookAt.x, targetLookAt.y, targetLookAt.z);
+            var startTime = Date.now();
+            function anim() {
+                var progress = Math.min((Date.now() - startTime) / 1000, 1);
+                var eased = 1 - Math.pow(1 - progress, 3);
+                camera.position.lerpVectors(startPos, endPos, eased);
+                controls.target.lerpVectors(startTarget, endTarget, eased);
+                if (progress < 1) requestAnimationFrame(anim);
+            }
+            anim();
+        }
+        function toggleAutoPlay() { if (isAutoPlaying) stopAutoPlay(); else startAutoPlay(); }
+        function startAutoPlay() { isAutoPlaying = true; document.getElementById("autoplay-btn").textContent = "Pause Story"; autoPlayInterval = setInterval(function() { if (currentStep < steps.length - 1) nextStep(); else stopAutoPlay(); }, 5000); }
+        function stopAutoPlay() { isAutoPlaying = false; document.getElementById("autoplay-btn").textContent = "Auto-Play Story"; if (autoPlayInterval) { clearInterval(autoPlayInterval); autoPlayInterval = null; } }
+        function animate() {
+            requestAnimationFrame(animate);
+            dataSource.rotation.y += 0.01;
+            pieSlices.forEach(function(s) { if (s.parent) s.rotation.z += 0.01; });
+            dataFlows.forEach(function(f) {
+                f.userData.progress += 0.02;
+                if (f.userData.progress > 1) f.userData.progress = 0;
+                var t = f.userData.progress;
+                var targetX = f.userData.target === 'bar' ? -4 : 8;
+                var targetY = f.userData.target === 'bar' ? 3 : 2;
+                f.position.x = dataSource.position.x + (targetX - dataSource.position.x) * t;
+                f.position.y = dataSource.position.y + (targetY - dataSource.position.y) * t + Math.sin(t * Math.PI) * 3;
+                f.position.z = Math.sin(t * Math.PI * 2) * 2;
+            });
+            controls.update(); renderer.render(scene, camera);
+        }
         init();
     </script>
 </body>

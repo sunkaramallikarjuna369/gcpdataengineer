@@ -3,113 +3,269 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vertex AI ML Pipeline - 3D Interactive</title>
+    <title>Vertex AI - Learn How Google's ML Platform Works</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
-        #canvas-container { width: 100%; height: 100vh; }
-        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #9c27b0; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
-        #info-panel h1 { color: #9c27b0; font-size: 1.3em; margin-bottom: 10px; }
-        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
-        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
-        .control-btn { background: rgba(156,39,176,0.1); border: 1px solid #9c27b0; color: #9c27b0; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
-        .control-btn:hover { background: rgba(156,39,176,0.3); }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%); color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; position: relative; }
+        #title-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ff6600; border-radius: 15px; padding: 20px; max-width: 380px; box-shadow: 0 0 30px rgba(255,102,0,0.4); z-index: 100; }
+        #title-panel h1 { color: #ff6600; font-size: 1.8em; margin-bottom: 8px; text-shadow: 0 0 15px #ff6600; }
+        #title-panel .subtitle { color: #00ffff; font-size: 1em; margin-bottom: 12px; }
+        #title-panel .intro { color: #ccc; font-size: 0.9em; line-height: 1.6; }
+        #step-panel { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.95); border: 2px solid #00ffff; border-radius: 15px; padding: 25px 35px; max-width: 750px; width: 90%; box-shadow: 0 0 40px rgba(0,255,255,0.4); z-index: 100; text-align: center; }
+        #step-indicator { color: #ff6600; font-size: 0.85em; margin-bottom: 8px; letter-spacing: 2px; }
+        #step-title { color: #00ffff; font-size: 1.4em; margin-bottom: 12px; text-shadow: 0 0 10px #00ffff; }
+        #step-description { color: #fff; font-size: 1.05em; line-height: 1.7; margin-bottom: 12px; }
+        #step-detail { color: #00ff00; font-size: 0.9em; font-style: italic; padding: 10px 15px; background: rgba(0,255,0,0.1); border-radius: 8px; border-left: 3px solid #00ff00; text-align: left; }
+        #nav-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .nav-btn { background: rgba(255,102,0,0.1); border: 2px solid #ff6600; color: #ff6600; padding: 12px 25px; border-radius: 25px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px; }
+        .nav-btn:hover { background: rgba(255,102,0,0.3); box-shadow: 0 0 20px rgba(255,102,0,0.5); transform: translateY(-2px); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+        .nav-btn.primary { background: #ff6600; color: #000; }
+        #progress-bar { position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%); width: 60%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; z-index: 100; }
+        #progress-fill { height: 100%; background: linear-gradient(90deg, #ff6600, #00ffff); border-radius: 3px; transition: width 0.5s ease; }
+        #legend-panel { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ffff00; border-radius: 15px; padding: 15px; min-width: 200px; z-index: 100; }
+        #legend-panel h3 { color: #ffff00; margin-bottom: 12px; font-size: 1em; }
+        .legend-item { display: flex; align-items: center; margin: 8px 0; padding: 6px; border-radius: 6px; }
+        .legend-color { width: 18px; height: 18px; border-radius: 4px; margin-right: 10px; }
+        .legend-text .name { color: #fff; font-weight: bold; font-size: 0.85em; }
+        .legend-text .desc { color: #888; font-size: 0.75em; }
+        #metrics-panel { position: absolute; top: 260px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00ff00; border-radius: 15px; padding: 15px; min-width: 180px; z-index: 100; }
+        #metrics-panel h3 { color: #00ff00; margin-bottom: 10px; font-size: 0.95em; }
+        .metric-row { display: flex; justify-content: space-between; margin: 6px 0; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .metric-label { color: #888; font-size: 0.8em; }
+        .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
+        #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
+        .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #ff6600, #00ffff); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; transition: all 0.3s ease; }
+        .sim-btn:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(255,102,0,0.5); }
+        #tooltip { position: absolute; background: rgba(0,0,0,0.95); border: 2px solid #00ffff; border-radius: 10px; padding: 12px; max-width: 280px; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 200; }
+        #tooltip.visible { opacity: 1; }
+        #tooltip h4 { color: #00ffff; margin-bottom: 6px; font-size: 0.95em; }
+        #tooltip p { color: #ccc; font-size: 0.85em; line-height: 1.4; }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+        .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #ff6600; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div id="loading"><div class="loader"></div><p style="color: #ff6600; font-size: 1.1em;">Loading Vertex AI Visualization...</p></div>
     <div id="canvas-container"></div>
-    <div id="info-panel">
-        <h1>Vertex AI ML Pipeline</h1>
-        <p>Watch data flow through an ML pipeline: Data Prep → Feature Engineering → Training → Evaluation → Deployment.</p>
+    <div id="title-panel">
+        <h1>Vertex AI</h1>
+        <div class="subtitle">Google's Unified ML Platform</div>
+        <div class="intro">Imagine a <strong>complete AI workshop</strong> where you can build, train, and deploy machine learning models! Vertex AI handles everything from data to production.</div>
     </div>
-    <div id="controls">
-        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
-        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    <div id="sim-controls">
+        <button class="sim-btn" onclick="trainModel()">Train Model</button>
+        <button class="sim-btn" onclick="deployModel()">Deploy to Endpoint</button>
+        <button class="sim-btn" onclick="toggleAutoPlay()" id="autoplay-btn">Auto-Play Story</button>
     </div>
+    <div id="step-panel">
+        <div id="step-indicator">STEP 1 OF 6</div>
+        <div id="step-title">Welcome to Vertex AI!</div>
+        <div id="step-description">Let's learn how Vertex AI helps you build and deploy ML models. Click "Next" to begin!</div>
+        <div id="step-detail">Vertex AI combines AutoML, custom training, and MLOps in one platform!</div>
+    </div>
+    <div id="progress-bar"><div id="progress-fill" style="width: 16.67%"></div></div>
+    <div id="nav-controls">
+        <button class="nav-btn" id="prev-btn" onclick="previousStep()" disabled>Previous</button>
+        <button class="nav-btn" onclick="resetVisualization()">Reset</button>
+        <button class="nav-btn primary" id="next-btn" onclick="nextStep()">Next</button>
+    </div>
+    <div id="legend-panel">
+        <h3>What You See</h3>
+        <div class="legend-item"><div class="legend-color" style="background: #ff6600;"></div><div class="legend-text"><div class="name">Dataset</div><div class="desc">Training data</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #00ffff;"></div><div class="legend-text"><div class="name">AutoML</div><div class="desc">Auto model building</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ff00ff;"></div><div class="legend-text"><div class="name">Training</div><div class="desc">Model training</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #00ff00;"></div><div class="legend-text"><div class="name">Model</div><div class="desc">Trained model</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ffff00;"></div><div class="legend-text"><div class="name">Endpoint</div><div class="desc">Serving API</div></div></div>
+    </div>
+    <div id="metrics-panel">
+        <h3>Training Metrics</h3>
+        <div class="metric-row"><span class="metric-label">Models:</span><span class="metric-value" id="models">0</span></div>
+        <div class="metric-row"><span class="metric-label">Accuracy:</span><span class="metric-value" id="accuracy">0%</span></div>
+        <div class="metric-row"><span class="metric-label">Latency:</span><span class="metric-value" id="latency">0 ms</span></div>
+        <div class="metric-row"><span class="metric-label">QPS:</span><span class="metric-value" id="qps">0</span></div>
+    </div>
+    <div id="tooltip"><h4 id="tooltip-title">Component</h4><p id="tooltip-desc">Description</p></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        let scene, camera, renderer, controls, isAnimating = true;
-        let stages = [], particles = [];
-        
+        var scene, camera, renderer, controls;
+        var currentStep = 0;
+        var isAutoPlaying = false;
+        var autoPlayInterval = null;
+        var dataset, automl, training, model, endpoint;
+        var dataParticles = [];
+        var modelCount = 0;
+
+        var steps = [
+            { title: "Welcome to Vertex AI!", description: "Vertex AI is Google's <strong>unified ML platform</strong>. It brings together all the tools you need to build AI - from AutoML for beginners to custom training for experts!", detail: "Vertex AI combines what used to be separate products: AI Platform, AutoML, and ML Engine.", highlight: [], cameraPos: { x: 25, y: 18, z: 25 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 1: Datasets Prepare Your Data", description: "<strong>Datasets</strong> in Vertex AI organize and label your training data. Import from BigQuery, Cloud Storage, or upload directly. Vertex handles formatting!", detail: "Supported types: Tabular, Image, Text, Video. Vertex can auto-split into train/validation/test sets.", highlight: ["dataset"], cameraPos: { x: -15, y: 12, z: 15 }, cameraTarget: { x: -8, y: 0, z: 0 } },
+            { title: "Step 2: AutoML for Easy Models", description: "<strong>AutoML</strong> automatically builds and tunes models - no coding required! Just provide labeled data and Vertex finds the best model architecture.", detail: "AutoML is great for: image classification, object detection, text sentiment, tabular prediction.", highlight: ["automl"], cameraPos: { x: 0, y: 15, z: 18 }, cameraTarget: { x: 0, y: 3, z: 0 } },
+            { title: "Step 3: Custom Training for Control", description: "Need more control? <strong>Custom Training</strong> lets you write your own code in TensorFlow, PyTorch, or scikit-learn. Run on GPUs or TPUs!", detail: "Use pre-built containers or bring your own. Vertex handles distributed training automatically.", highlight: ["training"], cameraPos: { x: 15, y: 12, z: 15 }, cameraTarget: { x: 5, y: 0, z: 0 } },
+            { title: "Step 4: Model Registry Tracks Versions", description: "The <strong>Model Registry</strong> stores all your trained models with versions, metadata, and lineage. Know exactly which data and code produced each model!", detail: "Integrate with MLflow for experiment tracking. Compare model performance across versions.", highlight: ["model"], cameraPos: { x: 10, y: 10, z: -15 }, cameraTarget: { x: 5, y: 0, z: -5 } },
+            { title: "Step 5: Endpoints Serve Predictions", description: "<strong>Endpoints</strong> deploy your models for real-time or batch predictions. Vertex auto-scales based on traffic and handles load balancing!", detail: "Features: A/B testing, traffic splitting, model monitoring, automatic retraining triggers.", highlight: ["endpoint"], cameraPos: { x: 22, y: 18, z: 22 }, cameraTarget: { x: 0, y: 0, z: 0 } }
+        ];
+
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x0a0a0a);
+            scene.fog = new THREE.FogExp2(0x0a0a0a, 0.012);
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 15, 25);
+            camera.position.set(25, 18, 25);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById("canvas-container").appendChild(renderer.domElement);
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
-            
-            scene.add(new THREE.AmbientLight(0x404040, 0.5));
-            const light = new THREE.PointLight(0x9c27b0, 1, 100);
-            light.position.set(0, 20, 10);
-            scene.add(light);
-            
-            const stageData = [
-                { x: -12, color: 0x2196f3, name: 'Data' },
-                { x: -6, color: 0x4caf50, name: 'Features' },
-                { x: 0, color: 0x9c27b0, name: 'Training' },
-                { x: 6, color: 0xff9800, name: 'Evaluation' },
-                { x: 12, color: 0x00bcd4, name: 'Deploy' }
-            ];
-            
-            stageData.forEach((s, i) => {
-                const geom = new THREE.TorusKnotGeometry(1.5, 0.5, 64, 8);
-                const mat = new THREE.MeshPhongMaterial({ color: s.color, emissive: s.color, emissiveIntensity: 0.3 });
-                const mesh = new THREE.Mesh(geom, mat);
-                mesh.position.set(s.x, 0, 0);
-                stages.push(mesh);
-                scene.add(mesh);
-                
-                if (i < stageData.length - 1) {
-                    const points = [new THREE.Vector3(s.x + 2, 0, 0), new THREE.Vector3(stageData[i+1].x - 2, 0, 0)];
-                    const lineGeom = new THREE.BufferGeometry().setFromPoints(points);
-                    const lineMat = new THREE.LineBasicMaterial({ color: 0x444444 });
-                    scene.add(new THREE.Line(lineGeom, lineMat));
-                }
-            });
-            
-            for (let i = 0; i < 100; i++) {
-                const geom = new THREE.SphereGeometry(0.15);
-                const mat = new THREE.MeshBasicMaterial({ color: 0x9c27b0 });
-                const p = new THREE.Mesh(geom, mat);
-                p.position.set(-15 + Math.random() * 2, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3);
-                p.userData = { speed: 0.05 + Math.random() * 0.05 };
-                particles.push(p);
-                scene.add(p);
-            }
-            
-            const grid = new THREE.GridHelper(40, 40, 0x9c27b0, 0x1a1a2e);
-            grid.position.y = -5;
-            scene.add(grid);
-            
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
+            controls.dampingFactor = 0.05;
+            setupLighting();
+            createPipeline();
+            createGrid();
+            window.addEventListener("resize", onWindowResize);
+            setTimeout(function() { document.getElementById("loading").style.display = "none"; }, 800);
             animate();
+            updateStep();
         }
-        
+
+        function setupLighting() {
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            var l1 = new THREE.PointLight(0xff6600, 1.5, 100); l1.position.set(0, 25, 0); scene.add(l1);
+            var l2 = new THREE.PointLight(0x00ffff, 1.2, 100); l2.position.set(-20, 15, 10); scene.add(l2);
+        }
+
+        function createPipeline() {
+            dataset = createNode(-10, 0, 0, 0xff6600, "cylinder");
+            automl = createNode(-3, 5, 0, 0x00ffff, "icosahedron");
+            training = createNode(4, 5, 0, 0xff00ff, "octahedron");
+            model = createNode(8, 0, -5, 0x00ff00, "dodecahedron");
+            endpoint = createNode(12, 0, 0, 0xffff00, "box");
+            createConnection(dataset.position, automl.position, 0xff6600);
+            createConnection(dataset.position, training.position, 0xff6600);
+            createConnection(automl.position, model.position, 0x00ffff);
+            createConnection(training.position, model.position, 0xff00ff);
+            createConnection(model.position, endpoint.position, 0x00ff00);
+        }
+
+        function createNode(x, y, z, color, shape) {
+            var group = new THREE.Group();
+            var geo;
+            switch(shape) {
+                case "cylinder": geo = new THREE.CylinderGeometry(2, 2, 3, 32); break;
+                case "icosahedron": geo = new THREE.IcosahedronGeometry(2, 0); break;
+                case "octahedron": geo = new THREE.OctahedronGeometry(2); break;
+                case "dodecahedron": geo = new THREE.DodecahedronGeometry(2); break;
+                case "box": geo = new THREE.BoxGeometry(3, 3, 3); break;
+            }
+            var mat = new THREE.MeshPhongMaterial({ color: color, emissive: color, emissiveIntensity: 0.4, transparent: true, opacity: 0.9 });
+            group.add(new THREE.Mesh(geo, mat));
+            var glowGeo = geo.clone();
+            var glowMat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.15, side: THREE.BackSide });
+            var glow = new THREE.Mesh(glowGeo, glowMat);
+            glow.scale.multiplyScalar(1.3);
+            group.add(glow);
+            group.position.set(x, y, z);
+            scene.add(group);
+            return group;
+        }
+
+        function createConnection(start, end, color) {
+            var mat = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.4 });
+            var geo = new THREE.BufferGeometry().setFromPoints([start, end]);
+            scene.add(new THREE.Line(geo, mat));
+        }
+
+        function createGrid() {
+            var grid = new THREE.GridHelper(50, 50, 0xff6600, 0x1a1a2e);
+            grid.position.y = -5;
+            grid.material.opacity = 0.25;
+            grid.material.transparent = true;
+            scene.add(grid);
+        }
+
+        function trainModel() {
+            modelCount++;
+            document.getElementById("models").textContent = modelCount;
+            document.getElementById("accuracy").textContent = (85 + Math.random() * 10).toFixed(1) + "%";
+            [dataset, automl, training, model].forEach(function(node, i) {
+                setTimeout(function() {
+                    node.children[0].material.emissiveIntensity = 0.9;
+                    setTimeout(function() { node.children[0].material.emissiveIntensity = 0.4; }, 400);
+                }, i * 300);
+            });
+        }
+
+        function deployModel() {
+            document.getElementById("latency").textContent = Math.floor(Math.random() * 50 + 20) + " ms";
+            document.getElementById("qps").textContent = Math.floor(Math.random() * 1000 + 500);
+            endpoint.children[0].material.emissiveIntensity = 0.9;
+            setTimeout(function() { endpoint.children[0].material.emissiveIntensity = 0.4; }, 500);
+        }
+
+        function updateStep() {
+            var step = steps[currentStep];
+            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+            document.getElementById("step-title").textContent = step.title;
+            document.getElementById("step-description").innerHTML = step.description;
+            document.getElementById("step-detail").innerHTML = step.detail;
+            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+            document.getElementById("prev-btn").disabled = currentStep === 0;
+            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+            animateCamera(step.cameraPos, step.cameraTarget);
+        }
+
+        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+        function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); modelCount = 0; }
+
+        function animateCamera(targetPos, targetLookAt) {
+            var startPos = camera.position.clone();
+            var startTarget = controls.target.clone();
+            var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
+            var endTarget = new THREE.Vector3(targetLookAt.x, targetLookAt.y, targetLookAt.z);
+            var startTime = Date.now();
+            function anim() {
+                var progress = Math.min((Date.now() - startTime) / 1000, 1);
+                var eased = 1 - Math.pow(1 - progress, 3);
+                camera.position.lerpVectors(startPos, endPos, eased);
+                controls.target.lerpVectors(startTarget, endTarget, eased);
+                if (progress < 1) requestAnimationFrame(anim);
+            }
+            anim();
+        }
+
+        function toggleAutoPlay() { if (isAutoPlaying) stopAutoPlay(); else startAutoPlay(); }
+        function startAutoPlay() {
+            isAutoPlaying = true;
+            document.getElementById("autoplay-btn").textContent = "Pause Story";
+            autoPlayInterval = setInterval(function() { if (currentStep < steps.length - 1) nextStep(); else stopAutoPlay(); }, 5000);
+        }
+        function stopAutoPlay() {
+            isAutoPlaying = false;
+            document.getElementById("autoplay-btn").textContent = "Auto-Play Story";
+            if (autoPlayInterval) { clearInterval(autoPlayInterval); autoPlayInterval = null; }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
         function animate() {
             requestAnimationFrame(animate);
-            if (isAnimating) {
-                stages.forEach(s => { s.rotation.x += 0.01; s.rotation.y += 0.005; });
-                particles.forEach(p => {
-                    p.position.x += p.userData.speed;
-                    if (p.position.x > 15) p.position.x = -15;
-                });
-            }
+            var t = Date.now() * 0.001;
+            if (dataset) dataset.rotation.y = t * 0.3;
+            if (automl) { automl.rotation.y = t * 0.4; automl.rotation.x = Math.sin(t) * 0.2; }
+            if (training) { training.rotation.y = -t * 0.5; training.rotation.z = Math.sin(t * 0.5) * 0.3; }
+            if (model) model.rotation.y = t * 0.2;
+            if (endpoint) endpoint.rotation.y = t * 0.3;
             controls.update();
             renderer.render(scene, camera);
         }
-        
-        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
-        function resetCamera() { camera.position.set(0, 15, 25); controls.target.set(0, 0, 0); }
-        
+
         init();
     </script>
 </body>

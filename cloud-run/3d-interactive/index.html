@@ -3,136 +3,202 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloud Run - 3D Interactive</title>
+    <title>Cloud Run - Learn Serverless Container Platform</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
-        #canvas-container { width: 100%; height: 100vh; }
-        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #2979ff; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
-        #info-panel h1 { color: #2979ff; font-size: 1.3em; margin-bottom: 10px; }
-        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
-        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
-        .control-btn { background: rgba(41,121,255,0.1); border: 1px solid #2979ff; color: #2979ff; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
-        .control-btn:hover { background: rgba(41,121,255,0.3); }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%); color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; position: relative; }
+        #title-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.9); border: 2px solid #2979ff; border-radius: 15px; padding: 20px; max-width: 380px; box-shadow: 0 0 30px rgba(41,121,255,0.4); z-index: 100; }
+        #title-panel h1 { color: #2979ff; font-size: 1.8em; margin-bottom: 8px; text-shadow: 0 0 15px #2979ff; }
+        #title-panel .subtitle { color: #00ffff; font-size: 1em; margin-bottom: 12px; }
+        #title-panel .intro { color: #ccc; font-size: 0.9em; line-height: 1.6; }
+        #step-panel { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.95); border: 2px solid #00ffff; border-radius: 15px; padding: 25px 35px; max-width: 750px; width: 90%; box-shadow: 0 0 40px rgba(0,255,255,0.3); z-index: 100; text-align: center; }
+        #step-indicator { color: #2979ff; font-size: 0.85em; margin-bottom: 8px; letter-spacing: 2px; }
+        #step-title { color: #00ffff; font-size: 1.4em; margin-bottom: 12px; text-shadow: 0 0 10px #00ffff; }
+        #step-description { color: #fff; font-size: 1.05em; line-height: 1.7; margin-bottom: 12px; }
+        #step-detail { color: #00ff00; font-size: 0.9em; font-style: italic; padding: 10px 15px; background: rgba(0,255,0,0.1); border-radius: 8px; border-left: 3px solid #00ff00; text-align: left; }
+        #nav-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .nav-btn { background: rgba(41,121,255,0.1); border: 2px solid #2979ff; color: #2979ff; padding: 12px 25px; border-radius: 25px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: all 0.3s ease; }
+        .nav-btn:hover { background: rgba(41,121,255,0.3); box-shadow: 0 0 20px rgba(41,121,255,0.5); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.primary { background: #2979ff; color: #fff; }
+        #progress-bar { position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%); width: 60%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; z-index: 100; }
+        #progress-fill { height: 100%; background: linear-gradient(90deg, #2979ff, #00ffff); border-radius: 3px; transition: width 0.5s ease; }
+        #legend-panel { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ff9800; border-radius: 15px; padding: 15px; min-width: 200px; z-index: 100; }
+        #legend-panel h3 { color: #ff9800; margin-bottom: 12px; font-size: 1em; }
+        .legend-item { display: flex; align-items: center; margin: 8px 0; }
+        .legend-color { width: 18px; height: 18px; border-radius: 4px; margin-right: 10px; }
+        .legend-text .name { color: #fff; font-weight: bold; font-size: 0.85em; }
+        .legend-text .desc { color: #888; font-size: 0.75em; }
+        #metrics-panel { position: absolute; top: 240px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00ff00; border-radius: 15px; padding: 15px; min-width: 180px; z-index: 100; }
+        #metrics-panel h3 { color: #00ff00; margin-bottom: 10px; font-size: 0.95em; }
+        .metric-row { display: flex; justify-content: space-between; margin: 6px 0; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .metric-label { color: #888; font-size: 0.8em; }
+        .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
+        #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
+        .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #2979ff, #00ffff); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; }
+        .sim-btn:hover { transform: scale(1.05); }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+        .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #2979ff; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div id="loading"><div class="loader"></div><p style="color: #2979ff;">Loading Cloud Run...</p></div>
     <div id="canvas-container"></div>
-    <div id="info-panel">
-        <h1>Cloud Run Autoscaling</h1>
-        <p>Watch containers scale from zero based on incoming requests. Each container handles multiple concurrent requests.</p>
+    <div id="title-panel">
+        <h1>Cloud Run</h1>
+        <div class="subtitle">Serverless Container Platform</div>
+        <div class="intro">Run <strong>any container</strong> without managing servers! Cloud Run automatically scales from zero to thousands of instances based on traffic.</div>
     </div>
-    <div id="controls">
-        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
-        <button class="control-btn" onclick="scaleUp()">Increase Load</button>
-        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    <div id="sim-controls">
+        <button class="sim-btn" onclick="increaseLoad()">Increase Traffic</button>
+        <button class="sim-btn" onclick="scaleToZero()">Scale to Zero</button>
+        <button class="sim-btn" onclick="toggleAutoPlay()" id="autoplay-btn">Auto-Play Story</button>
+    </div>
+    <div id="step-panel">
+        <div id="step-indicator">STEP 1 OF 6</div>
+        <div id="step-title">Welcome to Cloud Run!</div>
+        <div id="step-description">Learn how serverless containers work. Click "Next" to begin!</div>
+        <div id="step-detail">Cloud Run: Deploy containers, pay only when they run!</div>
+    </div>
+    <div id="progress-bar"><div id="progress-fill" style="width: 16.67%"></div></div>
+    <div id="nav-controls">
+        <button class="nav-btn" id="prev-btn" onclick="previousStep()" disabled>Previous</button>
+        <button class="nav-btn" onclick="resetVisualization()">Reset</button>
+        <button class="nav-btn primary" id="next-btn" onclick="nextStep()">Next</button>
+    </div>
+    <div id="legend-panel">
+        <h3>What You See</h3>
+        <div class="legend-item"><div class="legend-color" style="background: #2979ff;"></div><div class="legend-text"><div class="name">Container</div><div class="desc">Your app instance</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #00ff00;"></div><div class="legend-text"><div class="name">Request</div><div class="desc">Incoming traffic</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ff9800;"></div><div class="legend-text"><div class="name">Load Balancer</div><div class="desc">Distributes traffic</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #888;"></div><div class="legend-text"><div class="name">Idle</div><div class="desc">Scaled to zero</div></div></div>
+    </div>
+    <div id="metrics-panel">
+        <h3>Service Metrics</h3>
+        <div class="metric-row"><span class="metric-label">Instances:</span><span class="metric-value" id="instances">3</span></div>
+        <div class="metric-row"><span class="metric-label">Requests/s:</span><span class="metric-value" id="rps">0</span></div>
+        <div class="metric-row"><span class="metric-label">Latency:</span><span class="metric-value" id="latency">0 ms</span></div>
+        <div class="metric-row"><span class="metric-label">CPU:</span><span class="metric-value" id="cpu">0%</span></div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        let scene, camera, renderer, controls, isAnimating = true;
-        let containers = [], requests = [];
-        let targetContainers = 3;
-        
+        var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
+        var containers = [], requests = [], targetContainers = 3, requestCount = 0;
+        var steps = [
+            {title:"Welcome to Cloud Run!",description:"Cloud Run is a <strong>serverless container platform</strong>. Deploy any container and it scales automatically from zero to thousands!",detail:"Cloud Run: Deploy containers, pay only when they run!",cameraPos:{x:0,y:15,z:25},cameraTarget:{x:0,y:0,z:0}},
+            {title:"Step 1: Your Containers",description:"The <strong>blue boxes</strong> are container instances running your app. Each container can handle multiple concurrent requests!",detail:"Containers can run any language: Node.js, Python, Go, Java, .NET, Ruby, etc.",cameraPos:{x:0,y:10,z:18},cameraTarget:{x:0,y:0,z:0}},
+            {title:"Step 2: Incoming Requests",description:"The <strong>green spheres</strong> are HTTP requests from users. They fly down from the cloud to your containers!",detail:"Cloud Run handles HTTPS, load balancing, and SSL certificates automatically.",cameraPos:{x:0,y:20,z:20},cameraTarget:{x:0,y:5,z:0}},
+            {title:"Step 3: Auto-Scaling",description:"Watch containers <strong>scale up</strong> when traffic increases! Click 'Increase Traffic' to add more load and see new containers appear.",detail:"Cloud Run scales from 0 to 1000+ instances in seconds. Min instances can be set to avoid cold starts.",cameraPos:{x:0,y:12,z:22},cameraTarget:{x:0,y:0,z:0}},
+            {title:"Step 4: Scale to Zero",description:"When traffic stops, containers <strong>scale to zero</strong>. You pay nothing when idle! Click 'Scale to Zero' to see this.",detail:"Scale to zero = $0 when not in use. Perfect for dev/test environments!",cameraPos:{x:0,y:15,z:25},cameraTarget:{x:0,y:0,z:0}},
+            {title:"Step 5: Pricing",description:"You pay only for <strong>CPU and memory used during requests</strong>. No idle costs, no server management!",detail:"Pricing: $0.00002400/vCPU-second, $0.00000250/GiB-second. First 2M requests free!",cameraPos:{x:0,y:15,z:25},cameraTarget:{x:0,y:0,z:0}}
+        ];
         function init() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0a0a0a);
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 15, 25);
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            
+            scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0a0a); scene.fog = new THREE.FogExp2(0x0a0a0a, 0.015);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000); camera.position.set(0, 15, 25);
+            renderer = new THREE.WebGLRenderer({antialias:true}); renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById("canvas-container").appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
             scene.add(new THREE.AmbientLight(0x404040, 0.5));
-            const light = new THREE.PointLight(0x2979ff, 1, 100);
-            light.position.set(0, 20, 10);
-            scene.add(light);
-            
+            var l1 = new THREE.PointLight(0x2979ff, 1.5, 100); l1.position.set(0, 25, 0); scene.add(l1);
             updateContainers();
-            
-            const grid = new THREE.GridHelper(40, 40, 0x2979ff, 0x1a1a2e);
-            grid.position.y = -5;
-            scene.add(grid);
-            
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-            
+            var grid = new THREE.GridHelper(40, 40, 0x2979ff, 0x1a1a2e); grid.position.y = -5; grid.material.opacity = 0.25; grid.material.transparent = true; scene.add(grid);
+            window.addEventListener("resize", function() { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+            setTimeout(function() { document.getElementById("loading").style.display = "none"; }, 800);
             setInterval(spawnRequest, 500);
-            animate();
+            animate(); updateStep();
         }
-        
         function updateContainers() {
-            // Remove excess containers
-            while (containers.length > targetContainers) {
-                const c = containers.pop();
-                scene.remove(c);
-            }
-            // Add new containers
+            while (containers.length > targetContainers) { var c = containers.pop(); scene.remove(c); }
             while (containers.length < targetContainers) {
-                const geom = new THREE.BoxGeometry(2, 3, 2);
-                const mat = new THREE.MeshPhongMaterial({ color: 0x2979ff, emissive: 0x2979ff, emissiveIntensity: 0.2 });
-                const container = new THREE.Mesh(geom, mat);
-                const idx = containers.length;
-                container.position.set((idx - (targetContainers - 1) / 2) * 4, 0, 0);
-                containers.push(container);
-                scene.add(container);
+                var geom = new THREE.BoxGeometry(2, 3, 2);
+                var mat = new THREE.MeshPhongMaterial({color:0x2979ff, emissive:0x2979ff, emissiveIntensity:0.2});
+                var container = new THREE.Mesh(geom, mat);
+                container.position.set((containers.length - (targetContainers - 1) / 2) * 4, 0, 0);
+                containers.push(container); scene.add(container);
             }
-            // Reposition
-            containers.forEach((c, i) => {
-                c.position.x = (i - (containers.length - 1) / 2) * 4;
-            });
+            containers.forEach(function(c, i) { c.position.x = (i - (containers.length - 1) / 2) * 4; });
+            document.getElementById("instances").textContent = containers.length;
         }
-        
         function spawnRequest() {
             if (containers.length === 0) return;
-            const geom = new THREE.SphereGeometry(0.2);
-            const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-            const req = new THREE.Mesh(geom, mat);
+            var geom = new THREE.SphereGeometry(0.2);
+            var mat = new THREE.MeshBasicMaterial({color:0x00ff00});
+            var req = new THREE.Mesh(geom, mat);
             req.position.set((Math.random() - 0.5) * 20, 15, (Math.random() - 0.5) * 10);
-            req.userData = { target: containers[Math.floor(Math.random() * containers.length)], speed: 0.2 };
-            requests.push(req);
-            scene.add(req);
+            req.userData = {target: containers[Math.floor(Math.random() * containers.length)], speed: 0.2};
+            requests.push(req); scene.add(req);
+            requestCount++;
+            document.getElementById("rps").textContent = Math.floor(requestCount / 10);
         }
-        
+        function increaseLoad() {
+            targetContainers = Math.min(targetContainers + 2, 10);
+            updateContainers();
+            document.getElementById("cpu").textContent = Math.floor(Math.random() * 40 + 30) + "%";
+            document.getElementById("latency").textContent = Math.floor(Math.random() * 50 + 20) + " ms";
+        }
+        function scaleToZero() {
+            targetContainers = 0;
+            updateContainers();
+            document.getElementById("cpu").textContent = "0%";
+            document.getElementById("rps").textContent = "0";
+        }
+        function updateStep() {
+            var step = steps[currentStep];
+            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+            document.getElementById("step-title").textContent = step.title;
+            document.getElementById("step-description").innerHTML = step.description;
+            document.getElementById("step-detail").innerHTML = step.detail;
+            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+            document.getElementById("prev-btn").disabled = currentStep === 0;
+            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+            animateCamera(step.cameraPos, step.cameraTarget);
+        }
+        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+        function resetVisualization() { currentStep = 0; stopAutoPlay(); targetContainers = 3; updateContainers(); updateStep(); }
+        function animateCamera(targetPos, targetLookAt) {
+            var startPos = camera.position.clone(), startTarget = controls.target.clone();
+            var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
+            var endTarget = new THREE.Vector3(targetLookAt.x, targetLookAt.y, targetLookAt.z);
+            var startTime = Date.now();
+            function anim() {
+                var progress = Math.min((Date.now() - startTime) / 1000, 1);
+                var eased = 1 - Math.pow(1 - progress, 3);
+                camera.position.lerpVectors(startPos, endPos, eased);
+                controls.target.lerpVectors(startTarget, endTarget, eased);
+                if (progress < 1) requestAnimationFrame(anim);
+            }
+            anim();
+        }
+        function toggleAutoPlay() { if (isAutoPlaying) stopAutoPlay(); else startAutoPlay(); }
+        function startAutoPlay() { isAutoPlaying = true; document.getElementById("autoplay-btn").textContent = "Pause Story"; autoPlayInterval = setInterval(function() { if (currentStep < steps.length - 1) nextStep(); else stopAutoPlay(); }, 5000); }
+        function stopAutoPlay() { isAutoPlaying = false; document.getElementById("autoplay-btn").textContent = "Auto-Play Story"; if (autoPlayInterval) { clearInterval(autoPlayInterval); autoPlayInterval = null; } }
         function animate() {
             requestAnimationFrame(animate);
-            if (isAnimating) {
-                containers.forEach(c => c.rotation.y += 0.01);
-                
-                requests.forEach((r, i) => {
-                    const target = r.userData.target;
-                    if (target) {
-                        const dx = target.position.x - r.position.x;
-                        const dy = target.position.y - r.position.y;
-                        const dz = target.position.z - r.position.z;
-                        const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
-                        
-                        if (dist < 1) {
-                            target.material.emissiveIntensity = 0.6;
-                            setTimeout(() => target.material.emissiveIntensity = 0.2, 100);
-                            scene.remove(r);
-                            requests.splice(i, 1);
-                        } else {
-                            r.position.x += dx / dist * r.userData.speed;
-                            r.position.y += dy / dist * r.userData.speed;
-                            r.position.z += dz / dist * r.userData.speed;
-                        }
+            containers.forEach(function(c) { c.rotation.y += 0.01; });
+            requests.forEach(function(r, i) {
+                var target = r.userData.target;
+                if (target && containers.indexOf(target) !== -1) {
+                    var dx = target.position.x - r.position.x;
+                    var dy = target.position.y - r.position.y;
+                    var dz = target.position.z - r.position.z;
+                    var dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                    if (dist < 1) {
+                        target.material.emissiveIntensity = 0.6;
+                        setTimeout(function() { target.material.emissiveIntensity = 0.2; }, 100);
+                        scene.remove(r); requests.splice(i, 1);
+                    } else {
+                        r.position.x += dx / dist * r.userData.speed;
+                        r.position.y += dy / dist * r.userData.speed;
+                        r.position.z += dz / dist * r.userData.speed;
                     }
-                });
-            }
-            controls.update();
-            renderer.render(scene, camera);
+                } else { scene.remove(r); requests.splice(i, 1); }
+            });
+            controls.update(); renderer.render(scene, camera);
         }
-        
-        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
-        function scaleUp() { targetContainers = Math.min(targetContainers + 2, 10); updateContainers(); }
-        function resetCamera() { camera.position.set(0, 15, 25); controls.target.set(0, 0, 0); }
-        
         init();
     </script>
 </body>

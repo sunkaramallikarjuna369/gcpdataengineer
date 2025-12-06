@@ -3,129 +3,253 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AlloyDB - 3D Interactive</title>
+    <title>AlloyDB - Learn How Google's PostgreSQL-Compatible Database Works</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
-        #canvas-container { width: 100%; height: 100vh; }
-        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #00e5ff; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
-        #info-panel h1 { color: #00e5ff; font-size: 1.3em; margin-bottom: 10px; }
-        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
-        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
-        .control-btn { background: rgba(0,229,255,0.1); border: 1px solid #00e5ff; color: #00e5ff; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
-        .control-btn:hover { background: rgba(0,229,255,0.3); }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%); color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; position: relative; }
+        #title-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.9); border: 2px solid #4285f4; border-radius: 15px; padding: 20px; max-width: 380px; box-shadow: 0 0 30px rgba(66,133,244,0.4); z-index: 100; }
+        #title-panel h1 { color: #4285f4; font-size: 1.8em; margin-bottom: 8px; text-shadow: 0 0 15px #4285f4; }
+        #title-panel .subtitle { color: #00ff00; font-size: 1em; margin-bottom: 12px; }
+        #title-panel .intro { color: #ccc; font-size: 0.9em; line-height: 1.6; }
+        #step-panel { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.95); border: 2px solid #00ff00; border-radius: 15px; padding: 25px 35px; max-width: 750px; width: 90%; box-shadow: 0 0 40px rgba(0,255,0,0.4); z-index: 100; text-align: center; }
+        #step-indicator { color: #4285f4; font-size: 0.85em; margin-bottom: 8px; letter-spacing: 2px; }
+        #step-title { color: #00ff00; font-size: 1.4em; margin-bottom: 12px; text-shadow: 0 0 10px #00ff00; }
+        #step-description { color: #fff; font-size: 1.05em; line-height: 1.7; margin-bottom: 12px; }
+        #step-detail { color: #00ffff; font-size: 0.9em; font-style: italic; padding: 10px 15px; background: rgba(0,255,255,0.1); border-radius: 8px; border-left: 3px solid #00ffff; text-align: left; }
+        #nav-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .nav-btn { background: rgba(66,133,244,0.1); border: 2px solid #4285f4; color: #4285f4; padding: 12px 25px; border-radius: 25px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px; }
+        .nav-btn:hover { background: rgba(66,133,244,0.3); box-shadow: 0 0 20px rgba(66,133,244,0.5); transform: translateY(-2px); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+        .nav-btn.primary { background: #4285f4; color: #fff; }
+        #progress-bar { position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%); width: 60%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; z-index: 100; }
+        #progress-fill { height: 100%; background: linear-gradient(90deg, #4285f4, #00ff00); border-radius: 3px; transition: width 0.5s ease; }
+        #legend-panel { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ffff00; border-radius: 15px; padding: 15px; min-width: 200px; z-index: 100; }
+        #legend-panel h3 { color: #ffff00; margin-bottom: 12px; font-size: 1em; }
+        .legend-item { display: flex; align-items: center; margin: 8px 0; padding: 6px; border-radius: 6px; }
+        .legend-color { width: 18px; height: 18px; border-radius: 4px; margin-right: 10px; }
+        .legend-text .name { color: #fff; font-weight: bold; font-size: 0.85em; }
+        .legend-text .desc { color: #888; font-size: 0.75em; }
+        #metrics-panel { position: absolute; top: 260px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00ffff; border-radius: 15px; padding: 15px; min-width: 180px; z-index: 100; }
+        #metrics-panel h3 { color: #00ffff; margin-bottom: 10px; font-size: 0.95em; }
+        .metric-row { display: flex; justify-content: space-between; margin: 6px 0; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .metric-label { color: #888; font-size: 0.8em; }
+        .metric-value { color: #00ffff; font-family: monospace; font-weight: bold; font-size: 0.85em; }
+        #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
+        .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #4285f4, #00ff00); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; transition: all 0.3s ease; }
+        .sim-btn:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(66,133,244,0.5); }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+        .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #4285f4; border-right: 4px solid #00ff00; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div id="loading"><div class="loader"></div><p style="color: #4285f4; font-size: 1.1em;">Loading AlloyDB Visualization...</p></div>
     <div id="canvas-container"></div>
-    <div id="info-panel">
-        <h1>AlloyDB Architecture</h1>
-        <p>Disaggregated compute and storage. Watch how the columnar engine accelerates analytical queries alongside OLTP workloads.</p>
+    <div id="title-panel">
+        <h1>AlloyDB</h1>
+        <div class="subtitle">PostgreSQL-Compatible Database</div>
+        <div class="intro">Imagine <strong>PostgreSQL with superpowers</strong>! AlloyDB is fully compatible with PostgreSQL but 4x faster for transactions and 100x faster for analytics.</div>
     </div>
-    <div id="controls">
-        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
-        <button class="control-btn" onclick="runAnalytics()">Run Analytics</button>
-        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    <div id="sim-controls">
+        <button class="sim-btn" onclick="runTransaction()">Run Transaction</button>
+        <button class="sim-btn" onclick="runAnalytics()">Run Analytics</button>
+        <button class="sim-btn" onclick="toggleAutoPlay()" id="autoplay-btn">Auto-Play Story</button>
+    </div>
+    <div id="step-panel">
+        <div id="step-indicator">STEP 1 OF 6</div>
+        <div id="step-title">Welcome to AlloyDB!</div>
+        <div id="step-description">Let's learn how AlloyDB combines PostgreSQL compatibility with Google's infrastructure. Click "Next" to begin!</div>
+        <div id="step-detail">AlloyDB is 4x faster than standard PostgreSQL for transactional workloads!</div>
+    </div>
+    <div id="progress-bar"><div id="progress-fill" style="width: 16.67%"></div></div>
+    <div id="nav-controls">
+        <button class="nav-btn" id="prev-btn" onclick="previousStep()" disabled>Previous</button>
+        <button class="nav-btn" onclick="resetVisualization()">Reset</button>
+        <button class="nav-btn primary" id="next-btn" onclick="nextStep()">Next</button>
+    </div>
+    <div id="legend-panel">
+        <h3>What You See</h3>
+        <div class="legend-item"><div class="legend-color" style="background: #4285f4;"></div><div class="legend-text"><div class="name">Primary</div><div class="desc">Main instance</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #00ff00;"></div><div class="legend-text"><div class="name">Read Pool</div><div class="desc">Read replicas</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ff6600;"></div><div class="legend-text"><div class="name">Storage</div><div class="desc">Distributed storage</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ff00ff;"></div><div class="legend-text"><div class="name">Analytics</div><div class="desc">Columnar engine</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #00ffff;"></div><div class="legend-text"><div class="name">Cache</div><div class="desc">Ultra-fast cache</div></div></div>
+    </div>
+    <div id="metrics-panel">
+        <h3>Instance Metrics</h3>
+        <div class="metric-row"><span class="metric-label">TPS:</span><span class="metric-value" id="tps">0</span></div>
+        <div class="metric-row"><span class="metric-label">QPS:</span><span class="metric-value" id="qps">0</span></div>
+        <div class="metric-row"><span class="metric-label">Latency:</span><span class="metric-value" id="latency">0 ms</span></div>
+        <div class="metric-row"><span class="metric-label">Cache Hit:</span><span class="metric-value" id="cache">0%</span></div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        let scene, camera, renderer, controls, isAnimating = true;
-        let computeNode, storageNodes = [], columnarEngine, dataFlows = [];
-        
+        var scene, camera, renderer, controls;
+        var currentStep = 0;
+        var isAutoPlaying = false;
+        var autoPlayInterval = null;
+        var primary, readPool = [], storage, analytics, cache;
+        var tps = 0, qps = 0;
+
+        var steps = [
+            { title: "Welcome to AlloyDB!", description: "AlloyDB is a <strong>fully managed PostgreSQL-compatible</strong> database. It's 4x faster for transactions and 100x faster for analytics than standard PostgreSQL!", detail: "AlloyDB is 4x faster than standard PostgreSQL for transactional workloads!", highlight: [], cameraPos: { x: 25, y: 18, z: 25 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 1: Primary Instance", description: "The <strong>Primary Instance</strong> handles all write operations. It's a powerful compute node that processes transactions and maintains data consistency.", detail: "Primary instance can have up to 64 vCPUs and 512GB RAM. Automatic failover in seconds.", highlight: ["primary"], cameraPos: { x: 0, y: 15, z: 20 }, cameraTarget: { x: 0, y: 3, z: 0 } },
+            { title: "Step 2: Read Pool for Scale", description: "The <strong>Read Pool</strong> contains read replicas that handle SELECT queries. Add more replicas to scale read throughput without affecting the primary!", detail: "Read replicas have zero replication lag thanks to shared storage architecture.", highlight: ["readpool"], cameraPos: { x: 15, y: 12, z: 15 }, cameraTarget: { x: 5, y: 0, z: 0 } },
+            { title: "Step 3: Distributed Storage", description: "AlloyDB uses <strong>distributed storage</strong> that separates compute from storage. Data is automatically replicated across zones for durability.", detail: "Storage scales automatically up to 64TB. No need to provision storage in advance.", highlight: ["storage"], cameraPos: { x: 0, y: 8, z: 20 }, cameraTarget: { x: 0, y: -3, z: 0 } },
+            { title: "Step 4: Columnar Analytics Engine", description: "The <strong>Columnar Engine</strong> accelerates analytics queries by 100x! It automatically identifies frequently accessed columns and stores them in columnar format.", detail: "No ETL needed - run analytics directly on your transactional data in real-time.", highlight: ["analytics"], cameraPos: { x: -15, y: 15, z: 15 }, cameraTarget: { x: -5, y: 0, z: 0 } },
+            { title: "Step 5: Ultra-Fast Cache", description: "AlloyDB's <strong>intelligent cache</strong> keeps hot data in memory across the cluster. Cache survives instance restarts and is shared across read replicas!", detail: "Cache can be up to 16TB, much larger than instance memory. Warms up automatically.", highlight: ["cache"], cameraPos: { x: 22, y: 18, z: 22 }, cameraTarget: { x: 0, y: 0, z: 0 } }
+        ];
+
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x0a0a0a);
+            scene.fog = new THREE.FogExp2(0x0a0a0a, 0.012);
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 15, 25);
+            camera.position.set(25, 18, 25);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById("canvas-container").appendChild(renderer.domElement);
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
-            
-            scene.add(new THREE.AmbientLight(0x404040, 0.5));
-            const light = new THREE.PointLight(0x00e5ff, 1, 100);
-            light.position.set(0, 20, 10);
-            scene.add(light);
-            
-            // Compute node (PostgreSQL)
-            const computeGeom = new THREE.DodecahedronGeometry(2);
-            const computeMat = new THREE.MeshPhongMaterial({ color: 0x00e5ff, emissive: 0x00e5ff, emissiveIntensity: 0.3 });
-            computeNode = new THREE.Mesh(computeGeom, computeMat);
-            computeNode.position.set(0, 5, 0);
-            scene.add(computeNode);
-            
-            // Storage layer (disaggregated)
-            for (let i = 0; i < 5; i++) {
-                const geom = new THREE.CylinderGeometry(1, 1, 2, 32);
-                const mat = new THREE.MeshPhongMaterial({ color: 0x4285f4, emissive: 0x4285f4, emissiveIntensity: 0.2 });
-                const storage = new THREE.Mesh(geom, mat);
-                storage.position.set((i - 2) * 3, -3, 0);
-                storageNodes.push(storage);
-                scene.add(storage);
-            }
-            
-            // Columnar engine
-            const colGeom = new THREE.BoxGeometry(8, 1, 2);
-            const colMat = new THREE.MeshPhongMaterial({ color: 0xff6d00, emissive: 0xff6d00, emissiveIntensity: 0.2, transparent: true, opacity: 0.7 });
-            columnarEngine = new THREE.Mesh(colGeom, colMat);
-            columnarEngine.position.set(0, 1, 0);
-            scene.add(columnarEngine);
-            
-            // Data flows
-            for (let i = 0; i < 30; i++) {
-                const geom = new THREE.SphereGeometry(0.15);
-                const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-                const flow = new THREE.Mesh(geom, mat);
-                flow.userData = { phase: Math.random() * Math.PI * 2, speed: 0.02 + Math.random() * 0.02 };
-                dataFlows.push(flow);
-                scene.add(flow);
-            }
-            
-            const grid = new THREE.GridHelper(40, 40, 0x00e5ff, 0x1a1a2e);
-            grid.position.y = -6;
-            scene.add(grid);
-            
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
+            controls.dampingFactor = 0.05;
+            setupLighting();
+            createArchitecture();
+            createGrid();
+            window.addEventListener("resize", onWindowResize);
+            setTimeout(function() { document.getElementById("loading").style.display = "none"; }, 800);
             animate();
+            updateStep();
         }
-        
+
+        function setupLighting() {
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            var l1 = new THREE.PointLight(0x4285f4, 1.5, 100); l1.position.set(0, 25, 0); scene.add(l1);
+            var l2 = new THREE.PointLight(0x00ff00, 1.2, 100); l2.position.set(-20, 15, 10); scene.add(l2);
+        }
+
+        function createArchitecture() {
+            var primaryGeo = new THREE.CylinderGeometry(2.5, 2.5, 4, 32);
+            var primaryMat = new THREE.MeshPhongMaterial({ color: 0x4285f4, emissive: 0x4285f4, emissiveIntensity: 0.4, transparent: true, opacity: 0.9 });
+            primary = new THREE.Mesh(primaryGeo, primaryMat);
+            primary.position.set(0, 5, 0);
+            scene.add(primary);
+            for (var i = 0; i < 3; i++) {
+                var replicaGeo = new THREE.CylinderGeometry(1.5, 1.5, 3, 32);
+                var replicaMat = new THREE.MeshPhongMaterial({ color: 0x00ff00, emissive: 0x00ff00, emissiveIntensity: 0.3, transparent: true, opacity: 0.8 });
+                var replica = new THREE.Mesh(replicaGeo, replicaMat);
+                var angle = (i / 3) * Math.PI * 2;
+                replica.position.set(Math.cos(angle) * 8, 5, Math.sin(angle) * 8);
+                scene.add(replica);
+                readPool.push(replica);
+            }
+            var storageGeo = new THREE.BoxGeometry(20, 2, 12);
+            var storageMat = new THREE.MeshPhongMaterial({ color: 0xff6600, emissive: 0xff6600, emissiveIntensity: 0.2, transparent: true, opacity: 0.6 });
+            storage = new THREE.Mesh(storageGeo, storageMat);
+            storage.position.set(0, -3, 0);
+            scene.add(storage);
+            var analyticsGeo = new THREE.OctahedronGeometry(2);
+            var analyticsMat = new THREE.MeshPhongMaterial({ color: 0xff00ff, emissive: 0xff00ff, emissiveIntensity: 0.4, transparent: true, opacity: 0.9 });
+            analytics = new THREE.Mesh(analyticsGeo, analyticsMat);
+            analytics.position.set(-8, 5, 0);
+            scene.add(analytics);
+            var cacheGeo = new THREE.TorusGeometry(4, 0.5, 16, 32);
+            var cacheMat = new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.3, transparent: true, opacity: 0.6 });
+            cache = new THREE.Mesh(cacheGeo, cacheMat);
+            cache.rotation.x = Math.PI / 2;
+            cache.position.set(0, 5, 0);
+            scene.add(cache);
+        }
+
+        function createGrid() {
+            var grid = new THREE.GridHelper(50, 50, 0x4285f4, 0x1a1a2e);
+            grid.position.y = -5;
+            grid.material.opacity = 0.25;
+            grid.material.transparent = true;
+            scene.add(grid);
+        }
+
+        function runTransaction() {
+            tps += Math.floor(Math.random() * 5000) + 2000;
+            document.getElementById("tps").textContent = tps;
+            document.getElementById("latency").textContent = Math.floor(Math.random() * 3 + 1) + " ms";
+            document.getElementById("cache").textContent = Math.floor(Math.random() * 10 + 90) + "%";
+            primary.material.emissiveIntensity = 0.9;
+            setTimeout(function() { primary.material.emissiveIntensity = 0.4; }, 300);
+        }
+
+        function runAnalytics() {
+            qps += Math.floor(Math.random() * 1000) + 500;
+            document.getElementById("qps").textContent = qps;
+            document.getElementById("latency").textContent = Math.floor(Math.random() * 50 + 10) + " ms";
+            analytics.material.emissiveIntensity = 0.9;
+            storage.material.emissiveIntensity = 0.5;
+            setTimeout(function() { analytics.material.emissiveIntensity = 0.4; storage.material.emissiveIntensity = 0.2; }, 500);
+        }
+
+        function updateStep() {
+            var step = steps[currentStep];
+            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+            document.getElementById("step-title").textContent = step.title;
+            document.getElementById("step-description").innerHTML = step.description;
+            document.getElementById("step-detail").innerHTML = step.detail;
+            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+            document.getElementById("prev-btn").disabled = currentStep === 0;
+            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+            animateCamera(step.cameraPos, step.cameraTarget);
+        }
+
+        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+        function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); tps = 0; qps = 0; }
+
+        function animateCamera(targetPos, targetLookAt) {
+            var startPos = camera.position.clone();
+            var startTarget = controls.target.clone();
+            var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
+            var endTarget = new THREE.Vector3(targetLookAt.x, targetLookAt.y, targetLookAt.z);
+            var startTime = Date.now();
+            function anim() {
+                var progress = Math.min((Date.now() - startTime) / 1000, 1);
+                var eased = 1 - Math.pow(1 - progress, 3);
+                camera.position.lerpVectors(startPos, endPos, eased);
+                controls.target.lerpVectors(startTarget, endTarget, eased);
+                if (progress < 1) requestAnimationFrame(anim);
+            }
+            anim();
+        }
+
+        function toggleAutoPlay() { if (isAutoPlaying) stopAutoPlay(); else startAutoPlay(); }
+        function startAutoPlay() {
+            isAutoPlaying = true;
+            document.getElementById("autoplay-btn").textContent = "Pause Story";
+            autoPlayInterval = setInterval(function() { if (currentStep < steps.length - 1) nextStep(); else stopAutoPlay(); }, 5000);
+        }
+        function stopAutoPlay() {
+            isAutoPlaying = false;
+            document.getElementById("autoplay-btn").textContent = "Auto-Play Story";
+            if (autoPlayInterval) { clearInterval(autoPlayInterval); autoPlayInterval = null; }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
         function animate() {
             requestAnimationFrame(animate);
-            if (isAnimating) {
-                computeNode.rotation.y += 0.01;
-                computeNode.rotation.x += 0.005;
-                storageNodes.forEach(s => s.rotation.y += 0.01);
-                
-                dataFlows.forEach(f => {
-                    f.userData.phase += f.userData.speed;
-                    const t = (Math.sin(f.userData.phase) + 1) / 2;
-                    const storageIdx = Math.floor(f.userData.phase) % storageNodes.length;
-                    const storage = storageNodes[storageIdx];
-                    
-                    f.position.x = storage.position.x + (computeNode.position.x - storage.position.x) * t;
-                    f.position.y = storage.position.y + (computeNode.position.y - storage.position.y) * t;
-                    f.position.z = Math.sin(t * Math.PI) * 3;
-                });
-            }
+            var t = Date.now() * 0.001;
+            if (primary) primary.rotation.y = t * 0.2;
+            readPool.forEach(function(r, i) { r.rotation.y = t * 0.3 + i; });
+            if (analytics) { analytics.rotation.y = t * 0.5; analytics.rotation.x = Math.sin(t) * 0.3; }
+            if (cache) cache.rotation.z = t * 0.1;
             controls.update();
             renderer.render(scene, camera);
         }
-        
-        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
-        
-        function runAnalytics() {
-            columnarEngine.material.emissiveIntensity = 0.8;
-            setTimeout(() => columnarEngine.material.emissiveIntensity = 0.2, 1000);
-        }
-        
-        function resetCamera() { camera.position.set(0, 15, 25); controls.target.set(0, 0, 0); }
-        
+
         init();
     </script>
 </body>

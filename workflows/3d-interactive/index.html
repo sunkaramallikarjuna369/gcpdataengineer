@@ -3,151 +3,206 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloud Workflows - 3D Interactive</title>
+    <title>Cloud Workflows - Learn Serverless Orchestration</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
-        #canvas-container { width: 100%; height: 100vh; }
-        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #7c4dff; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
-        #info-panel h1 { color: #7c4dff; font-size: 1.3em; margin-bottom: 10px; }
-        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
-        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
-        .control-btn { background: rgba(124,77,255,0.1); border: 1px solid #7c4dff; color: #7c4dff; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
-        .control-btn:hover { background: rgba(124,77,255,0.3); }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%); color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; position: relative; }
+        #title-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.9); border: 2px solid #7c4dff; border-radius: 15px; padding: 20px; max-width: 380px; box-shadow: 0 0 30px rgba(124,77,255,0.4); z-index: 100; }
+        #title-panel h1 { color: #7c4dff; font-size: 1.8em; margin-bottom: 8px; text-shadow: 0 0 15px #7c4dff; }
+        #title-panel .subtitle { color: #00ffff; font-size: 1em; margin-bottom: 12px; }
+        #title-panel .intro { color: #ccc; font-size: 0.9em; line-height: 1.6; }
+        #step-panel { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.95); border: 2px solid #00ffff; border-radius: 15px; padding: 25px 35px; max-width: 750px; width: 90%; box-shadow: 0 0 40px rgba(0,255,255,0.3); z-index: 100; text-align: center; }
+        #step-indicator { color: #7c4dff; font-size: 0.85em; margin-bottom: 8px; letter-spacing: 2px; }
+        #step-title { color: #00ffff; font-size: 1.4em; margin-bottom: 12px; text-shadow: 0 0 10px #00ffff; }
+        #step-description { color: #fff; font-size: 1.05em; line-height: 1.7; margin-bottom: 12px; }
+        #step-detail { color: #00ff00; font-size: 0.9em; font-style: italic; padding: 10px 15px; background: rgba(0,255,0,0.1); border-radius: 8px; border-left: 3px solid #00ff00; text-align: left; }
+        #nav-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .nav-btn { background: rgba(124,77,255,0.1); border: 2px solid #7c4dff; color: #7c4dff; padding: 12px 25px; border-radius: 25px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: all 0.3s ease; }
+        .nav-btn:hover { background: rgba(124,77,255,0.3); box-shadow: 0 0 20px rgba(124,77,255,0.5); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.primary { background: #7c4dff; color: #fff; }
+        #progress-bar { position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%); width: 60%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; z-index: 100; }
+        #progress-fill { height: 100%; background: linear-gradient(90deg, #7c4dff, #00ffff); border-radius: 3px; transition: width 0.5s ease; }
+        #legend-panel { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ff9800; border-radius: 15px; padding: 15px; min-width: 200px; z-index: 100; }
+        #legend-panel h3 { color: #ff9800; margin-bottom: 12px; font-size: 1em; }
+        .legend-item { display: flex; align-items: center; margin: 8px 0; }
+        .legend-color { width: 18px; height: 18px; border-radius: 4px; margin-right: 10px; }
+        .legend-text .name { color: #fff; font-weight: bold; font-size: 0.85em; }
+        .legend-text .desc { color: #888; font-size: 0.75em; }
+        #metrics-panel { position: absolute; top: 240px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00ff00; border-radius: 15px; padding: 15px; min-width: 180px; z-index: 100; }
+        #metrics-panel h3 { color: #00ff00; margin-bottom: 10px; font-size: 0.95em; }
+        .metric-row { display: flex; justify-content: space-between; margin: 6px 0; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .metric-label { color: #888; font-size: 0.8em; }
+        .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
+        #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
+        .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #7c4dff, #00ffff); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; }
+        .sim-btn:hover { transform: scale(1.05); }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+        .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #7c4dff; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div id="loading"><div class="loader"></div><p style="color: #7c4dff;">Loading Cloud Workflows...</p></div>
     <div id="canvas-container"></div>
-    <div id="info-panel">
+    <div id="title-panel">
         <h1>Cloud Workflows</h1>
-        <p>Serverless orchestration. Watch workflow steps execute in sequence with branching and error handling.</p>
+        <div class="subtitle">Serverless Orchestration</div>
+        <div class="intro">Like a <strong>smart conductor</strong> for your services! Workflows orchestrates API calls, Cloud Functions, and services in a defined sequence.</div>
     </div>
-    <div id="controls">
-        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
-        <button class="control-btn" onclick="executeWorkflow()">Execute</button>
-        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    <div id="sim-controls">
+        <button class="sim-btn" onclick="executeWorkflow()">Execute Workflow</button>
+        <button class="sim-btn" onclick="simulateError()">Simulate Error</button>
+        <button class="sim-btn" onclick="toggleAutoPlay()" id="autoplay-btn">Auto-Play Story</button>
+    </div>
+    <div id="step-panel">
+        <div id="step-indicator">STEP 1 OF 6</div>
+        <div id="step-title">Welcome to Cloud Workflows!</div>
+        <div id="step-description">Learn how serverless orchestration works. Click "Next" to begin!</div>
+        <div id="step-detail">Workflows: Define steps in YAML, execute reliably!</div>
+    </div>
+    <div id="progress-bar"><div id="progress-fill" style="width: 16.67%"></div></div>
+    <div id="nav-controls">
+        <button class="nav-btn" id="prev-btn" onclick="previousStep()" disabled>Previous</button>
+        <button class="nav-btn" onclick="resetVisualization()">Reset</button>
+        <button class="nav-btn primary" id="next-btn" onclick="nextStep()">Next</button>
+    </div>
+    <div id="legend-panel">
+        <h3>What You See</h3>
+        <div class="legend-item"><div class="legend-color" style="background: #4caf50;"></div><div class="legend-text"><div class="name">Start</div><div class="desc">Workflow begins</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #7c4dff;"></div><div class="legend-text"><div class="name">Step</div><div class="desc">API call or task</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ea4335;"></div><div class="legend-text"><div class="name">End</div><div class="desc">Workflow complete</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #00ff00;"></div><div class="legend-text"><div class="name">Token</div><div class="desc">Current execution</div></div></div>
+    </div>
+    <div id="metrics-panel">
+        <h3>Execution Status</h3>
+        <div class="metric-row"><span class="metric-label">Status:</span><span class="metric-value" id="status">Idle</span></div>
+        <div class="metric-row"><span class="metric-label">Current Step:</span><span class="metric-value" id="currentStepNum">-</span></div>
+        <div class="metric-row"><span class="metric-label">Duration:</span><span class="metric-value" id="duration">0 s</span></div>
+        <div class="metric-row"><span class="metric-label">Retries:</span><span class="metric-value" id="retries">0</span></div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        let scene, camera, renderer, controls, isAnimating = true;
-        let steps = [], connections = [], executionToken;
-        let currentStep = 0;
-        
-        const stepData = [
-            { x: -10, y: 3, name: 'Start', color: 0x4caf50 },
-            { x: -5, y: 3, name: 'Extract', color: 0x7c4dff },
-            { x: 0, y: 5, name: 'Transform A', color: 0x7c4dff },
-            { x: 0, y: 1, name: 'Transform B', color: 0x7c4dff },
-            { x: 5, y: 3, name: 'Load', color: 0x7c4dff },
-            { x: 10, y: 3, name: 'End', color: 0xea4335 }
+        var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
+        var workflowSteps = [], connections = [], executionToken, execStep = 0;
+        var stepData = [{x:-10,y:3,name:'Start',color:0x4caf50},{x:-5,y:3,name:'Extract',color:0x7c4dff},{x:0,y:5,name:'Transform A',color:0x7c4dff},{x:0,y:1,name:'Transform B',color:0x7c4dff},{x:5,y:3,name:'Load',color:0x7c4dff},{x:10,y:3,name:'End',color:0xea4335}];
+        var connData = [[0,1],[1,2],[1,3],[2,4],[3,4],[4,5]];
+        var steps = [
+            {title:"Welcome to Cloud Workflows!",description:"Workflows is a <strong>serverless orchestration service</strong>. Define steps in YAML, and Workflows executes them reliably with retries and error handling!",detail:"Workflows: Define steps in YAML, execute reliably!",cameraPos:{x:0,y:10,z:20},cameraTarget:{x:0,y:3,z:0}},
+            {title:"Step 1: Start Node",description:"The <strong>green sphere</strong> is the Start node. Every workflow begins here. It can receive input parameters from the caller.",detail:"Workflows can be triggered by Cloud Scheduler, Pub/Sub, or HTTP calls.",cameraPos:{x:-12,y:8,z:15},cameraTarget:{x:-10,y:3,z:0}},
+            {title:"Step 2: Workflow Steps",description:"The <strong>purple boxes</strong> are workflow steps. Each step can call an API, run a Cloud Function, or perform logic like conditionals and loops.",detail:"Steps can call any HTTP API, Cloud Functions, Cloud Run, or other GCP services.",cameraPos:{x:0,y:12,z:18},cameraTarget:{x:0,y:3,z:0}},
+            {title:"Step 3: Parallel Branches",description:"Notice the <strong>two parallel paths</strong>? Workflows supports parallel execution! Transform A and Transform B run simultaneously.",detail:"Parallel branches speed up execution when steps are independent.",cameraPos:{x:0,y:15,z:15},cameraTarget:{x:0,y:3,z:0}},
+            {title:"Step 4: Execution Token",description:"Click <strong>'Execute Workflow'</strong> to see the green token move through steps. It shows the current execution position!",detail:"Workflows automatically retries failed steps and handles errors gracefully.",cameraPos:{x:0,y:10,z:20},cameraTarget:{x:0,y:3,z:0}},
+            {title:"Step 5: Error Handling",description:"Click <strong>'Simulate Error'</strong> to see how Workflows handles failures. Steps can define retry policies and error handlers!",detail:"Built-in retry: exponential backoff, max retries, error catching with try/except.",cameraPos:{x:0,y:10,z:20},cameraTarget:{x:0,y:3,z:0}}
         ];
-        
-        const connData = [[0,1], [1,2], [1,3], [2,4], [3,4], [4,5]];
-        
         function init() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0a0a0a);
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 10, 20);
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            
+            scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0a0a); scene.fog = new THREE.FogExp2(0x0a0a0a, 0.015);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000); camera.position.set(0, 10, 20);
+            renderer = new THREE.WebGLRenderer({antialias:true}); renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById("canvas-container").appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
             scene.add(new THREE.AmbientLight(0x404040, 0.5));
-            const light = new THREE.PointLight(0x7c4dff, 1, 100);
-            light.position.set(0, 20, 10);
-            scene.add(light);
-            
-            // Create steps
-            stepData.forEach((s, i) => {
-                const geom = i === 0 || i === stepData.length - 1 ? 
-                    new THREE.SphereGeometry(1) : new THREE.BoxGeometry(2, 1.5, 1);
-                const mat = new THREE.MeshPhongMaterial({ color: s.color, emissive: s.color, emissiveIntensity: 0.2 });
-                const step = new THREE.Mesh(geom, mat);
-                step.position.set(s.x, s.y, 0);
-                steps.push(step);
-                scene.add(step);
+            var l1 = new THREE.PointLight(0x7c4dff, 1.5, 100); l1.position.set(0, 25, 0); scene.add(l1);
+            stepData.forEach(function(s, i) {
+                var geom = i === 0 || i === stepData.length - 1 ? new THREE.SphereGeometry(1) : new THREE.BoxGeometry(2, 1.5, 1);
+                var mat = new THREE.MeshPhongMaterial({color:s.color, emissive:s.color, emissiveIntensity:0.2});
+                var step = new THREE.Mesh(geom, mat); step.position.set(s.x, s.y, 0);
+                workflowSteps.push(step); scene.add(step);
             });
-            
-            // Create connections
-            connData.forEach(([from, to]) => {
-                const start = new THREE.Vector3(stepData[from].x, stepData[from].y, 0);
-                const end = new THREE.Vector3(stepData[to].x, stepData[to].y, 0);
-                const geom = new THREE.BufferGeometry().setFromPoints([start, end]);
-                const mat = new THREE.LineBasicMaterial({ color: 0x444444 });
-                const line = new THREE.Line(geom, mat);
-                connections.push({ line, from, to });
-                scene.add(line);
+            connData.forEach(function(c) {
+                var start = new THREE.Vector3(stepData[c[0]].x, stepData[c[0]].y, 0);
+                var end = new THREE.Vector3(stepData[c[1]].x, stepData[c[1]].y, 0);
+                var geom = new THREE.BufferGeometry().setFromPoints([start, end]);
+                var mat = new THREE.LineBasicMaterial({color:0x444444});
+                scene.add(new THREE.Line(geom, mat));
             });
-            
-            // Execution token
-            const tokenGeom = new THREE.SphereGeometry(0.5);
-            const tokenMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            var tokenGeom = new THREE.SphereGeometry(0.5);
+            var tokenMat = new THREE.MeshBasicMaterial({color:0x00ff00});
             executionToken = new THREE.Mesh(tokenGeom, tokenMat);
-            executionToken.position.copy(steps[0].position);
-            executionToken.visible = false;
-            scene.add(executionToken);
-            
-            const grid = new THREE.GridHelper(40, 40, 0x7c4dff, 0x1a1a2e);
-            grid.position.y = -3;
-            scene.add(grid);
-            
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-            animate();
+            executionToken.position.copy(workflowSteps[0].position);
+            executionToken.visible = false; scene.add(executionToken);
+            var grid = new THREE.GridHelper(40, 40, 0x7c4dff, 0x1a1a2e); grid.position.y = -3; grid.material.opacity = 0.25; grid.material.transparent = true; scene.add(grid);
+            window.addEventListener("resize", function() { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+            setTimeout(function() { document.getElementById("loading").style.display = "none"; }, 800);
+            animate(); updateStep();
         }
-        
-        function animate() {
-            requestAnimationFrame(animate);
-            if (isAnimating) {
-                steps.forEach(s => s.rotation.y += 0.01);
-            }
-            controls.update();
-            renderer.render(scene, camera);
-        }
-        
         function executeWorkflow() {
-            executionToken.visible = true;
-            currentStep = 0;
-            moveToNextStep();
+            executionToken.visible = true; execStep = 0;
+            document.getElementById("status").textContent = "Running";
+            document.getElementById("retries").textContent = "0";
+            moveToNextWorkflowStep();
         }
-        
-        function moveToNextStep() {
-            if (currentStep >= steps.length) {
-                executionToken.visible = false;
-                return;
-            }
-            
-            const target = steps[currentStep].position;
-            const start = executionToken.position.clone();
-            let progress = 0;
-            
-            steps[currentStep].material.emissiveIntensity = 0.8;
-            
-            const animateMove = () => {
+        function moveToNextWorkflowStep() {
+            if (execStep >= workflowSteps.length) { executionToken.visible = false; document.getElementById("status").textContent = "Success"; document.getElementById("currentStepNum").textContent = "-"; return; }
+            var target = workflowSteps[execStep].position;
+            var start = executionToken.position.clone();
+            var progress = 0;
+            workflowSteps[execStep].material.emissiveIntensity = 0.8;
+            document.getElementById("currentStepNum").textContent = stepData[execStep].name;
+            document.getElementById("duration").textContent = (execStep * 0.5).toFixed(1) + " s";
+            function animateMove() {
                 progress += 0.05;
                 if (progress >= 1) {
                     executionToken.position.copy(target);
-                    steps[currentStep].material.emissiveIntensity = 0.2;
-                    currentStep++;
-                    setTimeout(moveToNextStep, 300);
+                    workflowSteps[execStep].material.emissiveIntensity = 0.2;
+                    execStep++;
+                    setTimeout(moveToNextWorkflowStep, 300);
                     return;
                 }
                 executionToken.position.lerpVectors(start, target, progress);
                 requestAnimationFrame(animateMove);
-            };
+            }
             animateMove();
         }
-        
-        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
-        function resetCamera() { camera.position.set(0, 10, 20); controls.target.set(0, 0, 0); }
-        
+        function simulateError() {
+            document.getElementById("status").textContent = "Error";
+            document.getElementById("retries").textContent = "3";
+            workflowSteps[2].material.color.setHex(0xff0000);
+            workflowSteps[2].material.emissive.setHex(0xff0000);
+            setTimeout(function() {
+                workflowSteps[2].material.color.setHex(0x7c4dff);
+                workflowSteps[2].material.emissive.setHex(0x7c4dff);
+                document.getElementById("status").textContent = "Recovered";
+            }, 2000);
+        }
+        function updateStep() {
+            var step = steps[currentStep];
+            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+            document.getElementById("step-title").textContent = step.title;
+            document.getElementById("step-description").innerHTML = step.description;
+            document.getElementById("step-detail").innerHTML = step.detail;
+            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+            document.getElementById("prev-btn").disabled = currentStep === 0;
+            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+            animateCamera(step.cameraPos, step.cameraTarget);
+        }
+        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+        function resetVisualization() { currentStep = 0; stopAutoPlay(); executionToken.visible = false; updateStep(); }
+        function animateCamera(targetPos, targetLookAt) {
+            var startPos = camera.position.clone(), startTarget = controls.target.clone();
+            var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
+            var endTarget = new THREE.Vector3(targetLookAt.x, targetLookAt.y, targetLookAt.z);
+            var startTime = Date.now();
+            function anim() {
+                var progress = Math.min((Date.now() - startTime) / 1000, 1);
+                var eased = 1 - Math.pow(1 - progress, 3);
+                camera.position.lerpVectors(startPos, endPos, eased);
+                controls.target.lerpVectors(startTarget, endTarget, eased);
+                if (progress < 1) requestAnimationFrame(anim);
+            }
+            anim();
+        }
+        function toggleAutoPlay() { if (isAutoPlaying) stopAutoPlay(); else startAutoPlay(); }
+        function startAutoPlay() { isAutoPlaying = true; document.getElementById("autoplay-btn").textContent = "Pause Story"; autoPlayInterval = setInterval(function() { if (currentStep < steps.length - 1) nextStep(); else stopAutoPlay(); }, 5000); }
+        function stopAutoPlay() { isAutoPlaying = false; document.getElementById("autoplay-btn").textContent = "Auto-Play Story"; if (autoPlayInterval) { clearInterval(autoPlayInterval); autoPlayInterval = null; } }
+        function animate() {
+            requestAnimationFrame(animate);
+            workflowSteps.forEach(function(s) { s.rotation.y += 0.01; });
+            controls.update(); renderer.render(scene, camera);
+        }
         init();
     </script>
 </body>

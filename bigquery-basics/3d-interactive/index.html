@@ -3,635 +3,466 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BigQuery Architecture - 3D Interactive Visualization</title>
+    <title>BigQuery - Learn How Google's Data Warehouse Works</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
-            color: #fff;
-            overflow: hidden;
-            height: 100vh;
-        }
-
-        #canvas-container {
-            width: 100%;
-            height: 100vh;
-            position: relative;
-        }
-
-        #info-panel {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            border: 1px solid #00ffff;
-            border-radius: 10px;
-            padding: 20px;
-            max-width: 350px;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
-            z-index: 100;
-        }
-
-        #info-panel h1 {
-            color: #00ffff;
-            font-size: 1.5em;
-            margin-bottom: 10px;
-            text-shadow: 0 0 10px #00ffff;
-        }
-
-        #info-panel p {
-            color: #aaa;
-            font-size: 0.9em;
-            line-height: 1.6;
-        }
-
-        #controls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 15px;
-            z-index: 100;
-        }
-
-        .control-btn {
-            background: rgba(0, 255, 255, 0.1);
-            border: 1px solid #00ffff;
-            color: #00ffff;
-            padding: 12px 24px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 0.9em;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .control-btn:hover {
-            background: rgba(0, 255, 255, 0.3);
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
-            transform: translateY(-2px);
-        }
-
-        .control-btn.active {
-            background: #00ffff;
-            color: #000;
-        }
-
-        #tooltip {
-            position: absolute;
-            background: rgba(0, 0, 0, 0.9);
-            border: 1px solid #ff00ff;
-            border-radius: 8px;
-            padding: 15px;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            max-width: 300px;
-            z-index: 200;
-        }
-
-        #tooltip h3 {
-            color: #ff00ff;
-            margin-bottom: 8px;
-            font-size: 1.1em;
-        }
-
-        #tooltip p {
-            color: #ccc;
-            font-size: 0.85em;
-            line-height: 1.5;
-        }
-
-        #tooltip .metric {
-            color: #00ff00;
-            font-family: monospace;
-            margin-top: 8px;
-        }
-
-        #stats {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            border: 1px solid #ff00ff;
-            border-radius: 10px;
-            padding: 15px;
-            z-index: 100;
-        }
-
-        #stats h3 {
-            color: #ff00ff;
-            margin-bottom: 10px;
-            font-size: 1em;
-        }
-
-        .stat-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 5px 0;
-            font-size: 0.85em;
-        }
-
-        .stat-label {
-            color: #888;
-        }
-
-        .stat-value {
-            color: #00ff00;
-            font-family: monospace;
-        }
-
-        #loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            z-index: 300;
-        }
-
-        .loader {
-            width: 60px;
-            height: 60px;
-            border: 3px solid #333;
-            border-top: 3px solid #00ffff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        #legend {
-            position: absolute;
-            bottom: 80px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            border: 1px solid #444;
-            border-radius: 10px;
-            padding: 15px;
-            z-index: 100;
-        }
-
-        #legend h4 {
-            color: #fff;
-            margin-bottom: 10px;
-            font-size: 0.9em;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            margin: 5px 0;
-            font-size: 0.8em;
-        }
-
-        .legend-color {
-            width: 15px;
-            height: 15px;
-            border-radius: 3px;
-            margin-right: 10px;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%); color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; position: relative; }
+        #title-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00ffff; border-radius: 15px; padding: 20px; max-width: 380px; box-shadow: 0 0 30px rgba(0,255,255,0.4); z-index: 100; }
+        #title-panel h1 { color: #00ffff; font-size: 1.8em; margin-bottom: 8px; text-shadow: 0 0 15px #00ffff; }
+        #title-panel .subtitle { color: #ff00ff; font-size: 1em; margin-bottom: 12px; }
+        #title-panel .intro { color: #ccc; font-size: 0.9em; line-height: 1.6; }
+        #step-panel { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.95); border: 2px solid #ff00ff; border-radius: 15px; padding: 25px 35px; max-width: 750px; width: 90%; box-shadow: 0 0 40px rgba(255,0,255,0.4); z-index: 100; text-align: center; }
+        #step-indicator { color: #00ffff; font-size: 0.85em; margin-bottom: 8px; letter-spacing: 2px; }
+        #step-title { color: #ff00ff; font-size: 1.4em; margin-bottom: 12px; text-shadow: 0 0 10px #ff00ff; }
+        #step-description { color: #fff; font-size: 1.05em; line-height: 1.7; margin-bottom: 12px; }
+        #step-detail { color: #00ff00; font-size: 0.9em; font-style: italic; padding: 10px 15px; background: rgba(0,255,0,0.1); border-radius: 8px; border-left: 3px solid #00ff00; text-align: left; }
+        #nav-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .nav-btn { background: rgba(0,255,255,0.1); border: 2px solid #00ffff; color: #00ffff; padding: 12px 25px; border-radius: 25px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px; }
+        .nav-btn:hover { background: rgba(0,255,255,0.3); box-shadow: 0 0 20px rgba(0,255,255,0.5); transform: translateY(-2px); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+        .nav-btn.primary { background: #00ffff; color: #000; }
+        #progress-bar { position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%); width: 60%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; z-index: 100; }
+        #progress-fill { height: 100%; background: linear-gradient(90deg, #00ffff, #ff00ff); border-radius: 3px; transition: width 0.5s ease; box-shadow: 0 0 10px #00ffff; }
+        #legend-panel { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ffff00; border-radius: 15px; padding: 15px; min-width: 200px; z-index: 100; }
+        #legend-panel h3 { color: #ffff00; margin-bottom: 12px; font-size: 1em; }
+        .legend-item { display: flex; align-items: center; margin: 8px 0; padding: 6px; border-radius: 6px; transition: background 0.3s; }
+        .legend-item.active { background: rgba(255,255,255,0.15); }
+        .legend-color { width: 18px; height: 18px; border-radius: 4px; margin-right: 10px; }
+        .legend-text .name { color: #fff; font-weight: bold; font-size: 0.85em; }
+        .legend-text .desc { color: #888; font-size: 0.75em; }
+        #metrics-panel { position: absolute; top: 280px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00ff00; border-radius: 15px; padding: 15px; min-width: 180px; z-index: 100; }
+        #metrics-panel h3 { color: #00ff00; margin-bottom: 10px; font-size: 0.95em; }
+        .metric-row { display: flex; justify-content: space-between; margin: 6px 0; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .metric-label { color: #888; font-size: 0.8em; }
+        .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
+        #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
+        .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #ff00ff, #00ffff); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; transition: all 0.3s ease; }
+        .sim-btn:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(255,0,255,0.5); }
+        #tooltip { position: absolute; background: rgba(0,0,0,0.95); border: 2px solid #ff00ff; border-radius: 10px; padding: 12px; max-width: 280px; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 200; }
+        #tooltip.visible { opacity: 1; }
+        #tooltip h4 { color: #ff00ff; margin-bottom: 6px; font-size: 0.95em; }
+        #tooltip p { color: #ccc; font-size: 0.85em; line-height: 1.4; }
+        #comparison-panel { position: absolute; top: 50%; left: 20px; transform: translateY(-50%); background: rgba(0,0,0,0.9); border: 2px solid #ff6600; border-radius: 15px; padding: 15px; max-width: 250px; z-index: 100; display: none; }
+        #comparison-panel.visible { display: block; }
+        #comparison-panel h3 { color: #ff6600; margin-bottom: 12px; font-size: 0.95em; }
+        .comparison-row { display: flex; justify-content: space-between; margin: 8px 0; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 0.8em; }
+        .comparison-row .label { color: #888; }
+        .comparison-row .good { color: #00ff00; }
+        .comparison-row .bad { color: #ff4444; }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+        .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #00ffff; border-right: 4px solid #ff00ff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-    <div id="loading">
-        <div class="loader"></div>
-        <p>Loading BigQuery Architecture...</p>
-    </div>
-
+    <div id="loading"><div class="loader"></div><p style="color: #00ffff; font-size: 1.1em;">Loading BigQuery Visualization...</p></div>
     <div id="canvas-container"></div>
-
-    <div id="info-panel">
-        <h1>BigQuery Architecture</h1>
-        <p>Explore the serverless data warehouse architecture. Click on components to see details. Use mouse to rotate, scroll to zoom.</p>
-        <p style="margin-top: 10px; color: #00ffff;">Particles represent data flowing through the system.</p>
+    <div id="title-panel">
+        <h1>BigQuery</h1>
+        <div class="subtitle">Google's Serverless Data Warehouse</div>
+        <div class="intro">Imagine a <strong>super-smart library</strong> that can find any book instantly, even among billions! BigQuery stores huge amounts of data and answers questions in seconds.</div>
     </div>
-
-    <div id="stats">
+    <div id="sim-controls">
+        <button class="sim-btn" onclick="runQuerySimulation(false)">Run Query (No Partition)</button>
+        <button class="sim-btn" onclick="runQuerySimulation(true)">Run Query (With Partition)</button>
+        <button class="sim-btn" onclick="toggleAutoPlay()" id="autoplay-btn">Auto-Play Story</button>
+    </div>
+    <div id="step-panel">
+        <div id="step-indicator">STEP 1 OF 7</div>
+        <div id="step-title">Welcome to BigQuery!</div>
+        <div id="step-description">Let's learn how BigQuery stores and searches through massive amounts of data. Click "Next" to begin!</div>
+        <div id="step-detail">BigQuery can search through petabytes (1,000,000 gigabytes!) of data in seconds.</div>
+    </div>
+    <div id="progress-bar"><div id="progress-fill" style="width: 14.28%"></div></div>
+    <div id="nav-controls">
+        <button class="nav-btn" id="prev-btn" onclick="previousStep()" disabled>Previous</button>
+        <button class="nav-btn" onclick="resetVisualization()">Reset</button>
+        <button class="nav-btn primary" id="next-btn" onclick="nextStep()">Next</button>
+    </div>
+    <div id="legend-panel">
+        <h3>What You See</h3>
+        <div class="legend-item" id="legend-user"><div class="legend-color" style="background: #00ffff;"></div><div class="legend-text"><div class="name">You (User)</div><div class="desc">Asking questions</div></div></div>
+        <div class="legend-item" id="legend-query"><div class="legend-color" style="background: #ff00ff;"></div><div class="legend-text"><div class="name">Query / Coordinator</div><div class="desc">The brain</div></div></div>
+        <div class="legend-item" id="legend-slots"><div class="legend-color" style="background: #ff6600;"></div><div class="legend-text"><div class="name">Slots (Workers)</div><div class="desc">Helpers that search</div></div></div>
+        <div class="legend-item" id="legend-tables"><div class="legend-color" style="background: #00ff00;"></div><div class="legend-text"><div class="name">Tables</div><div class="desc">Where data lives</div></div></div>
+        <div class="legend-item" id="legend-partitions"><div class="legend-color" style="background: #ffff00;"></div><div class="legend-text"><div class="name">Partitions</div><div class="desc">Organized sections</div></div></div>
+    </div>
+    <div id="metrics-panel">
         <h3>Live Metrics</h3>
-        <div class="stat-row">
-            <span class="stat-label">Queries/sec:</span>
-            <span class="stat-value" id="qps">0</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">Data Scanned:</span>
-            <span class="stat-value" id="data-scanned">0 TB</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">Active Slots:</span>
-            <span class="stat-value" id="slots">0</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">Cache Hit:</span>
-            <span class="stat-value" id="cache-hit">0%</span>
-        </div>
+        <div class="metric-row"><span class="metric-label">Data Scanned:</span><span class="metric-value" id="data-scanned">0 GB</span></div>
+        <div class="metric-row"><span class="metric-label">Slots Used:</span><span class="metric-value" id="slots-used">0</span></div>
+        <div class="metric-row"><span class="metric-label">Query Time:</span><span class="metric-value" id="query-time">0 sec</span></div>
+        <div class="metric-row"><span class="metric-label">Cost:</span><span class="metric-value" id="query-cost">$0.00</span></div>
     </div>
-
-    <div id="legend">
-        <h4>Components</h4>
-        <div class="legend-item">
-            <div class="legend-color" style="background: #00ffff;"></div>
-            <span>Client / API</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: #ff00ff;"></div>
-            <span>Dremel Engine</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: #00ff00;"></div>
-            <span>Colossus Storage</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: #ffff00;"></div>
-            <span>Data Partitions</span>
-        </div>
+    <div id="comparison-panel">
+        <h3>Comparison Results</h3>
+        <div class="comparison-row"><span class="label">Without Partitioning:</span><span class="bad">500 GB</span></div>
+        <div class="comparison-row"><span class="label">With Partitioning:</span><span class="good">10 GB</span></div>
+        <div class="comparison-row"><span class="label">Savings:</span><span class="good">98% less!</span></div>
     </div>
-
-    <div id="controls">
-        <button class="control-btn" onclick="toggleAnimation()">Pause Animation</button>
-        <button class="control-btn" onclick="explodeView()">Explode View</button>
-        <button class="control-btn" onclick="resetCamera()">Reset Camera</button>
-        <button class="control-btn" onclick="toggleDataFlow()">Toggle Data Flow</button>
-    </div>
-
-    <div id="tooltip">
-        <h3 id="tooltip-title">Component</h3>
-        <p id="tooltip-desc">Description</p>
-        <div class="metric" id="tooltip-metric"></div>
-    </div>
-
+    <div id="tooltip"><h4 id="tooltip-title">Component</h4><p id="tooltip-desc">Description</p></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        // Scene setup
-        let scene, camera, renderer, controls;
-        let components = [];
-        let particles = [];
-        let isAnimating = true;
-        let isExploded = false;
-        let showDataFlow = true;
+        var scene, camera, renderer, controls;
+        var currentStep = 0;
+        var isAutoPlaying = false;
+        var autoPlayInterval = null;
+        var userNode, apiGateway, coordinator;
+        var slots = [];
+        var tables = [];
+        var partitions = [];
+        var dataParticles = [];
+        var connectionLines = [];
+        var isQueryRunning = false;
 
-        // Component data
-        const componentData = {
-            client: {
-                title: "Client Layer",
-                desc: "BigQuery Console, REST API, SDK clients (Python, Java, Go), and CLI tools connect here.",
-                metric: "Latency: ~50ms | Concurrent connections: 1000+"
-            },
-            api: {
-                title: "BigQuery API",
-                desc: "RESTful API handling authentication, query parsing, and job management.",
-                metric: "Throughput: 10,000 req/sec | Availability: 99.99%"
-            },
-            dremel: {
-                title: "Dremel Execution Engine",
-                desc: "Distributed query engine that breaks queries into smaller tasks executed across thousands of workers.",
-                metric: "Workers: 10,000+ | Query parallelism: Massive"
-            },
-            storage: {
-                title: "Colossus Storage",
-                desc: "Google's distributed file system storing data in Capacitor columnar format with automatic replication.",
-                metric: "Capacity: Exabytes | Replication: 3x | Durability: 99.999999999%"
-            },
-            partition: {
-                title: "Table Partition",
-                desc: "Data organized by partition key (typically date) for efficient querying and cost optimization.",
-                metric: "Partition limit: 4,000 | Recommended size: 1GB+"
-            }
+        var steps = [
+            { title: "Welcome to BigQuery!", description: "BigQuery is like a <strong>super-smart library</strong> for data. Instead of books, it stores information in <strong>tables</strong>. Let's see how it works when you ask it a question!", detail: "BigQuery is 'serverless' - you don't need to set up any computers. Google handles everything!", highlight: [], cameraPos: { x: 25, y: 18, z: 25 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 1: You Ask a Question (SQL Query)", description: "You write a <strong>SQL query</strong> - that's like asking a question in a special language. For example: <em>'Show me all sales from January 2024'</em>. This question travels from your computer to BigQuery.", detail: "SQL = Structured Query Language. It's how we talk to databases! Example: SELECT * FROM sales WHERE date = '2024-01'", highlight: ["user"], cameraPos: { x: 18, y: 14, z: 18 }, cameraTarget: { x: 0, y: 8, z: 0 } },
+            { title: "Step 2: Query Reaches the API Gateway", description: "Your query arrives at BigQuery's <strong>front door</strong> - the API Gateway. Think of it like a receptionist who checks if you're allowed in and understands what you want.", detail: "API = Application Programming Interface. It validates your credentials and parses your SQL query.", highlight: ["api"], cameraPos: { x: 14, y: 11, z: 14 }, cameraTarget: { x: 0, y: 5, z: 0 } },
+            { title: "Step 3: The Coordinator Plans the Work", description: "The <strong>Query Coordinator</strong> is like a smart manager. It looks at your question and creates an <strong>execution plan</strong> - a step-by-step recipe to find your answer efficiently.", detail: "The coordinator decides: Which tables to read? Which partitions to scan? How many workers (slots) to use?", highlight: ["coordinator"], cameraPos: { x: 12, y: 8, z: 12 }, cameraTarget: { x: 0, y: 2, z: 0 } },
+            { title: "Step 4: Slots (Workers) Search the Data", description: "Now the <strong>Slots</strong> spring into action! Each slot is a worker that searches through different parts of your data <strong>at the same time</strong>. This parallel processing is why BigQuery is incredibly fast!", detail: "BigQuery can use THOUSANDS of slots simultaneously! More slots = faster answers. It's like having 1000 librarians searching for your book at once!", highlight: ["slots"], cameraPos: { x: 16, y: 6, z: 16 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 5: Partitions Save Time and Money!", description: "Here's the magic: <strong>Partitions</strong> organize data by date (or other keys). If you only want January 2024 data, BigQuery <strong>only looks in that section</strong> - not the whole library!", detail: "WITHOUT partitions: Scan ALL 500GB = $2.50. WITH partitions: Scan only 10GB = $0.05. That's 98% savings!", highlight: ["partitions"], cameraPos: { x: 14, y: 4, z: 14 }, cameraTarget: { x: 0, y: -3, z: 0 } },
+            { title: "Step 6: Results Come Back to You!", description: "All slots send their findings back to the coordinator. It <strong>combines everything</strong> (shuffle & aggregate) and sends the final answer back to you. The whole process often takes just <strong>seconds</strong>!", detail: "You only pay for data scanned, not time. Partitioning + clustering can save you 90%+ on costs!", highlight: ["user", "coordinator"], cameraPos: { x: 22, y: 15, z: 22 }, cameraTarget: { x: 0, y: 3, z: 0 } }
+        ];
+
+        var componentInfo = {
+            user: { title: "You (The User)", desc: "You write SQL queries to ask BigQuery questions. Use the Console, Python SDK, or CLI tools." },
+            api: { title: "API Gateway", desc: "The front door - receives queries, checks permissions, validates SQL syntax." },
+            coordinator: { title: "Query Coordinator", desc: "The brain! Analyzes queries, creates execution plans, coordinates all workers." },
+            slot: { title: "Slot (Worker)", desc: "A unit of computing power. Multiple slots work in parallel for super-fast searches!" },
+            table: { title: "Table", desc: "Where data lives in rows and columns. Stored in columnar format for fast analytics." },
+            partition: { title: "Partition", desc: "A section of a table (usually by date). Helps skip irrelevant data and save money!" }
         };
 
         function init() {
-            // Scene
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x0a0a0a);
-            scene.fog = new THREE.Fog(0x0a0a0a, 20, 100);
-
-            // Camera
+            scene.fog = new THREE.FogExp2(0x0a0a0a, 0.012);
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(15, 10, 15);
-
-            // Renderer
+            camera.position.set(25, 18, 25);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
-
-            // Controls
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById("canvas-container").appendChild(renderer.domElement);
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
-            controls.minDistance = 5;
-            controls.maxDistance = 50;
-
-            // Lights
-            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
-            scene.add(ambientLight);
-
-            const pointLight1 = new THREE.PointLight(0x00ffff, 1, 100);
-            pointLight1.position.set(10, 10, 10);
-            scene.add(pointLight1);
-
-            const pointLight2 = new THREE.PointLight(0xff00ff, 1, 100);
-            pointLight2.position.set(-10, 10, -10);
-            scene.add(pointLight2);
-
-            // Create components
-            createBigQueryArchitecture();
-
-            // Create particle system for data flow
-            createDataFlowParticles();
-
-            // Grid
-            const gridHelper = new THREE.GridHelper(30, 30, 0x00ffff, 0x1a1a2e);
-            gridHelper.position.y = -5;
-            scene.add(gridHelper);
-
-            // Hide loading
-            document.getElementById('loading').style.display = 'none';
-
-            // Event listeners
-            window.addEventListener('resize', onWindowResize);
-            renderer.domElement.addEventListener('mousemove', onMouseMove);
-            renderer.domElement.addEventListener('click', onClick);
-
-            // Start animation
+            controls.minDistance = 10;
+            controls.maxDistance = 60;
+            setupLighting();
+            createUser();
+            createAPIGateway();
+            createCoordinator();
+            createSlots();
+            createTables();
+            createPartitions();
+            createConnections();
+            createGrid();
+            createDataParticles();
+            window.addEventListener("resize", onWindowResize);
+            renderer.domElement.addEventListener("mousemove", onMouseMove);
+            setTimeout(function() { document.getElementById("loading").style.display = "none"; }, 800);
             animate();
-
-            // Start metrics simulation
-            simulateMetrics();
+            updateStep();
         }
 
-        function createBigQueryArchitecture() {
-            // Client Layer (top)
-            const clientGeom = new THREE.BoxGeometry(3, 1, 3);
-            const clientMat = new THREE.MeshPhongMaterial({
-                color: 0x00ffff,
-                emissive: 0x00ffff,
-                emissiveIntensity: 0.3,
-                transparent: true,
-                opacity: 0.8
-            });
-            const client = new THREE.Mesh(clientGeom, clientMat);
-            client.position.set(0, 6, 0);
-            client.userData = { type: 'client', originalPos: client.position.clone() };
-            scene.add(client);
-            components.push(client);
+        function setupLighting() {
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            var l1 = new THREE.PointLight(0x00ffff, 1.5, 100); l1.position.set(20, 25, 20); scene.add(l1);
+            var l2 = new THREE.PointLight(0xff00ff, 1.2, 100); l2.position.set(-20, 20, -20); scene.add(l2);
+            var l3 = new THREE.PointLight(0x00ff00, 0.8, 100); l3.position.set(0, -15, 0); scene.add(l3);
+        }
 
-            // Add glow effect
-            addGlow(client, 0x00ffff);
+        function createUser() {
+            var group = new THREE.Group();
+            var geo = new THREE.SphereGeometry(1.5, 32, 32);
+            var mat = new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.5, transparent: true, opacity: 0.9 });
+            group.add(new THREE.Mesh(geo, mat));
+            var glowGeo = new THREE.SphereGeometry(2, 32, 32);
+            var glowMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.15, side: THREE.BackSide });
+            group.add(new THREE.Mesh(glowGeo, glowMat));
+            var ringGeo = new THREE.RingGeometry(2.2, 2.5, 32);
+            var ringMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
+            var ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = Math.PI / 2;
+            group.add(ring);
+            group.position.set(0, 12, 0);
+            group.userData = { type: "user", ring: ring };
+            scene.add(group);
+            userNode = group;
+        }
 
-            // API Layer
-            const apiGeom = new THREE.CylinderGeometry(2, 2, 1.5, 32);
-            const apiMat = new THREE.MeshPhongMaterial({
-                color: 0x00aaff,
-                emissive: 0x00aaff,
-                emissiveIntensity: 0.2,
-                transparent: true,
-                opacity: 0.8
-            });
-            const api = new THREE.Mesh(apiGeom, apiMat);
-            api.position.set(0, 4, 0);
-            api.userData = { type: 'api', originalPos: api.position.clone() };
-            scene.add(api);
-            components.push(api);
+        function createAPIGateway() {
+            var group = new THREE.Group();
+            var geo = new THREE.CylinderGeometry(2.5, 2.5, 2, 6);
+            var mat = new THREE.MeshPhongMaterial({ color: 0x0088ff, emissive: 0x0044ff, emissiveIntensity: 0.3, transparent: true, opacity: 0.85 });
+            group.add(new THREE.Mesh(geo, mat));
+            var wireGeo = new THREE.CylinderGeometry(2.6, 2.6, 2.1, 6);
+            var wireMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent: true, opacity: 0.4 });
+            group.add(new THREE.Mesh(wireGeo, wireMat));
+            group.position.set(0, 7, 0);
+            group.userData = { type: "api" };
+            scene.add(group);
+            apiGateway = group;
+        }
 
-            // Dremel Engine (multiple workers)
-            const dremelGroup = new THREE.Group();
-            const workerGeom = new THREE.OctahedronGeometry(0.8);
-            const workerMat = new THREE.MeshPhongMaterial({
-                color: 0xff00ff,
-                emissive: 0xff00ff,
-                emissiveIntensity: 0.4,
-                transparent: true,
-                opacity: 0.9
-            });
+        function createCoordinator() {
+            var group = new THREE.Group();
+            var geo = new THREE.IcosahedronGeometry(2, 1);
+            var mat = new THREE.MeshPhongMaterial({ color: 0xff00ff, emissive: 0xff00ff, emissiveIntensity: 0.5, transparent: true, opacity: 0.9 });
+            var core = new THREE.Mesh(geo, mat);
+            group.add(core);
+            var shellGeo = new THREE.IcosahedronGeometry(2.5, 1);
+            var shellMat = new THREE.MeshBasicMaterial({ color: 0xff00ff, wireframe: true, transparent: true, opacity: 0.25 });
+            var shell = new THREE.Mesh(shellGeo, shellMat);
+            group.add(shell);
+            group.position.set(0, 2, 0);
+            group.userData = { type: "coordinator", core: core, shell: shell };
+            scene.add(group);
+            coordinator = group;
+        }
 
-            for (let i = 0; i < 5; i++) {
-                const angle = (i / 5) * Math.PI * 2;
-                const worker = new THREE.Mesh(workerGeom, workerMat);
-                worker.position.set(Math.cos(angle) * 4, 1, Math.sin(angle) * 4);
-                worker.userData = { type: 'dremel', originalPos: worker.position.clone() };
-                dremelGroup.add(worker);
-                components.push(worker);
-                addGlow(worker, 0xff00ff);
+        function createSlots() {
+            var count = 8, radius = 7;
+            for (var i = 0; i < count; i++) {
+                var angle = (i / count) * Math.PI * 2;
+                var group = new THREE.Group();
+                var geo = new THREE.OctahedronGeometry(0.9);
+                var mat = new THREE.MeshPhongMaterial({ color: 0xff6600, emissive: 0xff6600, emissiveIntensity: 0.4, transparent: true, opacity: 0.9 });
+                group.add(new THREE.Mesh(geo, mat));
+                var glowGeo = new THREE.OctahedronGeometry(1.1);
+                var glowMat = new THREE.MeshBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.2 });
+                group.add(new THREE.Mesh(glowGeo, glowMat));
+                group.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+                group.userData = { type: "slot", index: i, active: false };
+                scene.add(group);
+                slots.push(group);
             }
-            scene.add(dremelGroup);
+        }
 
-            // Central Dremel coordinator
-            const coordGeom = new THREE.IcosahedronGeometry(1.2);
-            const coordMat = new THREE.MeshPhongMaterial({
-                color: 0xff00ff,
-                emissive: 0xff00ff,
-                emissiveIntensity: 0.5,
-                wireframe: false
-            });
-            const coordinator = new THREE.Mesh(coordGeom, coordMat);
-            coordinator.position.set(0, 1, 0);
-            coordinator.userData = { type: 'dremel', originalPos: coordinator.position.clone() };
-            scene.add(coordinator);
-            components.push(coordinator);
-            addGlow(coordinator, 0xff00ff);
+        function createTables() {
+            var positions = [{ x: -5, z: -5 }, { x: 5, z: -5 }, { x: -5, z: 5 }, { x: 5, z: 5 }];
+            for (var i = 0; i < positions.length; i++) {
+                var pos = positions[i];
+                var group = new THREE.Group();
+                var geo = new THREE.BoxGeometry(4, 2.5, 4);
+                var mat = new THREE.MeshPhongMaterial({ color: 0x00ff00, emissive: 0x00ff00, emissiveIntensity: 0.2, transparent: true, opacity: 0.6 });
+                group.add(new THREE.Mesh(geo, mat));
+                var wireGeo = new THREE.BoxGeometry(4.1, 2.6, 4.1);
+                var wireMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true, transparent: true, opacity: 0.3 });
+                group.add(new THREE.Mesh(wireGeo, wireMat));
+                group.position.set(pos.x, -5, pos.z);
+                group.userData = { type: "table", index: i };
+                scene.add(group);
+                tables.push(group);
+            }
+        }
 
-            // Colossus Storage (bottom layer)
-            const storageGeom = new THREE.BoxGeometry(12, 2, 12);
-            const storageMat = new THREE.MeshPhongMaterial({
-                color: 0x00ff00,
-                emissive: 0x00ff00,
-                emissiveIntensity: 0.2,
-                transparent: true,
-                opacity: 0.6
-            });
-            const storage = new THREE.Mesh(storageGeom, storageMat);
-            storage.position.set(0, -3, 0);
-            storage.userData = { type: 'storage', originalPos: storage.position.clone() };
-            scene.add(storage);
-            components.push(storage);
-
-            // Table partitions inside storage
-            const partitionGeom = new THREE.BoxGeometry(1.5, 1, 1.5);
-            const partitionMat = new THREE.MeshPhongMaterial({
-                color: 0xffff00,
-                emissive: 0xffff00,
-                emissiveIntensity: 0.3,
-                transparent: true,
-                opacity: 0.8
-            });
-
-            for (let x = -2; x <= 2; x++) {
-                for (let z = -2; z <= 2; z++) {
-                    const partition = new THREE.Mesh(partitionGeom, partitionMat);
-                    partition.position.set(x * 2, -3, z * 2);
-                    partition.userData = { type: 'partition', originalPos: partition.position.clone() };
-                    scene.add(partition);
-                    components.push(partition);
+        function createPartitions() {
+            for (var ti = 0; ti < tables.length; ti++) {
+                var table = tables[ti];
+                var tablePartitions = [];
+                for (var i = 0; i < 4; i++) {
+                    var geo = new THREE.BoxGeometry(0.8, 2, 0.8);
+                    var mat = new THREE.MeshPhongMaterial({ color: 0xffff00, emissive: 0xffff00, emissiveIntensity: 0.3, transparent: true, opacity: 0.85 });
+                    var p = new THREE.Mesh(geo, mat);
+                    var ox = (i % 2 - 0.5) * 1.5;
+                    var oz = (Math.floor(i / 2) - 0.5) * 1.5;
+                    p.position.set(table.position.x + ox, table.position.y, table.position.z + oz);
+                    p.userData = { type: "partition", tableIndex: ti, partitionIndex: i, isTarget: i === 0 };
+                    scene.add(p);
+                    tablePartitions.push(p);
                 }
+                partitions.push(tablePartitions);
             }
-
-            // Connection lines
-            createConnectionLines();
         }
 
-        function addGlow(mesh, color) {
-            const glowGeom = mesh.geometry.clone();
-            const glowMat = new THREE.MeshBasicMaterial({
-                color: color,
-                transparent: true,
-                opacity: 0.1,
-                side: THREE.BackSide
-            });
-            const glow = new THREE.Mesh(glowGeom, glowMat);
-            glow.scale.multiplyScalar(1.2);
-            mesh.add(glow);
-        }
-
-        function createConnectionLines() {
-            const lineMaterial = new THREE.LineBasicMaterial({
-                color: 0x00ffff,
-                transparent: true,
-                opacity: 0.5
-            });
-
-            // Client to API
-            const points1 = [
-                new THREE.Vector3(0, 5.5, 0),
-                new THREE.Vector3(0, 4.75, 0)
-            ];
-            const line1 = new THREE.Line(
-                new THREE.BufferGeometry().setFromPoints(points1),
-                lineMaterial
-            );
-            scene.add(line1);
-
-            // API to Dremel workers
-            for (let i = 0; i < 5; i++) {
-                const angle = (i / 5) * Math.PI * 2;
-                const points = [
-                    new THREE.Vector3(0, 3.25, 0),
-                    new THREE.Vector3(Math.cos(angle) * 4, 1, Math.sin(angle) * 4)
-                ];
-                const line = new THREE.Line(
-                    new THREE.BufferGeometry().setFromPoints(points),
-                    new THREE.LineBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0.3 })
-                );
+        function createConnections() {
+            function createLine(start, end, color) {
+                var mat = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.35 });
+                var geo = new THREE.BufferGeometry().setFromPoints([start, end]);
+                var line = new THREE.Line(geo, mat);
                 scene.add(line);
+                return line;
+            }
+            connectionLines.push(createLine(new THREE.Vector3(0, 10.5, 0), new THREE.Vector3(0, 8, 0), 0x00ffff));
+            connectionLines.push(createLine(new THREE.Vector3(0, 6, 0), new THREE.Vector3(0, 4, 0), 0x0088ff));
+            for (var i = 0; i < slots.length; i++) {
+                connectionLines.push(createLine(new THREE.Vector3(0, 1, 0), slots[i].position.clone().setY(0.9), 0xff00ff));
             }
         }
 
-        function createDataFlowParticles() {
-            const particleCount = 500;
-            const geometry = new THREE.BufferGeometry();
-            const positions = new Float32Array(particleCount * 3);
-            const colors = new Float32Array(particleCount * 3);
-            const velocities = [];
+        function createGrid() {
+            var grid = new THREE.GridHelper(50, 50, 0x00ffff, 0x1a1a2e);
+            grid.position.y = -7;
+            grid.material.opacity = 0.25;
+            grid.material.transparent = true;
+            scene.add(grid);
+        }
 
-            for (let i = 0; i < particleCount; i++) {
-                // Random starting positions along data flow paths
-                const path = Math.random();
-                let x, y, z;
+        function createDataParticles() {
+            var geo = new THREE.BufferGeometry();
+            var count = 200;
+            var positions = new Float32Array(count * 3);
+            for (var i = 0; i < count * 3; i++) positions[i] = (Math.random() - 0.5) * 30;
+            geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+            var mat = new THREE.PointsMaterial({ color: 0x00ffff, size: 0.15, transparent: true, opacity: 0.6 });
+            var particles = new THREE.Points(geo, mat);
+            scene.add(particles);
+            dataParticles.push(particles);
+        }
 
-                if (path < 0.33) {
-                    // Client to API path
-                    x = (Math.random() - 0.5) * 2;
-                    y = 4 + Math.random() * 2;
-                    z = (Math.random() - 0.5) * 2;
-                } else if (path < 0.66) {
-                    // API to Dremel path
-                    const angle = Math.random() * Math.PI * 2;
-                    const radius = Math.random() * 4;
-                    x = Math.cos(angle) * radius;
-                    y = 1 + Math.random() * 3;
-                    z = Math.sin(angle) * radius;
-                } else {
-                    // Dremel to Storage path
-                    x = (Math.random() - 0.5) * 10;
-                    y = -3 + Math.random() * 4;
-                    z = (Math.random() - 0.5) * 10;
+        function updateStep() {
+            var step = steps[currentStep];
+            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+            document.getElementById("step-title").textContent = step.title;
+            document.getElementById("step-description").innerHTML = step.description;
+            document.getElementById("step-detail").innerHTML = step.detail;
+            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+            document.getElementById("prev-btn").disabled = currentStep === 0;
+            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+            animateCamera(step.cameraPos, step.cameraTarget);
+            highlightComponents(step.highlight);
+            updateLegendHighlights(step.highlight);
+        }
+
+        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+        function resetVisualization() {
+            currentStep = 0; stopAutoPlay(); resetHighlights(); updateStep();
+            document.getElementById("data-scanned").textContent = "0 GB";
+            document.getElementById("slots-used").textContent = "0";
+            document.getElementById("query-time").textContent = "0 sec";
+            document.getElementById("query-cost").textContent = "$0.00";
+            document.getElementById("comparison-panel").classList.remove("visible");
+        }
+
+        function animateCamera(targetPos, targetLookAt) {
+            var startPos = camera.position.clone();
+            var startTarget = controls.target.clone();
+            var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
+            var endTarget = new THREE.Vector3(targetLookAt.x, targetLookAt.y, targetLookAt.z);
+            var startTime = Date.now();
+            function anim() {
+                var progress = Math.min((Date.now() - startTime) / 1000, 1);
+                var eased = 1 - Math.pow(1 - progress, 3);
+                camera.position.lerpVectors(startPos, endPos, eased);
+                controls.target.lerpVectors(startTarget, endTarget, eased);
+                if (progress < 1) requestAnimationFrame(anim);
+            }
+            anim();
+        }
+
+        function highlightComponents(types) {
+            resetHighlights();
+            for (var i = 0; i < types.length; i++) {
+                var type = types[i];
+                if (type === "user") pulseObject(userNode);
+                else if (type === "api") pulseObject(apiGateway);
+                else if (type === "coordinator") pulseObject(coordinator);
+                else if (type === "slots") { for (var j = 0; j < slots.length; j++) pulseObject(slots[j]); }
+                else if (type === "partitions") { for (var k = 0; k < partitions.length; k++) { for (var l = 0; l < partitions[k].length; l++) pulseObject(partitions[k][l]); } }
+            }
+        }
+
+        function resetHighlights() {
+            var allObjects = [userNode, apiGateway, coordinator].concat(slots).concat(tables);
+            for (var i = 0; i < partitions.length; i++) allObjects = allObjects.concat(partitions[i]);
+            for (var j = 0; j < allObjects.length; j++) {
+                var obj = allObjects[j];
+                if (obj) obj.traverse(function(c) { if (c.material && c.material.emissiveIntensity !== undefined) c.material.emissiveIntensity = 0.2; });
+            }
+        }
+
+        function pulseObject(obj) {
+            if (obj) obj.traverse(function(c) { if (c.material && c.material.emissiveIntensity !== undefined) c.material.emissiveIntensity = 0.8; });
+        }
+
+        function updateLegendHighlights(types) {
+            var items = document.querySelectorAll(".legend-item");
+            for (var i = 0; i < items.length; i++) items[i].classList.remove("active");
+            var map = { user: "legend-user", api: "legend-query", coordinator: "legend-query", slots: "legend-slots", partitions: "legend-partitions" };
+            for (var j = 0; j < types.length; j++) { var el = document.getElementById(map[types[j]]); if (el) el.classList.add("active"); }
+        }
+
+        function runQuerySimulation(usePartitioning) {
+            if (isQueryRunning) return;
+            isQueryRunning = true;
+            var totalData = usePartitioning ? 10 : 500;
+            var duration = usePartitioning ? 2000 : 4000;
+            var slotsUsed = 0;
+            for (var i = 0; i < slots.length; i++) {
+                (function(idx) {
+                    setTimeout(function() { pulseObject(slots[idx]); slotsUsed++; document.getElementById("slots-used").textContent = slotsUsed; }, idx * 80);
+                })(i);
+            }
+            if (usePartitioning) {
+                for (var j = 0; j < partitions.length; j++) {
+                    pulseObject(partitions[j][0]);
+                    for (var k = 1; k < partitions[j].length; k++) partitions[j][k].material.opacity = 0.2;
                 }
-
-                positions[i * 3] = x;
-                positions[i * 3 + 1] = y;
-                positions[i * 3 + 2] = z;
-
-                // Cyan to magenta gradient
-                const t = Math.random();
-                colors[i * 3] = t;
-                colors[i * 3 + 1] = 1 - t * 0.5;
-                colors[i * 3 + 2] = 1;
-
-                velocities.push({
-                    x: (Math.random() - 0.5) * 0.02,
-                    y: -0.02 - Math.random() * 0.03,
-                    z: (Math.random() - 0.5) * 0.02
-                });
+            } else {
+                for (var m = 0; m < partitions.length; m++) {
+                    for (var n = 0; n < partitions[m].length; n++) { pulseObject(partitions[m][n]); partitions[m][n].material.opacity = 0.85; }
+                }
             }
-
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-            const material = new THREE.PointsMaterial({
-                size: 0.1,
-                vertexColors: true,
-                transparent: true,
-                opacity: 0.8,
-                blending: THREE.AdditiveBlending
-            });
-
-            const particleSystem = new THREE.Points(geometry, material);
-            particleSystem.userData.velocities = velocities;
-            scene.add(particleSystem);
-            particles.push(particleSystem);
+            var startTime = Date.now();
+            function update() {
+                var progress = Math.min((Date.now() - startTime) / duration, 1);
+                var scanned = Math.floor(totalData * progress);
+                document.getElementById("data-scanned").textContent = scanned + " GB";
+                document.getElementById("query-time").textContent = ((Date.now() - startTime) / 1000).toFixed(1) + " sec";
+                document.getElementById("query-cost").textContent = "$" + (scanned * 0.005).toFixed(2);
+                if (progress < 1) requestAnimationFrame(update);
+                else {
+                    isQueryRunning = false;
+                    document.getElementById("comparison-panel").classList.add("visible");
+                    for (var i = 0; i < partitions.length; i++) { for (var j = 0; j < partitions[i].length; j++) partitions[i][j].material.opacity = 0.85; }
+                }
+            }
+            update();
         }
 
-        function animate() {
-            requestAnimationFrame(animate);
+        function toggleAutoPlay() { if (isAutoPlaying) stopAutoPlay(); else startAutoPlay(); }
+        function startAutoPlay() {
+            isAutoPlaying = true;
+            document.getElementById("autoplay-btn").textContent = "Pause Story";
+            autoPlayInterval = setInterval(function() { if (currentStep < steps.length - 1) nextStep(); else stopAutoPlay(); }, 5000);
+        }
+        function stopAutoPlay() {
+            isAutoPlaying = false;
+            document.getElementById("autoplay-btn").textContent = "Auto-Play Story";
+            if (autoPlayInterval) { clearInterval(autoPlayInterval); autoPlayInterval = null; }
+        }
 
-            if (isAnimating) {
-                // Rotate components slightly
-                components.forEach((comp, i) => {
-                    if (comp.userData.type === 'dremel') {
-                        comp.rotation.y += 0.01;
-                        comp.rotation.x += 0.005;
+        var raycaster = new THREE.Raycaster();
+        var mouse = new THREE.Vector2();
+        function onMouseMove(e) {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            var intersects = raycaster.intersectObjects(scene.children, true);
+            var tooltip = document.getElementById("tooltip");
+            if (intersects.length > 0) {
+                var obj = intersects[0].object;
+                while (obj.parent && !obj.userData.type) obj = obj.parent;
+                if (obj.userData.type) {
+                    var info = componentInfo[obj.userData.type];
+                    if (info) {
+                        tooltip.classList.add("visible");
+                        document.getElementById("tooltip-title").textContent = info.title;
+                        document.getElementById("tooltip-desc").textContent = info.desc;
+                        tooltip.style.left = (e.clientX + 15) + "px";
+                        tooltip.style.top = (e.clientY + 15) + "px";
+                        document.body.style.cursor = "pointer";
+                        return;
                     }
-                });
-
-                // Animate particles
-                if (showDataFlow) {
-                    particles.forEach(particleSystem => {
-                        const positions = particleSystem.geometry.attributes.position.array;
-                        const velocities = particleSystem.userData.velocities;
-
-                        for (let i = 0; i < positions.length / 3; i++) {
-                            positions[i * 3] += velocities[i].x;
-                            positions[i * 3 + 1] += velocities[i].y;
-                            positions[i * 3 + 2] += velocities[i].z;
-
-                            // Reset particles that go too low
-                            if (positions[i * 3 + 1] < -5) {
-                                positions[i * 3] = (Math.random() - 0.5) * 2;
-                                positions[i * 3 + 1] = 7;
-                                positions[i * 3 + 2] = (Math.random() - 0.5) * 2;
-                            }
-                        }
-
-                        particleSystem.geometry.attributes.position.needsUpdate = true;
-                    });
                 }
             }
-
-            controls.update();
-            renderer.render(scene, camera);
+            tooltip.classList.remove("visible");
+            document.body.style.cursor = "default";
         }
 
         function onWindowResize() {
@@ -640,101 +471,25 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        function onMouseMove(event) {
-            const tooltip = document.getElementById('tooltip');
-            const raycaster = new THREE.Raycaster();
-            const mouse = new THREE.Vector2();
-
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(components);
-
-            if (intersects.length > 0) {
-                const obj = intersects[0].object;
-                const data = componentData[obj.userData.type];
-
-                if (data) {
-                    tooltip.style.opacity = '1';
-                    tooltip.style.left = event.clientX + 15 + 'px';
-                    tooltip.style.top = event.clientY + 15 + 'px';
-                    document.getElementById('tooltip-title').textContent = data.title;
-                    document.getElementById('tooltip-desc').textContent = data.desc;
-                    document.getElementById('tooltip-metric').textContent = data.metric;
-                }
-            } else {
-                tooltip.style.opacity = '0';
+        function animate() {
+            requestAnimationFrame(animate);
+            var t = Date.now() * 0.001;
+            if (userNode && userNode.userData.ring) userNode.userData.ring.rotation.z = t;
+            if (coordinator) {
+                coordinator.rotation.y = t * 0.5;
+                if (coordinator.userData.shell) coordinator.userData.shell.rotation.y = -t * 0.3;
             }
-        }
-
-        function onClick(event) {
-            const raycaster = new THREE.Raycaster();
-            const mouse = new THREE.Vector2();
-
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(components);
-
-            if (intersects.length > 0) {
-                const obj = intersects[0].object;
-                
-                // Pulse effect on click
-                const originalScale = obj.scale.clone();
-                obj.scale.multiplyScalar(1.3);
-                setTimeout(() => {
-                    obj.scale.copy(originalScale);
-                }, 200);
+            for (var i = 0; i < slots.length; i++) { slots[i].rotation.y = t + i; slots[i].rotation.x = Math.sin(t + i) * 0.3; slots[i].position.y = Math.sin(t * 2 + i) * 0.15; }
+            for (var j = 0; j < partitions.length; j++) { for (var k = 0; k < partitions[j].length; k++) { var p = partitions[j][k]; if (p.userData.tableIndex !== undefined) p.position.y = -5 + Math.sin(t * 1.5 + j * 4 + k * 0.3) * 0.08; } }
+            for (var m = 0; m < dataParticles.length; m++) {
+                var pos = dataParticles[m].geometry.attributes.position.array;
+                for (var n = 1; n < pos.length; n += 3) pos[n] += Math.sin(t + n) * 0.002;
+                dataParticles[m].geometry.attributes.position.needsUpdate = true;
             }
-        }
-
-        function toggleAnimation() {
-            isAnimating = !isAnimating;
-            const btn = event.target;
-            btn.textContent = isAnimating ? 'Pause Animation' : 'Resume Animation';
-            btn.classList.toggle('active');
-        }
-
-        function explodeView() {
-            isExploded = !isExploded;
-            const factor = isExploded ? 1.5 : 1;
-
-            components.forEach(comp => {
-                const original = comp.userData.originalPos;
-                if (original) {
-                    comp.position.x = original.x * factor;
-                    comp.position.y = original.y * factor;
-                    comp.position.z = original.z * factor;
-                }
-            });
-
-            event.target.classList.toggle('active');
-        }
-
-        function resetCamera() {
-            camera.position.set(15, 10, 15);
-            controls.target.set(0, 0, 0);
             controls.update();
+            renderer.render(scene, camera);
         }
 
-        function toggleDataFlow() {
-            showDataFlow = !showDataFlow;
-            particles.forEach(p => p.visible = showDataFlow);
-            event.target.classList.toggle('active');
-        }
-
-        function simulateMetrics() {
-            setInterval(() => {
-                document.getElementById('qps').textContent = Math.floor(Math.random() * 5000 + 1000);
-                document.getElementById('data-scanned').textContent = (Math.random() * 100).toFixed(2) + ' TB';
-                document.getElementById('slots').textContent = Math.floor(Math.random() * 2000 + 500);
-                document.getElementById('cache-hit').textContent = Math.floor(Math.random() * 30 + 60) + '%';
-            }, 2000);
-        }
-
-        // Initialize
         init();
     </script>
 </body>

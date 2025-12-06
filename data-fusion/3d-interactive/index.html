@@ -3,132 +3,199 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloud Data Fusion - 3D Interactive</title>
+    <title>Cloud Data Fusion - Learn Visual ETL Pipelines</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
-        #canvas-container { width: 100%; height: 100vh; }
-        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #ff6d00; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
-        #info-panel h1 { color: #ff6d00; font-size: 1.3em; margin-bottom: 10px; }
-        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
-        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
-        .control-btn { background: rgba(255,109,0,0.1); border: 1px solid #ff6d00; color: #ff6d00; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
-        .control-btn:hover { background: rgba(255,109,0,0.3); }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%); color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; position: relative; }
+        #title-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ff6d00; border-radius: 15px; padding: 20px; max-width: 380px; box-shadow: 0 0 30px rgba(255,109,0,0.4); z-index: 100; }
+        #title-panel h1 { color: #ff6d00; font-size: 1.8em; margin-bottom: 8px; text-shadow: 0 0 15px #ff6d00; }
+        #title-panel .subtitle { color: #00ffff; font-size: 1em; margin-bottom: 12px; }
+        #title-panel .intro { color: #ccc; font-size: 0.9em; line-height: 1.6; }
+        #step-panel { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.95); border: 2px solid #00ffff; border-radius: 15px; padding: 25px 35px; max-width: 750px; width: 90%; box-shadow: 0 0 40px rgba(0,255,255,0.3); z-index: 100; text-align: center; }
+        #step-indicator { color: #ff6d00; font-size: 0.85em; margin-bottom: 8px; letter-spacing: 2px; }
+        #step-title { color: #00ffff; font-size: 1.4em; margin-bottom: 12px; text-shadow: 0 0 10px #00ffff; }
+        #step-description { color: #fff; font-size: 1.05em; line-height: 1.7; margin-bottom: 12px; }
+        #step-detail { color: #00ff00; font-size: 0.9em; font-style: italic; padding: 10px 15px; background: rgba(0,255,0,0.1); border-radius: 8px; border-left: 3px solid #00ff00; text-align: left; }
+        #nav-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .nav-btn { background: rgba(255,109,0,0.1); border: 2px solid #ff6d00; color: #ff6d00; padding: 12px 25px; border-radius: 25px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: all 0.3s ease; }
+        .nav-btn:hover { background: rgba(255,109,0,0.3); box-shadow: 0 0 20px rgba(255,109,0,0.5); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.primary { background: #ff6d00; color: #fff; }
+        #progress-bar { position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%); width: 60%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; z-index: 100; }
+        #progress-fill { height: 100%; background: linear-gradient(90deg, #ff6d00, #00ffff); border-radius: 3px; transition: width 0.5s ease; }
+        #legend-panel { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ff9800; border-radius: 15px; padding: 15px; min-width: 200px; z-index: 100; }
+        #legend-panel h3 { color: #ff9800; margin-bottom: 12px; font-size: 1em; }
+        .legend-item { display: flex; align-items: center; margin: 8px 0; }
+        .legend-color { width: 18px; height: 18px; border-radius: 4px; margin-right: 10px; }
+        .legend-text .name { color: #fff; font-weight: bold; font-size: 0.85em; }
+        .legend-text .desc { color: #888; font-size: 0.75em; }
+        #metrics-panel { position: absolute; top: 240px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00ff00; border-radius: 15px; padding: 15px; min-width: 180px; z-index: 100; }
+        #metrics-panel h3 { color: #00ff00; margin-bottom: 10px; font-size: 0.95em; }
+        .metric-row { display: flex; justify-content: space-between; margin: 6px 0; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .metric-label { color: #888; font-size: 0.8em; }
+        .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
+        #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
+        .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #ff6d00, #ffab00); border: none; color: #000; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; }
+        .sim-btn:hover { transform: scale(1.05); }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+        .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #ff6d00; border-right: 4px solid #ffab00; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div id="loading"><div class="loader"></div><p style="color: #ff6d00;">Loading Data Fusion...</p></div>
     <div id="canvas-container"></div>
-    <div id="info-panel">
-        <h1>Data Fusion Pipeline</h1>
-        <p>Visual ETL pipeline builder. Drag-and-drop components connect sources to transforms to sinks.</p>
+    <div id="title-panel">
+        <h1>Cloud Data Fusion</h1>
+        <div class="subtitle">Visual ETL Pipeline Builder</div>
+        <div class="intro">Like <strong>building with LEGO blocks</strong>! Drag and drop components to create data pipelines without writing code.</div>
     </div>
-    <div id="controls">
-        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
-        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    <div id="sim-controls">
+        <button class="sim-btn" onclick="runPipeline()">Run Pipeline</button>
+        <button class="sim-btn" onclick="previewData()">Preview Data</button>
+        <button class="sim-btn" onclick="toggleAutoPlay()" id="autoplay-btn">Auto-Play Story</button>
+    </div>
+    <div id="step-panel">
+        <div id="step-indicator">STEP 1 OF 6</div>
+        <div id="step-title">Welcome to Data Fusion!</div>
+        <div id="step-description">Learn how visual ETL pipelines work. Click "Next" to begin!</div>
+        <div id="step-detail">Data Fusion: Build pipelines visually, no coding required!</div>
+    </div>
+    <div id="progress-bar"><div id="progress-fill" style="width: 16.67%"></div></div>
+    <div id="nav-controls">
+        <button class="nav-btn" id="prev-btn" onclick="previousStep()" disabled>Previous</button>
+        <button class="nav-btn" onclick="resetVisualization()">Reset</button>
+        <button class="nav-btn primary" id="next-btn" onclick="nextStep()">Next</button>
+    </div>
+    <div id="legend-panel">
+        <h3>Pipeline Components</h3>
+        <div class="legend-item"><div class="legend-color" style="background: #4285f4;"></div><div class="legend-text"><div class="name">Source</div><div class="desc">Data input</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ff6d00;"></div><div class="legend-text"><div class="name">Transform</div><div class="desc">Data processing</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #34a853;"></div><div class="legend-text"><div class="name">Sink</div><div class="desc">Data output</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #00ffff;"></div><div class="legend-text"><div class="name">Data Flow</div><div class="desc">Records moving</div></div></div>
+    </div>
+    <div id="metrics-panel">
+        <h3>Pipeline Metrics</h3>
+        <div class="metric-row"><span class="metric-label">Records In:</span><span class="metric-value" id="recordsIn">0</span></div>
+        <div class="metric-row"><span class="metric-label">Records Out:</span><span class="metric-value" id="recordsOut">0</span></div>
+        <div class="metric-row"><span class="metric-label">Errors:</span><span class="metric-value" id="errors">0</span></div>
+        <div class="metric-row"><span class="metric-label">Status:</span><span class="metric-value" id="status">Ready</span></div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        let scene, camera, renderer, controls, isAnimating = true;
-        let components = [], connections = [], dataParticles = [];
-        
+        var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
+        var components = [], connections = [], dataParticles = [], recordCount = 0;
+        var compData = [{x:-10,y:0,type:'source',color:0x4285f4},{x:-3,y:3,type:'transform',color:0xff6d00},{x:-3,y:-3,type:'transform',color:0xff6d00},{x:4,y:0,type:'transform',color:0xff6d00},{x:11,y:0,type:'sink',color:0x34a853}];
+        var connData = [[0,1],[0,2],[1,3],[2,3],[3,4]];
+        var steps = [
+            {title:"Welcome to Data Fusion!",description:"Data Fusion is a <strong>visual ETL tool</strong> built on Apache CDAP. Build data pipelines by dragging and dropping components - no coding required!",detail:"Data Fusion: Build pipelines visually, no coding required!",cameraPos:{x:0,y:15,z:25},cameraTarget:{x:0,y:0,z:0}},
+            {title:"Step 1: Source Component",description:"The <strong>blue cylinder</strong> is a Source - where data comes from. It can read from BigQuery, Cloud Storage, databases, APIs, and 200+ connectors!",detail:"Sources: BigQuery, GCS, MySQL, PostgreSQL, Salesforce, SAP, and more!",cameraPos:{x:-12,y:10,z:18},cameraTarget:{x:-10,y:0,z:0}},
+            {title:"Step 2: Transform Components",description:"The <strong>orange octahedrons</strong> are Transforms - they process and modify data. Filter rows, join tables, aggregate, parse, and transform!",detail:"Transforms: Filter, Join, Aggregate, JavaScript, Python, Wrangler, and more!",cameraPos:{x:0,y:12,z:18},cameraTarget:{x:0,y:0,z:0}},
+            {title:"Step 3: Sink Component",description:"The <strong>green box</strong> is a Sink - where processed data goes. Write to BigQuery, Cloud Storage, databases, or any destination!",detail:"Sinks: BigQuery, GCS, Pub/Sub, Spanner, Bigtable, and more!",cameraPos:{x:12,y:10,z:18},cameraTarget:{x:11,y:0,z:0}},
+            {title:"Step 4: Data Flow",description:"The <strong>cyan particles</strong> represent data records flowing through the pipeline. Watch them move from source through transforms to sink!",detail:"Data flows in parallel - Data Fusion uses Apache Spark under the hood.",cameraPos:{x:0,y:20,z:20},cameraTarget:{x:0,y:0,z:0}},
+            {title:"Step 5: Run Pipeline",description:"Click <strong>'Run Pipeline'</strong> to execute! Data Fusion deploys to Dataproc and processes your data at scale. Preview data at any step!",detail:"Execution: Runs on Dataproc Spark clusters, auto-scales based on data size.",cameraPos:{x:0,y:15,z:25},cameraTarget:{x:0,y:0,z:0}}
+        ];
         function init() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0a0a0a);
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 15, 25);
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            
+            scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0a0a); scene.fog = new THREE.FogExp2(0x0a0a0a, 0.015);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000); camera.position.set(0, 15, 25);
+            renderer = new THREE.WebGLRenderer({antialias:true}); renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById("canvas-container").appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
             scene.add(new THREE.AmbientLight(0x404040, 0.5));
-            const light = new THREE.PointLight(0xff6d00, 1, 100);
-            light.position.set(0, 20, 10);
-            scene.add(light);
-            
-            // Pipeline components
-            const compData = [
-                { x: -10, y: 0, type: 'source', color: 0x4285f4 },
-                { x: -3, y: 3, type: 'transform', color: 0xff6d00 },
-                { x: -3, y: -3, type: 'transform', color: 0xff6d00 },
-                { x: 4, y: 0, type: 'transform', color: 0xff6d00 },
-                { x: 11, y: 0, type: 'sink', color: 0x34a853 }
-            ];
-            
-            compData.forEach((c, i) => {
-                const geom = c.type === 'source' ? new THREE.CylinderGeometry(1.5, 1.5, 1, 32) :
-                             c.type === 'sink' ? new THREE.BoxGeometry(2.5, 2.5, 1) :
-                             new THREE.OctahedronGeometry(1.5);
-                const mat = new THREE.MeshPhongMaterial({ color: c.color, emissive: c.color, emissiveIntensity: 0.3 });
-                const comp = new THREE.Mesh(geom, mat);
+            var l1 = new THREE.PointLight(0xff6d00, 1.5, 100); l1.position.set(0, 25, 0); scene.add(l1);
+            compData.forEach(function(c, i) {
+                var geom = c.type === 'source' ? new THREE.CylinderGeometry(1.5, 1.5, 1, 32) : c.type === 'sink' ? new THREE.BoxGeometry(2.5, 2.5, 1) : new THREE.OctahedronGeometry(1.5);
+                var mat = new THREE.MeshPhongMaterial({color:c.color, emissive:c.color, emissiveIntensity:0.3});
+                var comp = new THREE.Mesh(geom, mat);
                 comp.position.set(c.x, c.y, 0);
                 if (c.type === 'source') comp.rotation.x = Math.PI / 2;
-                components.push(comp);
-                scene.add(comp);
+                components.push(comp); scene.add(comp);
             });
-            
-            // Connections
-            const connData = [[0, 1], [0, 2], [1, 3], [2, 3], [3, 4]];
-            connData.forEach(([from, to]) => {
-                const start = new THREE.Vector3(compData[from].x, compData[from].y, 0);
-                const end = new THREE.Vector3(compData[to].x, compData[to].y, 0);
-                const geom = new THREE.BufferGeometry().setFromPoints([start, end]);
-                const mat = new THREE.LineBasicMaterial({ color: 0x666666 });
-                const line = new THREE.Line(geom, mat);
-                connections.push({ line, from: compData[from], to: compData[to] });
+            connData.forEach(function(c) {
+                var start = new THREE.Vector3(compData[c[0]].x, compData[c[0]].y, 0);
+                var end = new THREE.Vector3(compData[c[1]].x, compData[c[1]].y, 0);
+                var geom = new THREE.BufferGeometry().setFromPoints([start, end]);
+                var mat = new THREE.LineBasicMaterial({color:0x666666});
+                var line = new THREE.Line(geom, mat);
+                connections.push({line: line, from: compData[c[0]], to: compData[c[1]]});
                 scene.add(line);
             });
-            
-            // Data particles
-            for (let i = 0; i < 60; i++) {
-                const geom = new THREE.SphereGeometry(0.2);
-                const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-                const p = new THREE.Mesh(geom, mat);
-                const connIdx = Math.floor(Math.random() * connData.length);
-                p.userData = { connIdx, progress: Math.random(), speed: 0.015 + Math.random() * 0.02 };
-                dataParticles.push(p);
-                scene.add(p);
+            for (var i = 0; i < 60; i++) {
+                var geom = new THREE.SphereGeometry(0.2);
+                var mat = new THREE.MeshBasicMaterial({color:0x00ffff});
+                var p = new THREE.Mesh(geom, mat);
+                var connIdx = Math.floor(Math.random() * connData.length);
+                p.userData = {connIdx: connIdx, progress: Math.random(), speed: 0.015 + Math.random() * 0.02};
+                dataParticles.push(p); scene.add(p);
             }
-            
-            const grid = new THREE.GridHelper(40, 40, 0xff6d00, 0x1a1a2e);
-            grid.position.y = -8;
-            scene.add(grid);
-            
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-            animate();
+            var grid = new THREE.GridHelper(40, 40, 0xff6d00, 0x1a1a2e); grid.position.y = -8; grid.material.opacity = 0.25; grid.material.transparent = true; scene.add(grid);
+            window.addEventListener("resize", function() { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+            setTimeout(function() { document.getElementById("loading").style.display = "none"; }, 800);
+            animate(); updateStep();
         }
-        
+        function runPipeline() {
+            document.getElementById("status").textContent = "Running";
+            recordCount = 0;
+            var interval = setInterval(function() {
+                recordCount += Math.floor(Math.random() * 1000);
+                document.getElementById("recordsIn").textContent = recordCount.toLocaleString();
+                document.getElementById("recordsOut").textContent = Math.floor(recordCount * 0.98).toLocaleString();
+            }, 200);
+            setTimeout(function() { clearInterval(interval); document.getElementById("status").textContent = "Success"; }, 3000);
+        }
+        function previewData() {
+            components.forEach(function(c) {
+                c.material.emissiveIntensity = 0.8;
+                setTimeout(function() { c.material.emissiveIntensity = 0.3; }, 500);
+            });
+        }
+        function updateStep() {
+            var step = steps[currentStep];
+            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+            document.getElementById("step-title").textContent = step.title;
+            document.getElementById("step-description").innerHTML = step.description;
+            document.getElementById("step-detail").innerHTML = step.detail;
+            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+            document.getElementById("prev-btn").disabled = currentStep === 0;
+            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+            animateCamera(step.cameraPos, step.cameraTarget);
+        }
+        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+        function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); }
+        function animateCamera(targetPos, targetLookAt) {
+            var startPos = camera.position.clone(), startTarget = controls.target.clone();
+            var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
+            var endTarget = new THREE.Vector3(targetLookAt.x, targetLookAt.y, targetLookAt.z);
+            var startTime = Date.now();
+            function anim() {
+                var progress = Math.min((Date.now() - startTime) / 1000, 1);
+                var eased = 1 - Math.pow(1 - progress, 3);
+                camera.position.lerpVectors(startPos, endPos, eased);
+                controls.target.lerpVectors(startTarget, endTarget, eased);
+                if (progress < 1) requestAnimationFrame(anim);
+            }
+            anim();
+        }
+        function toggleAutoPlay() { if (isAutoPlaying) stopAutoPlay(); else startAutoPlay(); }
+        function startAutoPlay() { isAutoPlaying = true; document.getElementById("autoplay-btn").textContent = "Pause Story"; autoPlayInterval = setInterval(function() { if (currentStep < steps.length - 1) nextStep(); else stopAutoPlay(); }, 5000); }
+        function stopAutoPlay() { isAutoPlaying = false; document.getElementById("autoplay-btn").textContent = "Auto-Play Story"; if (autoPlayInterval) { clearInterval(autoPlayInterval); autoPlayInterval = null; } }
         function animate() {
             requestAnimationFrame(animate);
-            if (isAnimating) {
-                components.forEach(c => c.rotation.y += 0.01);
-                
-                dataParticles.forEach(p => {
-                    p.userData.progress += p.userData.speed;
-                    if (p.userData.progress > 1) {
-                        p.userData.progress = 0;
-                        p.userData.connIdx = Math.floor(Math.random() * connections.length);
-                    }
-                    const conn = connections[p.userData.connIdx];
-                    const t = p.userData.progress;
-                    p.position.x = conn.from.x + (conn.to.x - conn.from.x) * t;
-                    p.position.y = conn.from.y + (conn.to.y - conn.from.y) * t;
-                    p.position.z = Math.sin(t * Math.PI) * 2;
-                });
-            }
-            controls.update();
-            renderer.render(scene, camera);
+            components.forEach(function(c) { c.rotation.y += 0.01; });
+            dataParticles.forEach(function(p) {
+                p.userData.progress += p.userData.speed;
+                if (p.userData.progress > 1) { p.userData.progress = 0; p.userData.connIdx = Math.floor(Math.random() * connections.length); }
+                var conn = connections[p.userData.connIdx];
+                var t = p.userData.progress;
+                p.position.x = conn.from.x + (conn.to.x - conn.from.x) * t;
+                p.position.y = conn.from.y + (conn.to.y - conn.from.y) * t;
+                p.position.z = Math.sin(t * Math.PI) * 2;
+            });
+            controls.update(); renderer.render(scene, camera);
         }
-        
-        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
-        function resetCamera() { camera.position.set(0, 15, 25); controls.target.set(0, 0, 0); }
-        
         init();
     </script>
 </body>

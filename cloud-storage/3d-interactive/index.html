@@ -3,122 +3,308 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloud Storage - 3D Interactive</title>
+    <title>Cloud Storage - Learn How Google's Object Storage Works</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
-        #canvas-container { width: 100%; height: 100vh; }
-        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #4285f4; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
-        #info-panel h1 { color: #4285f4; font-size: 1.3em; margin-bottom: 10px; }
-        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
-        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
-        .control-btn { background: rgba(66,133,244,0.1); border: 1px solid #4285f4; color: #4285f4; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
-        .control-btn:hover { background: rgba(66,133,244,0.3); }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%); color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; position: relative; }
+        #title-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00ffff; border-radius: 15px; padding: 20px; max-width: 380px; box-shadow: 0 0 30px rgba(0,255,255,0.4); z-index: 100; }
+        #title-panel h1 { color: #00ffff; font-size: 1.8em; margin-bottom: 8px; text-shadow: 0 0 15px #00ffff; }
+        #title-panel .subtitle { color: #ff6600; font-size: 1em; margin-bottom: 12px; }
+        #title-panel .intro { color: #ccc; font-size: 0.9em; line-height: 1.6; }
+        #step-panel { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.95); border: 2px solid #ff6600; border-radius: 15px; padding: 25px 35px; max-width: 750px; width: 90%; box-shadow: 0 0 40px rgba(255,102,0,0.4); z-index: 100; text-align: center; }
+        #step-indicator { color: #00ffff; font-size: 0.85em; margin-bottom: 8px; letter-spacing: 2px; }
+        #step-title { color: #ff6600; font-size: 1.4em; margin-bottom: 12px; text-shadow: 0 0 10px #ff6600; }
+        #step-description { color: #fff; font-size: 1.05em; line-height: 1.7; margin-bottom: 12px; }
+        #step-detail { color: #00ff00; font-size: 0.9em; font-style: italic; padding: 10px 15px; background: rgba(0,255,0,0.1); border-radius: 8px; border-left: 3px solid #00ff00; text-align: left; }
+        #nav-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .nav-btn { background: rgba(0,255,255,0.1); border: 2px solid #00ffff; color: #00ffff; padding: 12px 25px; border-radius: 25px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px; }
+        .nav-btn:hover { background: rgba(0,255,255,0.3); box-shadow: 0 0 20px rgba(0,255,255,0.5); transform: translateY(-2px); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+        .nav-btn.primary { background: #00ffff; color: #000; }
+        #progress-bar { position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%); width: 60%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; z-index: 100; }
+        #progress-fill { height: 100%; background: linear-gradient(90deg, #00ffff, #ff6600); border-radius: 3px; transition: width 0.5s ease; }
+        #legend-panel { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ffff00; border-radius: 15px; padding: 15px; min-width: 200px; z-index: 100; }
+        #legend-panel h3 { color: #ffff00; margin-bottom: 12px; font-size: 1em; }
+        .legend-item { display: flex; align-items: center; margin: 8px 0; padding: 6px; border-radius: 6px; }
+        .legend-color { width: 18px; height: 18px; border-radius: 4px; margin-right: 10px; }
+        .legend-text .name { color: #fff; font-weight: bold; font-size: 0.85em; }
+        .legend-text .desc { color: #888; font-size: 0.75em; }
+        #metrics-panel { position: absolute; top: 260px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00ff00; border-radius: 15px; padding: 15px; min-width: 180px; z-index: 100; }
+        #metrics-panel h3 { color: #00ff00; margin-bottom: 10px; font-size: 0.95em; }
+        .metric-row { display: flex; justify-content: space-between; margin: 6px 0; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .metric-label { color: #888; font-size: 0.8em; }
+        .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
+        #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
+        .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #00ffff, #ff6600); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; transition: all 0.3s ease; }
+        .sim-btn:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(0,255,255,0.5); }
+        #tooltip { position: absolute; background: rgba(0,0,0,0.95); border: 2px solid #ff6600; border-radius: 10px; padding: 12px; max-width: 280px; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 200; }
+        #tooltip.visible { opacity: 1; }
+        #tooltip h4 { color: #ff6600; margin-bottom: 6px; font-size: 0.95em; }
+        #tooltip p { color: #ccc; font-size: 0.85em; line-height: 1.4; }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+        .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #00ffff; border-right: 4px solid #ff6600; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div id="loading"><div class="loader"></div><p style="color: #00ffff; font-size: 1.1em;">Loading Cloud Storage Visualization...</p></div>
     <div id="canvas-container"></div>
-    <div id="info-panel">
-        <h1>Cloud Storage Buckets</h1>
-        <p>Visualize object storage with different storage classes. Watch objects flow into buckets and transition between tiers.</p>
+    <div id="title-panel">
+        <h1>Cloud Storage</h1>
+        <div class="subtitle">Google's Object Storage Service</div>
+        <div class="intro">Imagine a <strong>giant digital warehouse</strong> with unlimited space! Cloud Storage keeps your files safe and accessible from anywhere in the world, with 11 nines of durability.</div>
     </div>
-    <div id="controls">
-        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
-        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    <div id="sim-controls">
+        <button class="sim-btn" onclick="uploadFile()">Upload File</button>
+        <button class="sim-btn" onclick="changeStorageClass()">Change Storage Class</button>
+        <button class="sim-btn" onclick="toggleAutoPlay()" id="autoplay-btn">Auto-Play Story</button>
     </div>
+    <div id="step-panel">
+        <div id="step-indicator">STEP 1 OF 6</div>
+        <div id="step-title">Welcome to Cloud Storage!</div>
+        <div id="step-description">Let's learn how Cloud Storage organizes and protects your data. Click "Next" to begin!</div>
+        <div id="step-detail">Cloud Storage offers 99.999999999% (11 nines) durability!</div>
+    </div>
+    <div id="progress-bar"><div id="progress-fill" style="width: 16.67%"></div></div>
+    <div id="nav-controls">
+        <button class="nav-btn" id="prev-btn" onclick="previousStep()" disabled>Previous</button>
+        <button class="nav-btn" onclick="resetVisualization()">Reset</button>
+        <button class="nav-btn primary" id="next-btn" onclick="nextStep()">Next</button>
+    </div>
+    <div id="legend-panel">
+        <h3>What You See</h3>
+        <div class="legend-item"><div class="legend-color" style="background: #00ffff;"></div><div class="legend-text"><div class="name">Bucket</div><div class="desc">Container for objects</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ff6600;"></div><div class="legend-text"><div class="name">Object</div><div class="desc">Your files</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #00ff00;"></div><div class="legend-text"><div class="name">Standard</div><div class="desc">Frequent access</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ffff00;"></div><div class="legend-text"><div class="name">Nearline</div><div class="desc">Monthly access</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ff00ff;"></div><div class="legend-text"><div class="name">Archive</div><div class="desc">Yearly access</div></div></div>
+    </div>
+    <div id="metrics-panel">
+        <h3>Storage Metrics</h3>
+        <div class="metric-row"><span class="metric-label">Objects:</span><span class="metric-value" id="objects">0</span></div>
+        <div class="metric-row"><span class="metric-label">Size:</span><span class="metric-value" id="size">0 GB</span></div>
+        <div class="metric-row"><span class="metric-label">Class:</span><span class="metric-value" id="class">Standard</span></div>
+        <div class="metric-row"><span class="metric-label">Cost/GB:</span><span class="metric-value" id="cost">$0.020</span></div>
+    </div>
+    <div id="tooltip"><h4 id="tooltip-title">Component</h4><p id="tooltip-desc">Description</p></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        let scene, camera, renderer, controls, isAnimating = true;
-        let buckets = [], objects = [];
-        
+        var scene, camera, renderer, controls;
+        var currentStep = 0;
+        var isAutoPlaying = false;
+        var autoPlayInterval = null;
+        var bucket, objects3d = [], storageClasses = [];
+        var objectCount = 0;
+
+        var steps = [
+            { title: "Welcome to Cloud Storage!", description: "Cloud Storage is like a <strong>giant digital warehouse</strong> that can store any type of file - images, videos, backups, data files. It's infinitely scalable and highly durable!", detail: "Cloud Storage offers 99.999999999% (11 nines) durability - your data is incredibly safe!", highlight: [], cameraPos: { x: 25, y: 18, z: 25 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 1: Buckets Organize Your Data", description: "<strong>Buckets</strong> are containers for your files. Think of them like top-level folders. Each bucket has a globally unique name and lives in a specific region or multi-region.", detail: "Bucket names must be globally unique across ALL of Google Cloud. Example: my-company-data-bucket", highlight: ["bucket"], cameraPos: { x: 0, y: 20, z: 20 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 2: Objects Are Your Files", description: "<strong>Objects</strong> are the actual files you store - images, CSVs, videos, anything! Each object has a name (path) and can be up to 5TB in size.", detail: "Objects are immutable - you can't edit them, only replace. This makes versioning and caching reliable.", highlight: ["object"], cameraPos: { x: 15, y: 12, z: 15 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 3: Storage Classes Save Money", description: "Choose the right <strong>Storage Class</strong> based on how often you access data: <strong>Standard</strong> (frequent), <strong>Nearline</strong> (monthly), <strong>Coldline</strong> (quarterly), <strong>Archive</strong> (yearly).", detail: "Archive storage costs 90% less than Standard! But retrieval costs more. Match class to access pattern.", highlight: ["class"], cameraPos: { x: -15, y: 15, z: 15 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 4: Lifecycle Rules Automate Management", description: "<strong>Lifecycle Rules</strong> automatically move or delete objects based on age or conditions. Set it and forget it - save money automatically!", detail: "Example: Move to Coldline after 30 days, delete after 365 days. Great for logs and backups!", highlight: ["lifecycle"], cameraPos: { x: 20, y: 10, z: -15 }, cameraTarget: { x: 0, y: 0, z: 0 } },
+            { title: "Step 5: Access Control Keeps Data Secure", description: "Control WHO can access your data with <strong>IAM policies</strong> (for users) and <strong>ACLs</strong> (for objects). You can also make buckets public for static websites.", detail: "Best practice: Use uniform bucket-level access. Avoid per-object ACLs for simpler management.", highlight: ["iam"], cameraPos: { x: 22, y: 18, z: 22 }, cameraTarget: { x: 0, y: 0, z: 0 } }
+        ];
+
+        var componentInfo = {
+            bucket: { title: "Bucket", desc: "A container for objects with a globally unique name. Choose location for latency and compliance." },
+            object: { title: "Object", desc: "A file stored in Cloud Storage. Immutable - create new versions instead of editing." },
+            standard: { title: "Standard Storage", desc: "Best for frequently accessed data. Highest cost but no retrieval fees." },
+            nearline: { title: "Nearline Storage", desc: "Best for data accessed less than once a month. 30-day minimum storage." },
+            archive: { title: "Archive Storage", desc: "Best for data accessed less than once a year. Lowest cost, highest retrieval fees." }
+        };
+
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x0a0a0a);
+            scene.fog = new THREE.FogExp2(0x0a0a0a, 0.012);
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 15, 25);
+            camera.position.set(25, 18, 25);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById("canvas-container").appendChild(renderer.domElement);
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
-            
-            scene.add(new THREE.AmbientLight(0x404040, 0.5));
-            const light = new THREE.PointLight(0x4285f4, 1, 100);
-            light.position.set(0, 20, 10);
-            scene.add(light);
-            
-            // Storage class buckets
-            const classes = [
-                { name: 'Standard', x: -9, color: 0x4285f4 },
-                { name: 'Nearline', x: -3, color: 0x34a853 },
-                { name: 'Coldline', x: 3, color: 0xfbbc04 },
-                { name: 'Archive', x: 9, color: 0xea4335 }
-            ];
-            
-            classes.forEach(c => {
-                const geom = new THREE.CylinderGeometry(2, 2.5, 4, 32, 1, true);
-                const mat = new THREE.MeshPhongMaterial({ color: c.color, emissive: c.color, emissiveIntensity: 0.2, side: THREE.DoubleSide, transparent: true, opacity: 0.7 });
-                const bucket = new THREE.Mesh(geom, mat);
-                bucket.position.set(c.x, 0, 0);
-                buckets.push(bucket);
-                scene.add(bucket);
-            });
-            
-            // Objects (files)
-            for (let i = 0; i < 100; i++) {
-                const geom = new THREE.BoxGeometry(0.4, 0.4, 0.4);
-                const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-                const obj = new THREE.Mesh(geom, mat);
-                obj.position.set((Math.random() - 0.5) * 30, 15 + Math.random() * 10, (Math.random() - 0.5) * 10);
-                obj.userData = { targetBucket: Math.floor(Math.random() * 4), speed: 0.05 + Math.random() * 0.1, falling: true };
-                objects.push(obj);
-                scene.add(obj);
-            }
-            
-            const grid = new THREE.GridHelper(40, 40, 0x4285f4, 0x1a1a2e);
-            grid.position.y = -5;
-            scene.add(grid);
-            
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
+            controls.dampingFactor = 0.05;
+            setupLighting();
+            createBucket();
+            createStorageClasses();
+            createGrid();
+            window.addEventListener("resize", onWindowResize);
+            renderer.domElement.addEventListener("mousemove", onMouseMove);
+            setTimeout(function() { document.getElementById("loading").style.display = "none"; }, 800);
             animate();
+            updateStep();
         }
-        
+
+        function setupLighting() {
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            var l1 = new THREE.PointLight(0x00ffff, 1.5, 100); l1.position.set(0, 25, 0); scene.add(l1);
+            var l2 = new THREE.PointLight(0xff6600, 1.2, 100); l2.position.set(-20, 15, 10); scene.add(l2);
+        }
+
+        function createBucket() {
+            var group = new THREE.Group();
+            var geo = new THREE.CylinderGeometry(6, 5, 8, 32, 1, true);
+            var mat = new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.3, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
+            group.add(new THREE.Mesh(geo, mat));
+            var bottomGeo = new THREE.CircleGeometry(5, 32);
+            var bottomMat = new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.2, transparent: true, opacity: 0.6 });
+            var bottom = new THREE.Mesh(bottomGeo, bottomMat);
+            bottom.rotation.x = -Math.PI / 2;
+            bottom.position.y = -4;
+            group.add(bottom);
+            group.position.set(0, 0, 0);
+            group.userData = { type: "bucket" };
+            scene.add(group);
+            bucket = group;
+        }
+
+        function createStorageClasses() {
+            var classes = [
+                { name: "Standard", color: 0x00ff00, x: -10, z: 10 },
+                { name: "Nearline", color: 0xffff00, x: 10, z: 10 },
+                { name: "Archive", color: 0xff00ff, x: 0, z: -12 }
+            ];
+            classes.forEach(function(cls) {
+                var group = new THREE.Group();
+                var geo = new THREE.BoxGeometry(4, 2, 4);
+                var mat = new THREE.MeshPhongMaterial({ color: cls.color, emissive: cls.color, emissiveIntensity: 0.3, transparent: true, opacity: 0.7 });
+                group.add(new THREE.Mesh(geo, mat));
+                group.position.set(cls.x, -3, cls.z);
+                group.userData = { type: cls.name.toLowerCase() };
+                scene.add(group);
+                storageClasses.push(group);
+            });
+        }
+
+        function createGrid() {
+            var grid = new THREE.GridHelper(50, 50, 0x00ffff, 0x1a1a2e);
+            grid.position.y = -5;
+            grid.material.opacity = 0.25;
+            grid.material.transparent = true;
+            scene.add(grid);
+        }
+
+        function uploadFile() {
+            var geo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+            var colors = [0xff6600, 0x00ff00, 0xffff00, 0xff00ff];
+            var mat = new THREE.MeshPhongMaterial({ color: colors[objectCount % colors.length], emissive: colors[objectCount % colors.length], emissiveIntensity: 0.4 });
+            var obj = new THREE.Mesh(geo, mat);
+            var angle = (objectCount / 8) * Math.PI * 2;
+            var radius = 2 + (objectCount % 3);
+            obj.position.set(Math.cos(angle) * radius, -2 + Math.random() * 4, Math.sin(angle) * radius);
+            obj.userData = { type: "object" };
+            scene.add(obj);
+            objects3d.push(obj);
+            objectCount++;
+            document.getElementById("objects").textContent = objectCount;
+            document.getElementById("size").textContent = (objectCount * 1.5).toFixed(1) + " GB";
+        }
+
+        function changeStorageClass() {
+            var classes = ["Standard", "Nearline", "Coldline", "Archive"];
+            var costs = ["$0.020", "$0.010", "$0.004", "$0.001"];
+            var current = document.getElementById("class").textContent;
+            var idx = (classes.indexOf(current) + 1) % classes.length;
+            document.getElementById("class").textContent = classes[idx];
+            document.getElementById("cost").textContent = costs[idx];
+        }
+
+        function updateStep() {
+            var step = steps[currentStep];
+            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+            document.getElementById("step-title").textContent = step.title;
+            document.getElementById("step-description").innerHTML = step.description;
+            document.getElementById("step-detail").innerHTML = step.detail;
+            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+            document.getElementById("prev-btn").disabled = currentStep === 0;
+            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+            animateCamera(step.cameraPos, step.cameraTarget);
+        }
+
+        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+        function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); }
+
+        function animateCamera(targetPos, targetLookAt) {
+            var startPos = camera.position.clone();
+            var startTarget = controls.target.clone();
+            var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
+            var endTarget = new THREE.Vector3(targetLookAt.x, targetLookAt.y, targetLookAt.z);
+            var startTime = Date.now();
+            function anim() {
+                var progress = Math.min((Date.now() - startTime) / 1000, 1);
+                var eased = 1 - Math.pow(1 - progress, 3);
+                camera.position.lerpVectors(startPos, endPos, eased);
+                controls.target.lerpVectors(startTarget, endTarget, eased);
+                if (progress < 1) requestAnimationFrame(anim);
+            }
+            anim();
+        }
+
+        function toggleAutoPlay() { if (isAutoPlaying) stopAutoPlay(); else startAutoPlay(); }
+        function startAutoPlay() {
+            isAutoPlaying = true;
+            document.getElementById("autoplay-btn").textContent = "Pause Story";
+            autoPlayInterval = setInterval(function() { if (currentStep < steps.length - 1) nextStep(); else stopAutoPlay(); }, 5000);
+        }
+        function stopAutoPlay() {
+            isAutoPlaying = false;
+            document.getElementById("autoplay-btn").textContent = "Auto-Play Story";
+            if (autoPlayInterval) { clearInterval(autoPlayInterval); autoPlayInterval = null; }
+        }
+
+        var raycaster = new THREE.Raycaster();
+        var mouse = new THREE.Vector2();
+        function onMouseMove(e) {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            var allObjects = [bucket].concat(objects3d).concat(storageClasses);
+            var intersects = raycaster.intersectObjects(allObjects, true);
+            var tooltip = document.getElementById("tooltip");
+            if (intersects.length > 0) {
+                var obj = intersects[0].object;
+                while (obj.parent && !obj.userData.type) obj = obj.parent;
+                if (obj.userData.type) {
+                    var info = componentInfo[obj.userData.type];
+                    if (info) {
+                        tooltip.classList.add("visible");
+                        document.getElementById("tooltip-title").textContent = info.title;
+                        document.getElementById("tooltip-desc").textContent = info.desc;
+                        tooltip.style.left = (e.clientX + 15) + "px";
+                        tooltip.style.top = (e.clientY + 15) + "px";
+                        return;
+                    }
+                }
+            }
+            tooltip.classList.remove("visible");
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
         function animate() {
             requestAnimationFrame(animate);
-            if (isAnimating) {
-                buckets.forEach(b => b.rotation.y += 0.005);
-                
-                objects.forEach(obj => {
-                    if (obj.userData.falling) {
-                        const target = buckets[obj.userData.targetBucket];
-                        const dx = target.position.x - obj.position.x;
-                        const dz = target.position.z - obj.position.z;
-                        obj.position.x += dx * 0.02;
-                        obj.position.z += dz * 0.02;
-                        obj.position.y -= obj.userData.speed;
-                        
-                        if (obj.position.y < -2) {
-                            obj.position.y = 15 + Math.random() * 10;
-                            obj.position.x = (Math.random() - 0.5) * 30;
-                            obj.userData.targetBucket = Math.floor(Math.random() * 4);
-                        }
-                    }
-                    obj.rotation.x += 0.02;
-                    obj.rotation.y += 0.02;
-                });
-            }
+            var t = Date.now() * 0.001;
+            if (bucket) bucket.rotation.y = t * 0.1;
+            objects3d.forEach(function(obj, i) {
+                obj.rotation.y = t * 0.5 + i;
+                obj.rotation.x = Math.sin(t + i) * 0.2;
+            });
+            storageClasses.forEach(function(cls, i) {
+                cls.position.y = -3 + Math.sin(t + i) * 0.3;
+            });
             controls.update();
             renderer.render(scene, camera);
         }
-        
-        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
-        function resetCamera() { camera.position.set(0, 15, 25); controls.target.set(0, 0, 0); }
-        
+
         init();
     </script>
 </body>

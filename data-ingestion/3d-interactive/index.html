@@ -3,123 +3,187 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Ingestion - 3D Interactive</title>
+    <title>Data Ingestion - Learn Data Loading</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
-        #canvas-container { width: 100%; height: 100vh; }
-        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #2196f3; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
-        #info-panel h1 { color: #2196f3; font-size: 1.3em; margin-bottom: 10px; }
-        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
-        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
-        .control-btn { background: rgba(33,150,243,0.1); border: 1px solid #2196f3; color: #2196f3; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
-        .control-btn:hover { background: rgba(33,150,243,0.3); }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%); color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; position: relative; }
+        #title-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.9); border: 2px solid #2196f3; border-radius: 15px; padding: 20px; max-width: 380px; box-shadow: 0 0 30px rgba(33,150,243,0.4); z-index: 100; }
+        #title-panel h1 { color: #2196f3; font-size: 1.8em; margin-bottom: 8px; text-shadow: 0 0 15px #2196f3; }
+        #title-panel .subtitle { color: #00ffff; font-size: 1em; margin-bottom: 12px; }
+        #title-panel .intro { color: #ccc; font-size: 0.9em; line-height: 1.6; }
+        #step-panel { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.95); border: 2px solid #00ffff; border-radius: 15px; padding: 25px 35px; max-width: 750px; width: 90%; box-shadow: 0 0 40px rgba(0,255,255,0.3); z-index: 100; text-align: center; }
+        #step-indicator { color: #2196f3; font-size: 0.85em; margin-bottom: 8px; letter-spacing: 2px; }
+        #step-title { color: #00ffff; font-size: 1.4em; margin-bottom: 12px; text-shadow: 0 0 10px #00ffff; }
+        #step-description { color: #fff; font-size: 1.05em; line-height: 1.7; margin-bottom: 12px; }
+        #step-detail { color: #00ff00; font-size: 0.9em; font-style: italic; padding: 10px 15px; background: rgba(0,255,0,0.1); border-radius: 8px; border-left: 3px solid #00ff00; text-align: left; }
+        #nav-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .nav-btn { background: rgba(33,150,243,0.1); border: 2px solid #2196f3; color: #2196f3; padding: 12px 25px; border-radius: 25px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: all 0.3s ease; }
+        .nav-btn:hover { background: rgba(33,150,243,0.3); box-shadow: 0 0 20px rgba(33,150,243,0.5); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.primary { background: #2196f3; color: #fff; }
+        #progress-bar { position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%); width: 60%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; z-index: 100; }
+        #progress-fill { height: 100%; background: linear-gradient(90deg, #2196f3, #00ffff); border-radius: 3px; transition: width 0.5s ease; }
+        #legend-panel { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #ff9800; border-radius: 15px; padding: 15px; min-width: 200px; z-index: 100; }
+        #legend-panel h3 { color: #ff9800; margin-bottom: 12px; font-size: 1em; }
+        .legend-item { display: flex; align-items: center; margin: 8px 0; }
+        .legend-color { width: 18px; height: 18px; border-radius: 4px; margin-right: 10px; }
+        .legend-text .name { color: #fff; font-weight: bold; font-size: 0.85em; }
+        .legend-text .desc { color: #888; font-size: 0.75em; }
+        #metrics-panel { position: absolute; top: 260px; right: 20px; background: rgba(0,0,0,0.9); border: 2px solid #00ff00; border-radius: 15px; padding: 15px; min-width: 180px; z-index: 100; }
+        #metrics-panel h3 { color: #00ff00; margin-bottom: 10px; font-size: 0.95em; }
+        .metric-row { display: flex; justify-content: space-between; margin: 6px 0; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .metric-label { color: #888; font-size: 0.8em; }
+        .metric-value { color: #00ff00; font-family: monospace; font-weight: bold; font-size: 0.85em; }
+        #sim-controls { position: absolute; top: 200px; left: 20px; z-index: 100; }
+        .sim-btn { display: block; width: 100%; background: linear-gradient(135deg, #2196f3, #00ffff); border: none; color: #fff; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: bold; margin-bottom: 8px; }
+        .sim-btn:hover { transform: scale(1.05); }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
+        .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #2196f3; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div id="loading"><div class="loader"></div><p style="color: #2196f3;">Loading Data Ingestion...</p></div>
     <div id="canvas-container"></div>
-    <div id="info-panel">
-        <h1>Data Ingestion Flows</h1>
-        <p>Watch data flow from various sources (databases, APIs, files) into GCP storage and processing systems.</p>
+    <div id="title-panel">
+        <h1>Data Ingestion</h1>
+        <div class="subtitle">Loading Data into GCP</div>
+        <div class="intro">Like <strong>filling a swimming pool</strong> from different hoses! Data Ingestion brings data from various sources into GCP for storage and processing.</div>
     </div>
-    <div id="controls">
-        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
-        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    <div id="sim-controls">
+        <button class="sim-btn" onclick="boostDatabase()">Boost Database</button>
+        <button class="sim-btn" onclick="boostAPI()">Boost API</button>
+        <button class="sim-btn" onclick="boostFiles()">Boost Files</button>
+        <button class="sim-btn" onclick="toggleAutoPlay()" id="autoplay-btn">Auto-Play Story</button>
+    </div>
+    <div id="step-panel">
+        <div id="step-indicator">STEP 1 OF 6</div>
+        <div id="step-title">Welcome to Data Ingestion!</div>
+        <div id="step-description">Learn how data flows into GCP. Click "Next" to begin!</div>
+        <div id="step-detail">Data Ingestion: The first step in any data pipeline!</div>
+    </div>
+    <div id="progress-bar"><div id="progress-fill" style="width: 16.67%"></div></div>
+    <div id="nav-controls">
+        <button class="nav-btn" id="prev-btn" onclick="previousStep()" disabled>Previous</button>
+        <button class="nav-btn" onclick="resetVisualization()">Reset</button>
+        <button class="nav-btn primary" id="next-btn" onclick="nextStep()">Next</button>
+    </div>
+    <div id="legend-panel">
+        <h3>Data Sources</h3>
+        <div class="legend-item"><div class="legend-color" style="background: #ff5722;"></div><div class="legend-text"><div class="name">Database</div><div class="desc">MySQL, PostgreSQL, Oracle</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #9c27b0;"></div><div class="legend-text"><div class="name">API</div><div class="desc">REST, GraphQL endpoints</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #4caf50;"></div><div class="legend-text"><div class="name">Files</div><div class="desc">CSV, JSON, Parquet</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ff9800;"></div><div class="legend-text"><div class="name">Streaming</div><div class="desc">Kafka, Pub/Sub</div></div></div>
+        <div class="legend-item"><div class="legend-color" style="background: #2196f3;"></div><div class="legend-text"><div class="name">GCP</div><div class="desc">Destination storage</div></div></div>
+    </div>
+    <div id="metrics-panel">
+        <h3>Ingestion Stats</h3>
+        <div class="metric-row"><span class="metric-label">Records/sec:</span><span class="metric-value" id="records">1,250</span></div>
+        <div class="metric-row"><span class="metric-label">Data Size:</span><span class="metric-value" id="datasize">2.5 GB</span></div>
+        <div class="metric-row"><span class="metric-label">Sources:</span><span class="metric-value" id="sources">4</span></div>
+        <div class="metric-row"><span class="metric-label">Status:</span><span class="metric-value" id="status">Active</span></div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        let scene, camera, renderer, controls, isAnimating = true;
-        let sources = [], destinations = [], dataStreams = [];
-        
+        var scene, camera, renderer, controls, currentStep = 0, isAutoPlaying = false, autoPlayInterval = null;
+        var sources = [], destinations = [], dataStreams = [];
+        var sourceData = [{y:6, color:0xff5722, name:'Database'}, {y:2, color:0x9c27b0, name:'API'}, {y:-2, color:0x4caf50, name:'Files'}, {y:-6, color:0xff9800, name:'Streaming'}];
+        var steps = [
+            {title:"Welcome to Data Ingestion!",description:"Data Ingestion is the process of <strong>loading data</strong> from external sources into GCP. It's the first step in any data pipeline - getting your data where it needs to be!",detail:"Ingestion Methods: Batch (scheduled), Streaming (real-time), or Hybrid.",cameraPos:{x:0,y:15,z:30},cameraTarget:{x:0,y:0,z:0}},
+            {title:"Step 1: Database Sources",description:"The <strong>orange cone</strong> represents database sources - MySQL, PostgreSQL, Oracle. Use Datastream for CDC or batch exports for scheduled loads.",detail:"Tools: Datastream (CDC), Data Transfer Service, Dataflow JDBC.",cameraPos:{x:-15,y:10,z:20},cameraTarget:{x:-15,y:6,z:0}},
+            {title:"Step 2: API Sources",description:"The <strong>purple cone</strong> represents API sources - REST endpoints, GraphQL, webhooks. Use Cloud Functions or Dataflow to pull data from APIs.",detail:"Tools: Cloud Functions, Cloud Run, Dataflow with HTTP transforms.",cameraPos:{x:-15,y:10,z:15},cameraTarget:{x:-15,y:2,z:0}},
+            {title:"Step 3: File Sources",description:"The <strong>green cone</strong> represents file sources - CSV, JSON, Parquet files. Upload to Cloud Storage, then load into BigQuery or process with Dataflow.",detail:"Tools: gsutil, Storage Transfer Service, BigQuery load jobs.",cameraPos:{x:-15,y:10,z:10},cameraTarget:{x:-15,y:-2,z:0}},
+            {title:"Step 4: Streaming Sources",description:"The <strong>yellow cone</strong> represents streaming sources - Kafka, Pub/Sub, IoT devices. Data flows continuously in real-time!",detail:"Tools: Pub/Sub, Dataflow Streaming, Kafka Connect.",cameraPos:{x:-15,y:10,z:5},cameraTarget:{x:-15,y:-6,z:0}},
+            {title:"Step 5: GCP Destination",description:"The <strong>blue box</strong> is your GCP destination - BigQuery, Cloud Storage, or Bigtable. All data converges here for storage and analysis!",detail:"Destinations: BigQuery (analytics), GCS (data lake), Bigtable (NoSQL).",cameraPos:{x:15,y:15,z:20},cameraTarget:{x:12,y:0,z:0}}
+        ];
         function init() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0a0a0a);
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 15, 30);
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            
+            scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0a0a); scene.fog = new THREE.FogExp2(0x0a0a0a, 0.012);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000); camera.position.set(0, 15, 30);
+            renderer = new THREE.WebGLRenderer({antialias:true}); renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById("canvas-container").appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
             scene.add(new THREE.AmbientLight(0x404040, 0.5));
-            const light = new THREE.PointLight(0x2196f3, 1, 100);
-            light.position.set(0, 20, 10);
-            scene.add(light);
-            
-            // Data sources (left side)
-            const sourceData = [
-                { y: 6, color: 0xff5722, name: 'Database' },
-                { y: 2, color: 0x9c27b0, name: 'API' },
-                { y: -2, color: 0x4caf50, name: 'Files' },
-                { y: -6, color: 0xff9800, name: 'Streaming' }
-            ];
-            
-            sourceData.forEach(s => {
-                const geom = new THREE.ConeGeometry(1.5, 2, 4);
-                const mat = new THREE.MeshPhongMaterial({ color: s.color, emissive: s.color, emissiveIntensity: 0.3 });
-                const mesh = new THREE.Mesh(geom, mat);
-                mesh.position.set(-15, s.y, 0);
-                mesh.rotation.z = Math.PI / 2;
-                sources.push(mesh);
-                scene.add(mesh);
+            var l1 = new THREE.PointLight(0x2196f3, 1.5, 100); l1.position.set(0, 25, 0); scene.add(l1);
+            sourceData.forEach(function(s) {
+                var geom = new THREE.ConeGeometry(1.5, 2, 4);
+                var mat = new THREE.MeshPhongMaterial({color:s.color, emissive:s.color, emissiveIntensity:0.3});
+                var mesh = new THREE.Mesh(geom, mat);
+                mesh.position.set(-15, s.y, 0); mesh.rotation.z = Math.PI / 2;
+                sources.push(mesh); scene.add(mesh);
             });
-            
-            // GCP destination (right side)
-            const destGeom = new THREE.BoxGeometry(6, 12, 4);
-            const destMat = new THREE.MeshPhongMaterial({ color: 0x2196f3, emissive: 0x2196f3, emissiveIntensity: 0.3, transparent: true, opacity: 0.7 });
-            const dest = new THREE.Mesh(destGeom, destMat);
-            dest.position.set(12, 0, 0);
-            destinations.push(dest);
-            scene.add(dest);
-            
-            // Data streams
-            for (let i = 0; i < 100; i++) {
-                const geom = new THREE.SphereGeometry(0.2);
-                const sourceIdx = Math.floor(Math.random() * 4);
-                const mat = new THREE.MeshBasicMaterial({ color: sourceData[sourceIdx].color });
-                const stream = new THREE.Mesh(geom, mat);
-                stream.userData = { sourceY: sourceData[sourceIdx].y, progress: Math.random(), speed: 0.01 + Math.random() * 0.02 };
-                dataStreams.push(stream);
-                scene.add(stream);
+            var destGeom = new THREE.BoxGeometry(6, 12, 4);
+            var destMat = new THREE.MeshPhongMaterial({color:0x2196f3, emissive:0x2196f3, emissiveIntensity:0.3, transparent:true, opacity:0.7});
+            var dest = new THREE.Mesh(destGeom, destMat); dest.position.set(12, 0, 0); destinations.push(dest); scene.add(dest);
+            for (var i = 0; i < 100; i++) {
+                var geom = new THREE.SphereGeometry(0.2);
+                var sourceIdx = Math.floor(Math.random() * 4);
+                var mat = new THREE.MeshBasicMaterial({color:sourceData[sourceIdx].color});
+                var stream = new THREE.Mesh(geom, mat);
+                stream.userData = {sourceY:sourceData[sourceIdx].y, progress:Math.random(), speed:0.01 + Math.random() * 0.02, sourceIdx:sourceIdx};
+                dataStreams.push(stream); scene.add(stream);
             }
-            
-            const grid = new THREE.GridHelper(40, 40, 0x2196f3, 0x1a1a2e);
-            grid.position.y = -10;
-            scene.add(grid);
-            
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-            animate();
+            var grid = new THREE.GridHelper(40, 40, 0x2196f3, 0x1a1a2e); grid.position.y = -10; grid.material.opacity = 0.25; grid.material.transparent = true; scene.add(grid);
+            window.addEventListener("resize", function() { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+            setTimeout(function() { document.getElementById("loading").style.display = "none"; }, 800);
+            animate(); updateStep();
         }
-        
+        function boostDatabase() { boostSource(0); }
+        function boostAPI() { boostSource(1); }
+        function boostFiles() { boostSource(2); }
+        function boostSource(idx) {
+            sources[idx].material.emissiveIntensity = 1;
+            setTimeout(function() { sources[idx].material.emissiveIntensity = 0.3; }, 500);
+            dataStreams.forEach(function(s) { if (s.userData.sourceIdx === idx) s.userData.speed = 0.05; });
+            setTimeout(function() { dataStreams.forEach(function(s) { if (s.userData.sourceIdx === idx) s.userData.speed = 0.01 + Math.random() * 0.02; }); }, 2000);
+        }
+        function updateStep() {
+            var step = steps[currentStep];
+            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+            document.getElementById("step-title").textContent = step.title;
+            document.getElementById("step-description").innerHTML = step.description;
+            document.getElementById("step-detail").innerHTML = step.detail;
+            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+            document.getElementById("prev-btn").disabled = currentStep === 0;
+            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+            animateCamera(step.cameraPos, step.cameraTarget);
+        }
+        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+        function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); }
+        function animateCamera(targetPos, targetLookAt) {
+            var startPos = camera.position.clone(), startTarget = controls.target.clone();
+            var endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
+            var endTarget = new THREE.Vector3(targetLookAt.x, targetLookAt.y, targetLookAt.z);
+            var startTime = Date.now();
+            function anim() {
+                var progress = Math.min((Date.now() - startTime) / 1000, 1);
+                var eased = 1 - Math.pow(1 - progress, 3);
+                camera.position.lerpVectors(startPos, endPos, eased);
+                controls.target.lerpVectors(startTarget, endTarget, eased);
+                if (progress < 1) requestAnimationFrame(anim);
+            }
+            anim();
+        }
+        function toggleAutoPlay() { if (isAutoPlaying) stopAutoPlay(); else startAutoPlay(); }
+        function startAutoPlay() { isAutoPlaying = true; document.getElementById("autoplay-btn").textContent = "Pause Story"; autoPlayInterval = setInterval(function() { if (currentStep < steps.length - 1) nextStep(); else stopAutoPlay(); }, 5000); }
+        function stopAutoPlay() { isAutoPlaying = false; document.getElementById("autoplay-btn").textContent = "Auto-Play Story"; if (autoPlayInterval) { clearInterval(autoPlayInterval); autoPlayInterval = null; } }
         function animate() {
             requestAnimationFrame(animate);
-            if (isAnimating) {
-                sources.forEach(s => s.rotation.x += 0.02);
-                destinations.forEach(d => d.rotation.y += 0.005);
-                
-                dataStreams.forEach(stream => {
-                    stream.userData.progress += stream.userData.speed;
-                    if (stream.userData.progress > 1) stream.userData.progress = 0;
-                    
-                    const t = stream.userData.progress;
-                    stream.position.x = -15 + 27 * t;
-                    stream.position.y = stream.userData.sourceY * (1 - t);
-                    stream.position.z = Math.sin(t * Math.PI * 2) * 2;
-                });
-            }
-            controls.update();
-            renderer.render(scene, camera);
+            sources.forEach(function(s) { s.rotation.x += 0.02; });
+            destinations.forEach(function(d) { d.rotation.y += 0.005; });
+            document.getElementById("records").textContent = Math.floor(1000 + Math.random() * 500).toLocaleString();
+            dataStreams.forEach(function(stream) {
+                stream.userData.progress += stream.userData.speed;
+                if (stream.userData.progress > 1) stream.userData.progress = 0;
+                var t = stream.userData.progress;
+                stream.position.x = -15 + 27 * t;
+                stream.position.y = stream.userData.sourceY * (1 - t);
+                stream.position.z = Math.sin(t * Math.PI * 2) * 2;
+            });
+            controls.update(); renderer.render(scene, camera);
         }
-        
-        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
-        function resetCamera() { camera.position.set(0, 15, 30); controls.target.set(0, 0, 0); }
-        
         init();
     </script>
 </body>
