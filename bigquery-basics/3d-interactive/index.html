@@ -50,6 +50,21 @@
         .comparison-row .label { color: #888; }
         .comparison-row .good { color: #00ff00; }
         .comparison-row .bad { color: #ff4444; }
+        #data-table-panel { position: absolute; bottom: 220px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #00ffff; border-radius: 15px; padding: 15px; max-width: 420px; min-width: 380px; z-index: 100; max-height: 280px; overflow-y: auto; }
+        #data-table-panel h3 { color: #00ffff; margin-bottom: 10px; font-size: 0.95em; display: flex; justify-content: space-between; align-items: center; }
+        #data-table-panel .table-name { color: #ff00ff; font-size: 0.8em; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.75em; font-family: 'Consolas', 'Monaco', monospace; }
+        .data-table th { background: rgba(0,255,255,0.2); color: #00ffff; padding: 6px 8px; text-align: left; border-bottom: 2px solid #00ffff; font-weight: bold; }
+        .data-table td { padding: 5px 8px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ccc; }
+        .data-table tr:hover { background: rgba(255,255,255,0.05); }
+        .data-table tr.highlight { background: rgba(255,0,255,0.2); }
+        .data-table tr.dimmed { opacity: 0.3; }
+        .data-table .partition-col { color: #ffff00; font-weight: bold; }
+        .data-table .cluster-col { color: #ff6600; }
+        .before-after { display: flex; gap: 10px; margin-top: 10px; }
+        .before-after .before, .before-after .after { flex: 1; }
+        .before-after h4 { color: #888; font-size: 0.8em; margin-bottom: 5px; }
+        .before-after .after h4 { color: #00ff00; }
         #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #00ffff; border-right: 4px solid #ff00ff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -102,6 +117,10 @@
         <div class="comparison-row"><span class="label">Savings:</span><span class="good">98% less!</span></div>
     </div>
     <div id="tooltip"><h4 id="tooltip-title">Component</h4><p id="tooltip-desc">Description</p></div>
+    <div id="data-table-panel">
+        <h3>Sample Data <span class="table-name">sales_data</span></h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
@@ -135,6 +154,97 @@
             table: { title: "Table", desc: "Where data lives in rows and columns. Stored in columnar format for fast analytics." },
             partition: { title: "Partition", desc: "A section of a table (usually by date). Helps skip irrelevant data and save money!" }
         };
+
+        var sampleData = [
+            { order_id: "ORD-001", customer: "Alice", product: "Laptop", amount: 1299, date: "2024-01-15", country: "US" },
+            { order_id: "ORD-002", customer: "Bob", product: "Phone", amount: 899, date: "2024-01-15", country: "UK" },
+            { order_id: "ORD-003", customer: "Carol", product: "Tablet", amount: 599, date: "2024-01-16", country: "US" },
+            { order_id: "ORD-004", customer: "David", product: "Monitor", amount: 449, date: "2024-02-01", country: "CA" },
+            { order_id: "ORD-005", customer: "Eve", product: "Keyboard", amount: 149, date: "2024-02-01", country: "US" },
+            { order_id: "ORD-006", customer: "Frank", product: "Mouse", amount: 79, date: "2024-02-15", country: "UK" }
+        ];
+
+        function renderDataTable(data, options) {
+            options = options || {};
+            var highlightRows = options.highlightRows || [];
+            var dimRows = options.dimRows || [];
+            var partitionCol = options.partitionCol || null;
+            var clusterCol = options.clusterCol || null;
+            var showBefore = options.showBefore || false;
+            var beforeData = options.beforeData || null;
+            var afterData = options.afterData || null;
+
+            if (showBefore && beforeData && afterData) {
+                var html = '<div class="before-after"><div class="before"><h4>BEFORE (All Data)</h4>' + buildTable(beforeData, {}) + '</div>';
+                html += '<div class="after"><h4>AFTER (Filtered)</h4>' + buildTable(afterData, { highlightRows: [0,1,2,3,4,5] }) + '</div></div>';
+                document.getElementById("data-table-container").innerHTML = html;
+                return;
+            }
+
+            document.getElementById("data-table-container").innerHTML = buildTable(data, { highlightRows: highlightRows, dimRows: dimRows, partitionCol: partitionCol, clusterCol: clusterCol });
+        }
+
+        function buildTable(data, opts) {
+            if (!data || data.length === 0) return '<p style="color:#888;">No data</p>';
+            var cols = Object.keys(data[0]);
+            var html = '<table class="data-table"><thead><tr>';
+            for (var c = 0; c < cols.length; c++) {
+                var colClass = "";
+                if (opts.partitionCol === cols[c]) colClass = ' class="partition-col"';
+                else if (opts.clusterCol === cols[c]) colClass = ' class="cluster-col"';
+                html += '<th' + colClass + '>' + cols[c] + '</th>';
+            }
+            html += '</tr></thead><tbody>';
+            for (var r = 0; r < data.length; r++) {
+                var rowClass = "";
+                if (opts.highlightRows && opts.highlightRows.indexOf(r) >= 0) rowClass = ' class="highlight"';
+                else if (opts.dimRows && opts.dimRows.indexOf(r) >= 0) rowClass = ' class="dimmed"';
+                html += '<tr' + rowClass + '>';
+                for (var c2 = 0; c2 < cols.length; c2++) {
+                    var cellClass = "";
+                    if (opts.partitionCol === cols[c2]) cellClass = ' class="partition-col"';
+                    else if (opts.clusterCol === cols[c2]) cellClass = ' class="cluster-col"';
+                    var val = data[r][cols[c2]];
+                    if (typeof val === "number" && cols[c2] === "amount") val = "$" + val;
+                    html += '<td' + cellClass + '>' + val + '</td>';
+                }
+                html += '</tr>';
+            }
+            html += '</tbody></table>';
+            return html;
+        }
+
+        function updateDataTableForStep(stepIndex) {
+            var jan2024Data = sampleData.filter(function(r) { return r.date.startsWith("2024-01"); });
+            var usData = sampleData.filter(function(r) { return r.country === "US"; });
+            var sortedByCountry = sampleData.slice().sort(function(a, b) { return a.country.localeCompare(b.country); });
+
+            switch(stepIndex) {
+                case 0:
+                    renderDataTable(sampleData, {});
+                    break;
+                case 1:
+                    renderDataTable(sampleData, { highlightRows: [0, 1, 2] });
+                    break;
+                case 2:
+                    renderDataTable(sampleData, {});
+                    break;
+                case 3:
+                    renderDataTable(sampleData, { partitionCol: "date" });
+                    break;
+                case 4:
+                    renderDataTable(sampleData, { highlightRows: [0, 1, 2, 3, 4, 5] });
+                    break;
+                case 5:
+                    renderDataTable(null, { showBefore: true, beforeData: sampleData, afterData: jan2024Data });
+                    break;
+                case 6:
+                    renderDataTable(sortedByCountry, { clusterCol: "country", partitionCol: "date" });
+                    break;
+                default:
+                    renderDataTable(sampleData, {});
+            }
+        }
 
         function init() {
             scene = new THREE.Scene();
@@ -326,6 +436,7 @@
             animateCamera(step.cameraPos, step.cameraTarget);
             highlightComponents(step.highlight);
             updateLegendHighlights(step.highlight);
+            updateDataTableForStep(currentStep);
         }
 
         function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }

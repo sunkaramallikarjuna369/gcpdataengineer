@@ -46,6 +46,22 @@
         #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #ff6600; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #data-table-panel { position: absolute; bottom: 220px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #ff6600; border-radius: 15px; padding: 15px; max-width: 450px; min-width: 400px; z-index: 100; max-height: 280px; overflow-y: auto; }
+        #data-table-panel h3 { color: #ff6600; margin-bottom: 10px; font-size: 0.95em; display: flex; justify-content: space-between; align-items: center; }
+        #data-table-panel .stage-name { color: #00ffff; font-size: 0.8em; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.72em; font-family: 'Consolas', 'Monaco', monospace; }
+        .data-table th { background: rgba(255,102,0,0.2); color: #ff6600; padding: 5px 6px; text-align: left; border-bottom: 2px solid #ff6600; font-weight: bold; }
+        .data-table td { padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ccc; }
+        .data-table tr:hover { background: rgba(255,255,255,0.05); }
+        .data-table tr.highlight { background: rgba(0,255,255,0.2); }
+        .data-table tr.filtered { opacity: 0.3; text-decoration: line-through; }
+        .data-table .new-col { color: #00ff00; font-weight: bold; }
+        .data-table .changed { color: #ffff00; }
+        .before-after { display: flex; gap: 8px; }
+        .before-after .before, .before-after .after { flex: 1; }
+        .before-after h4 { font-size: 0.75em; margin-bottom: 5px; padding: 3px 6px; border-radius: 4px; }
+        .before-after .before h4 { color: #888; background: rgba(255,255,255,0.05); }
+        .before-after .after h4 { color: #00ff00; background: rgba(0,255,0,0.1); }
     </style>
 </head>
 <body>
@@ -89,6 +105,10 @@
         <div class="metric-row"><span class="metric-label">Backlog:</span><span class="metric-value" id="backlog">0</span></div>
     </div>
     <div id="tooltip"><h4 id="tooltip-title">Component</h4><p id="tooltip-desc">Description</p></div>
+    <div id="data-table-panel">
+        <h3>Pipeline Data <span class="stage-name">Source</span></h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
@@ -117,6 +137,112 @@
             sink: { title: "Sink (Output)", desc: "Where processed data goes. Can write to BigQuery, GCS, Pub/Sub, Bigtable, and more." },
             worker: { title: "Worker (VM)", desc: "A virtual machine running your pipeline code. Dataflow manages these automatically." }
         };
+
+        var rawData = [
+            { event_id: "E001", user: "alice", action: "click", value: null, timestamp: "10:01:05" },
+            { event_id: "E002", user: "bob", action: "view", value: 15, timestamp: "10:01:12" },
+            { event_id: "E003", user: "alice", action: "purchase", value: 99, timestamp: "10:01:18" },
+            { event_id: "E004", user: "carol", action: "click", value: null, timestamp: "10:02:01" },
+            { event_id: "E005", user: "bob", action: "purchase", value: 45, timestamp: "10:02:30" }
+        ];
+
+        var cleanedData = [
+            { event_id: "E001", user: "alice", action: "click", value: 0, timestamp: "10:01:05" },
+            { event_id: "E002", user: "bob", action: "view", value: 15, timestamp: "10:01:12" },
+            { event_id: "E003", user: "alice", action: "purchase", value: 99, timestamp: "10:01:18" },
+            { event_id: "E004", user: "carol", action: "click", value: 0, timestamp: "10:02:01" },
+            { event_id: "E005", user: "bob", action: "purchase", value: 45, timestamp: "10:02:30" }
+        ];
+
+        var filteredData = [
+            { event_id: "E003", user: "alice", action: "purchase", value: 99, timestamp: "10:01:18" },
+            { event_id: "E005", user: "bob", action: "purchase", value: 45, timestamp: "10:02:30" }
+        ];
+
+        var windowedData = [
+            { window: "10:01-10:02", user: "alice", total: 99, count: 1 },
+            { window: "10:02-10:03", user: "bob", total: 45, count: 1 }
+        ];
+
+        var outputData = [
+            { window: "10:01-10:02", user: "alice", total: 99, count: 1, written: "BigQuery" },
+            { window: "10:02-10:03", user: "bob", total: 45, count: 1, written: "BigQuery" }
+        ];
+
+        function buildDataTable(data, opts) {
+            opts = opts || {};
+            if (!data || data.length === 0) return '<p style="color:#888;">No data</p>';
+            var cols = Object.keys(data[0]);
+            var html = '<table class="data-table"><thead><tr>';
+            for (var c = 0; c < cols.length; c++) {
+                var cls = opts.newCols && opts.newCols.indexOf(cols[c]) >= 0 ? ' class="new-col"' : '';
+                html += '<th' + cls + '>' + cols[c] + '</th>';
+            }
+            html += '</tr></thead><tbody>';
+            for (var r = 0; r < data.length; r++) {
+                var rowCls = '';
+                if (opts.highlightRows && opts.highlightRows.indexOf(r) >= 0) rowCls = ' class="highlight"';
+                if (opts.filteredRows && opts.filteredRows.indexOf(r) >= 0) rowCls = ' class="filtered"';
+                html += '<tr' + rowCls + '>';
+                for (var c2 = 0; c2 < cols.length; c2++) {
+                    var val = data[r][cols[c2]];
+                    var cellCls = '';
+                    if (opts.changedCells && opts.changedCells[r] && opts.changedCells[r].indexOf(cols[c2]) >= 0) cellCls = ' class="changed"';
+                    if (opts.newCols && opts.newCols.indexOf(cols[c2]) >= 0) cellCls = ' class="new-col"';
+                    if (val === null) val = '<span style="color:#ff4444;">NULL</span>';
+                    html += '<td' + cellCls + '>' + val + '</td>';
+                }
+                html += '</tr>';
+            }
+            html += '</tbody></table>';
+            return html;
+        }
+
+        function renderBeforeAfter(beforeData, afterData, beforeTitle, afterTitle, opts) {
+            opts = opts || {};
+            var html = '<div class="before-after">';
+            html += '<div class="before"><h4>' + beforeTitle + '</h4>' + buildDataTable(beforeData, opts.before || {}) + '</div>';
+            html += '<div class="after"><h4>' + afterTitle + '</h4>' + buildDataTable(afterData, opts.after || {}) + '</div>';
+            html += '</div>';
+            return html;
+        }
+
+        function updateDataTableForStep(stepIndex) {
+            var container = document.getElementById("data-table-container");
+            var stageName = document.querySelector(".stage-name");
+            switch(stepIndex) {
+                case 0:
+                    stageName.textContent = "Overview";
+                    container.innerHTML = buildDataTable(rawData, {});
+                    break;
+                case 1:
+                    stageName.textContent = "Source (Raw Input)";
+                    container.innerHTML = buildDataTable(rawData, { highlightRows: [0,1,2,3,4] });
+                    break;
+                case 2:
+                    stageName.textContent = "Transform Stage";
+                    container.innerHTML = renderBeforeAfter(rawData, cleanedData, "BEFORE (nulls)", "AFTER (cleaned)", { before: {}, after: { changedCells: {0: ["value"], 3: ["value"]} } });
+                    break;
+                case 3:
+                    stageName.textContent = "Window Grouping";
+                    container.innerHTML = renderBeforeAfter(filteredData, windowedData, "BEFORE (events)", "AFTER (windowed)", { after: { newCols: ["window", "total", "count"] } });
+                    break;
+                case 4:
+                    stageName.textContent = "Workers Processing";
+                    container.innerHTML = buildDataTable(windowedData, { highlightRows: [0, 1] });
+                    break;
+                case 5:
+                    stageName.textContent = "Sink (Output)";
+                    container.innerHTML = buildDataTable(outputData, { newCols: ["written"], highlightRows: [0, 1] });
+                    break;
+                case 6:
+                    stageName.textContent = "Complete Pipeline";
+                    container.innerHTML = renderBeforeAfter(rawData, outputData, "INPUT (raw events)", "OUTPUT (aggregated)", {});
+                    break;
+                default:
+                    container.innerHTML = buildDataTable(rawData, {});
+            }
+        }
 
         function init() {
             scene = new THREE.Scene();
@@ -267,6 +393,7 @@
             document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
             animateCamera(step.cameraPos, step.cameraTarget);
             highlightComponents(step.highlight);
+            updateDataTableForStep(currentStep);
         }
 
         function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }

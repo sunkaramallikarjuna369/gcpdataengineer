@@ -45,6 +45,15 @@
         #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #00ffff; border-right: 4px solid #ff6600; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #data-table-panel { position: absolute; bottom: 220px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #00ffff; border-radius: 15px; padding: 15px; max-width: 400px; min-width: 360px; z-index: 100; max-height: 240px; overflow-y: auto; }
+        #data-table-panel h3 { color: #00ffff; margin-bottom: 10px; font-size: 0.95em; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.72em; font-family: 'Consolas', 'Monaco', monospace; }
+        .data-table th { background: rgba(0,255,255,0.2); color: #00ffff; padding: 5px 6px; text-align: left; border-bottom: 2px solid #00ffff; }
+        .data-table td { padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ccc; }
+        .data-table tr.highlight { background: rgba(255,102,0,0.2); }
+        .data-table .class-standard { color: #00ff00; }
+        .data-table .class-nearline { color: #ffff00; }
+        .data-table .class-archive { color: #ff00ff; }
     </style>
 </head>
 <body>
@@ -88,6 +97,10 @@
         <div class="metric-row"><span class="metric-label">Cost/GB:</span><span class="metric-value" id="cost">$0.020</span></div>
     </div>
     <div id="tooltip"><h4 id="tooltip-title">Component</h4><p id="tooltip-desc">Description</p></div>
+    <div id="data-table-panel">
+        <h3>Bucket Contents</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
@@ -114,6 +127,61 @@
             nearline: { title: "Nearline Storage", desc: "Best for data accessed less than once a month. 30-day minimum storage." },
             archive: { title: "Archive Storage", desc: "Best for data accessed less than once a year. Lowest cost, highest retrieval fees." }
         };
+
+        var bucketObjects = [
+            { name: "data/sales_2024.csv", size: "2.5 GB", class: "Standard", age: "5 days" },
+            { name: "images/logo.png", size: "150 KB", class: "Standard", age: "30 days" },
+            { name: "backups/db_jan.sql", size: "10 GB", class: "Nearline", age: "60 days" },
+            { name: "logs/app_2023.log", size: "500 MB", class: "Archive", age: "400 days" },
+            { name: "videos/demo.mp4", size: "1.2 GB", class: "Standard", age: "10 days" }
+        ];
+
+        function buildStorageTable(data, opts) {
+            opts = opts || {};
+            var html = '<table class="data-table"><thead><tr><th>Object Name</th><th>Size</th><th>Class</th><th>Age</th></tr></thead><tbody>';
+            for (var i = 0; i < data.length; i++) {
+                var rowCls = opts.highlightRows && opts.highlightRows.indexOf(i) >= 0 ? ' class="highlight"' : '';
+                var classCls = data[i].class === 'Standard' ? 'class-standard' : data[i].class === 'Nearline' ? 'class-nearline' : 'class-archive';
+                html += '<tr' + rowCls + '><td>' + data[i].name + '</td><td>' + data[i].size + '</td><td class="' + classCls + '">' + data[i].class + '</td><td>' + data[i].age + '</td></tr>';
+            }
+            html += '</tbody></table>';
+            return html;
+        }
+
+        function updateDataTableForStep(stepIndex) {
+            var container = document.getElementById("data-table-container");
+            switch(stepIndex) {
+                case 0:
+                    container.innerHTML = buildStorageTable(bucketObjects, {});
+                    break;
+                case 1:
+                    container.innerHTML = buildStorageTable(bucketObjects, { highlightRows: [0,1,2,3,4] });
+                    break;
+                case 2:
+                    container.innerHTML = buildStorageTable(bucketObjects, { highlightRows: [0,1,4] });
+                    break;
+                case 3:
+                    container.innerHTML = buildStorageTable(bucketObjects, {});
+                    break;
+                case 4:
+                    var lifecycleData = bucketObjects.map(function(o) {
+                        var action = parseInt(o.age) > 90 ? 'Move to Archive' : parseInt(o.age) > 30 ? 'Move to Nearline' : 'Keep Standard';
+                        return { name: o.name, age: o.age, rule: action };
+                    });
+                    var html = '<table class="data-table"><thead><tr><th>Object</th><th>Age</th><th>Lifecycle Action</th></tr></thead><tbody>';
+                    for (var i = 0; i < lifecycleData.length; i++) {
+                        html += '<tr><td>' + lifecycleData[i].name + '</td><td>' + lifecycleData[i].age + '</td><td>' + lifecycleData[i].rule + '</td></tr>';
+                    }
+                    html += '</tbody></table>';
+                    container.innerHTML = html;
+                    break;
+                case 5:
+                    container.innerHTML = buildStorageTable(bucketObjects, {});
+                    break;
+                default:
+                    container.innerHTML = buildStorageTable(bucketObjects, {});
+            }
+        }
 
         function init() {
             scene = new THREE.Scene();
@@ -223,6 +291,7 @@
             document.getElementById("prev-btn").disabled = currentStep === 0;
             document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
             animateCamera(step.cameraPos, step.cameraTarget);
+            updateDataTableForStep(currentStep);
         }
 
         function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }

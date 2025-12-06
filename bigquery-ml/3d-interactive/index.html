@@ -41,6 +41,15 @@
         #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #9c27b0; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #data-table-panel { position: absolute; bottom: 220px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #9c27b0; border-radius: 15px; padding: 15px; max-width: 420px; min-width: 380px; z-index: 100; max-height: 240px; overflow-y: auto; }
+        #data-table-panel h3 { color: #9c27b0; margin-bottom: 10px; font-size: 0.95em; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.72em; font-family: 'Consolas', 'Monaco', monospace; }
+        .data-table th { background: rgba(156,39,176,0.2); color: #9c27b0; padding: 5px 6px; text-align: left; border-bottom: 2px solid #9c27b0; }
+        .data-table td { padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ccc; }
+        .data-table tr.highlight { background: rgba(0,255,255,0.2); }
+        .data-table .feature { color: #ff6600; }
+        .data-table .label { color: #00ff00; font-weight: bold; }
+        .data-table .prediction { color: #00ffff; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -83,6 +92,10 @@
         <div class="metric-row"><span class="metric-label">Iterations:</span><span class="metric-value" id="iterations">0</span></div>
         <div class="metric-row"><span class="metric-label">Predictions:</span><span class="metric-value" id="predictions">0</span></div>
     </div>
+    <div id="data-table-panel">
+        <h3>ML Training Data</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
@@ -101,6 +114,74 @@
             { title: "Step 4: Evaluate Model", description: "Use <strong>ML.EVALUATE</strong> to see how well your model performs. Check accuracy, precision, recall, and other metrics to understand model quality.", detail: "SELECT * FROM ML.EVALUATE(MODEL my_model, TABLE test_data)", highlight: ["evaluate"], cameraPos: { x: 20, y: 15, z: -10 }, cameraTarget: { x: 0, y: 0, z: 0 } },
             { title: "Step 5: Make Predictions", description: "Use <strong>ML.PREDICT</strong> to get predictions on new data. The model returns predicted values along with confidence scores!", detail: "SELECT * FROM ML.PREDICT(MODEL my_model, TABLE new_data)", highlight: ["predict"], cameraPos: { x: 22, y: 18, z: 22 }, cameraTarget: { x: 0, y: 0, z: 0 } }
         ];
+
+        var trainingDataRows = [
+            { age: 35, income: 75000, visits: 12, purchased: "yes" },
+            { age: 28, income: 45000, visits: 3, purchased: "no" },
+            { age: 42, income: 95000, visits: 8, purchased: "yes" },
+            { age: 23, income: 32000, visits: 2, purchased: "no" },
+            { age: 51, income: 120000, visits: 15, purchased: "yes" }
+        ];
+
+        var predictionDataRows = [
+            { age: 38, income: 82000, visits: 10, predicted: "yes", confidence: 0.87 },
+            { age: 25, income: 38000, visits: 4, predicted: "no", confidence: 0.92 },
+            { age: 45, income: 105000, visits: 11, predicted: "yes", confidence: 0.95 }
+        ];
+
+        function buildMLTable(data, showPrediction) {
+            var html = '<table class="data-table"><thead><tr><th>age</th><th>income</th><th>visits</th>';
+            html += showPrediction ? '<th>predicted</th><th>confidence</th>' : '<th>purchased (label)</th>';
+            html += '</tr></thead><tbody>';
+            for (var i = 0; i < data.length; i++) {
+                html += '<tr>';
+                html += '<td class="feature">' + data[i].age + '</td>';
+                html += '<td class="feature">$' + data[i].income.toLocaleString() + '</td>';
+                html += '<td class="feature">' + data[i].visits + '</td>';
+                if (showPrediction) {
+                    html += '<td class="prediction">' + data[i].predicted + '</td>';
+                    html += '<td class="prediction">' + (data[i].confidence * 100).toFixed(0) + '%</td>';
+                } else {
+                    html += '<td class="label">' + data[i].purchased + '</td>';
+                }
+                html += '</tr>';
+            }
+            html += '</tbody></table>';
+            return html;
+        }
+
+        function updateDataTableForStep(stepIndex) {
+            var container = document.getElementById("data-table-container");
+            var title = document.querySelector("#data-table-panel h3");
+            switch(stepIndex) {
+                case 0:
+                    title.textContent = "ML Training Data";
+                    container.innerHTML = buildMLTable(trainingDataRows, false);
+                    break;
+                case 1:
+                    title.textContent = "Training Data (Features + Label)";
+                    container.innerHTML = buildMLTable(trainingDataRows, false);
+                    break;
+                case 2:
+                    title.textContent = "Model Training";
+                    container.innerHTML = buildMLTable(trainingDataRows, false);
+                    break;
+                case 3:
+                    title.textContent = "Training Data";
+                    container.innerHTML = buildMLTable(trainingDataRows, false);
+                    break;
+                case 4:
+                    title.textContent = "Evaluation Results";
+                    container.innerHTML = buildMLTable(trainingDataRows, false);
+                    break;
+                case 5:
+                    title.textContent = "ML.PREDICT Results";
+                    container.innerHTML = buildMLTable(predictionDataRows, true);
+                    break;
+                default:
+                    container.innerHTML = buildMLTable(trainingDataRows, false);
+            }
+        }
 
         function init() {
             scene = new THREE.Scene();
@@ -197,6 +278,7 @@
             document.getElementById("prev-btn").disabled = currentStep === 0;
             document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
             animateCamera(step.cameraPos, step.cameraTarget);
+            updateDataTableForStep(currentStep);
         }
 
         function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }

@@ -45,6 +45,14 @@
         #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #00ff00; border-right: 4px solid #ff00ff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #data-table-panel { position: absolute; bottom: 220px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #00ff00; border-radius: 15px; padding: 15px; max-width: 400px; min-width: 360px; z-index: 100; max-height: 240px; overflow-y: auto; }
+        #data-table-panel h3 { color: #00ff00; margin-bottom: 10px; font-size: 0.95em; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.72em; font-family: 'Consolas', 'Monaco', monospace; }
+        .data-table th { background: rgba(0,255,0,0.2); color: #00ff00; padding: 5px 6px; text-align: left; border-bottom: 2px solid #00ff00; }
+        .data-table td { padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ccc; }
+        .data-table tr.highlight { background: rgba(255,0,255,0.2); }
+        .data-table .pk { color: #ff00ff; font-weight: bold; }
+        .data-table .region { color: #00ffff; }
     </style>
 </head>
 <body>
@@ -88,6 +96,10 @@
         <div class="metric-row"><span class="metric-label">Regions:</span><span class="metric-value" id="regions">3</span></div>
     </div>
     <div id="tooltip"><h4 id="tooltip-title">Component</h4><p id="tooltip-desc">Description</p></div>
+    <div id="data-table-panel">
+        <h3>Spanner Table: accounts</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
@@ -106,6 +118,56 @@
             { title: "Step 4: Automatic Sharding", description: "Spanner automatically <strong>shards</strong> (splits) your data across nodes based on primary key. You don't manage shards - Spanner does it for you!", detail: "Design primary keys to avoid hot spots. Use UUIDs or composite keys, not sequential integers.", highlight: ["split"], cameraPos: { x: -20, y: 15, z: 20 }, cameraTarget: { x: 0, y: 0, z: 0 } },
             { title: "Step 5: When to Use Spanner", description: "Use Spanner for: <strong>Global apps</strong> needing consistency, <strong>Financial systems</strong> requiring ACID, <strong>Gaming</strong> with global leaderboards, <strong>Inventory</strong> systems.", detail: "Spanner is premium-priced. For single-region apps, consider Cloud SQL or AlloyDB first.", highlight: [], cameraPos: { x: 25, y: 20, z: 25 }, cameraTarget: { x: 0, y: 0, z: 0 } }
         ];
+
+        var spannerData = [
+            { account_id: "acc-uuid-001", name: "Alice Corp", balance: 15000.50, region: "US", updated: "2024-01-15 10:30:00" },
+            { account_id: "acc-uuid-002", name: "Bob Ltd", balance: 8500.25, region: "EU", updated: "2024-01-15 10:30:01" },
+            { account_id: "acc-uuid-003", name: "Carol Inc", balance: 22000.00, region: "Asia", updated: "2024-01-15 10:30:02" },
+            { account_id: "acc-uuid-004", name: "Dave GmbH", balance: 5200.75, region: "EU", updated: "2024-01-15 10:30:03" }
+        ];
+
+        function buildSpannerTable(data, opts) {
+            opts = opts || {};
+            var html = '<table class="data-table"><thead><tr><th>account_id (PK)</th><th>name</th><th>balance</th><th>region</th></tr></thead><tbody>';
+            for (var i = 0; i < data.length; i++) {
+                var rowCls = opts.highlightRows && opts.highlightRows.indexOf(i) >= 0 ? ' class="highlight"' : '';
+                html += '<tr' + rowCls + '>';
+                html += '<td class="pk">' + data[i].account_id + '</td>';
+                html += '<td>' + data[i].name + '</td>';
+                html += '<td>$' + data[i].balance.toFixed(2) + '</td>';
+                html += '<td class="region">' + data[i].region + '</td>';
+                html += '</tr>';
+            }
+            html += '</tbody></table>';
+            return html;
+        }
+
+        function updateDataTableForStep(stepIndex) {
+            var container = document.getElementById("data-table-container");
+            switch(stepIndex) {
+                case 0:
+                    container.innerHTML = buildSpannerTable(spannerData, {});
+                    break;
+                case 1:
+                    container.innerHTML = buildSpannerTable(spannerData, { highlightRows: [0,1,2,3] });
+                    break;
+                case 2:
+                    container.innerHTML = buildSpannerTable(spannerData, {});
+                    break;
+                case 3:
+                    container.innerHTML = buildSpannerTable(spannerData, {});
+                    break;
+                case 4:
+                    var sortedData = spannerData.slice().sort(function(a, b) { return a.account_id.localeCompare(b.account_id); });
+                    container.innerHTML = buildSpannerTable(sortedData, { highlightRows: [0,1,2,3] });
+                    break;
+                case 5:
+                    container.innerHTML = buildSpannerTable(spannerData, {});
+                    break;
+                default:
+                    container.innerHTML = buildSpannerTable(spannerData, {});
+            }
+        }
 
         function init() {
             scene = new THREE.Scene();
@@ -221,6 +283,7 @@
             document.getElementById("prev-btn").disabled = currentStep === 0;
             document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
             animateCamera(step.cameraPos, step.cameraTarget);
+            updateDataTableForStep(currentStep);
         }
 
         function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }

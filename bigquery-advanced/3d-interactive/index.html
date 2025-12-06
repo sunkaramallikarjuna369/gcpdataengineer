@@ -41,6 +41,15 @@
         #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #00bcd4; border-right: 4px solid #ff6600; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #data-table-panel { position: absolute; bottom: 220px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #00bcd4; border-radius: 15px; padding: 15px; max-width: 420px; min-width: 380px; z-index: 100; max-height: 240px; overflow-y: auto; }
+        #data-table-panel h3 { color: #00bcd4; margin-bottom: 10px; font-size: 0.95em; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.72em; font-family: 'Consolas', 'Monaco', monospace; }
+        .data-table th { background: rgba(0,188,212,0.2); color: #00bcd4; padding: 5px 6px; text-align: left; border-bottom: 2px solid #00bcd4; }
+        .data-table td { padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ccc; }
+        .data-table tr.highlight { background: rgba(255,102,0,0.2); }
+        .data-table tr.skipped { opacity: 0.3; }
+        .data-table .partition { color: #00bcd4; font-weight: bold; }
+        .data-table .cluster { color: #ff6600; }
     </style>
 </head>
 <body>
@@ -83,6 +92,10 @@
         <div class="metric-row"><span class="metric-label">Time:</span><span class="metric-value" id="time">0 s</span></div>
         <div class="metric-row"><span class="metric-label">Savings:</span><span class="metric-value" id="savings">0%</span></div>
     </div>
+    <div id="data-table-panel">
+        <h3>Partitioned Table: sales_data</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
@@ -100,6 +113,59 @@
             { title: "Step 4: Partition + Cluster Together", description: "Use <strong>both together</strong> for maximum optimization! Partition by date, then cluster by frequently filtered columns like user_id or region.", detail: "CREATE TABLE t PARTITION BY DATE(timestamp) CLUSTER BY user_id, region AS SELECT...", highlight: ["both"], cameraPos: { x: 20, y: 15, z: -10 }, cameraTarget: { x: 0, y: 0, z: 0 } },
             { title: "Step 5: Cost Comparison", description: "See the difference! A query on a <strong>1TB table</strong>: Without optimization = $5.00, With partitioning = $0.50, With partition + cluster = $0.05!", detail: "Always check 'Bytes processed' in query results. That's what you pay for!", highlight: [], cameraPos: { x: 22, y: 18, z: 22 }, cameraTarget: { x: 0, y: 0, z: 0 } }
         ];
+
+        var partitionedData = [
+            { date: "2024-01-13", region: "US", user_id: "u001", amount: 150 },
+            { date: "2024-01-14", region: "EU", user_id: "u002", amount: 220 },
+            { date: "2024-01-15", region: "US", user_id: "u003", amount: 180 },
+            { date: "2024-01-15", region: "US", user_id: "u001", amount: 95 },
+            { date: "2024-01-16", region: "Asia", user_id: "u004", amount: 310 },
+            { date: "2024-01-17", region: "EU", user_id: "u002", amount: 175 }
+        ];
+
+        function buildPartitionTable(data, opts) {
+            opts = opts || {};
+            var html = '<table class="data-table"><thead><tr><th>date (partition)</th><th>region (cluster)</th><th>user_id</th><th>amount</th></tr></thead><tbody>';
+            for (var i = 0; i < data.length; i++) {
+                var cls = '';
+                if (opts.highlightRows && opts.highlightRows.indexOf(i) >= 0) cls = ' class="highlight"';
+                if (opts.skippedRows && opts.skippedRows.indexOf(i) >= 0) cls = ' class="skipped"';
+                html += '<tr' + cls + '>';
+                html += '<td class="partition">' + data[i].date + '</td>';
+                html += '<td class="cluster">' + data[i].region + '</td>';
+                html += '<td>' + data[i].user_id + '</td>';
+                html += '<td>$' + data[i].amount + '</td>';
+                html += '</tr>';
+            }
+            html += '</tbody></table>';
+            return html;
+        }
+
+        function updateDataTableForStep(stepIndex) {
+            var container = document.getElementById("data-table-container");
+            switch(stepIndex) {
+                case 0:
+                    container.innerHTML = buildPartitionTable(partitionedData, {});
+                    break;
+                case 1:
+                    container.innerHTML = buildPartitionTable(partitionedData, { highlightRows: [0,1,2,3,4,5] });
+                    break;
+                case 2:
+                    container.innerHTML = buildPartitionTable(partitionedData, { highlightRows: [2,3], skippedRows: [0,1,4,5] });
+                    break;
+                case 3:
+                    container.innerHTML = buildPartitionTable(partitionedData, { highlightRows: [0,2,3] });
+                    break;
+                case 4:
+                    container.innerHTML = buildPartitionTable(partitionedData, { highlightRows: [2,3] });
+                    break;
+                case 5:
+                    container.innerHTML = buildPartitionTable(partitionedData, {});
+                    break;
+                default:
+                    container.innerHTML = buildPartitionTable(partitionedData, {});
+            }
+        }
 
         function init() {
             scene = new THREE.Scene();
@@ -203,6 +269,7 @@
                 p.children[0].material.emissive.setHex(0x00bcd4);
                 p.children[0].material.emissiveIntensity = 0.2;
             });
+            updateDataTableForStep(currentStep);
         }
 
         function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
