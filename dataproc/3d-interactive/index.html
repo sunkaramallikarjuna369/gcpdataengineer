@@ -41,6 +41,14 @@
         #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #ff9800; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #data-table-panel { position: absolute; bottom: 220px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #ff9800; border-radius: 15px; padding: 15px; max-width: 400px; min-width: 360px; z-index: 100; max-height: 220px; overflow-y: auto; }
+        #data-table-panel h3 { color: #ff9800; margin-bottom: 10px; font-size: 0.95em; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.72em; font-family: 'Consolas', 'Monaco', monospace; }
+        .data-table th { background: rgba(255,152,0,0.2); color: #ff9800; padding: 5px 6px; text-align: left; border-bottom: 2px solid #ff9800; }
+        .data-table td { padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ccc; }
+        .data-table tr.highlight { background: rgba(0,255,255,0.2); }
+        .data-table .partition { color: #00ffff; }
+        .data-table .count { color: #00ff00; }
     </style>
 </head>
 <body>
@@ -83,6 +91,10 @@
         <div class="metric-row"><span class="metric-label">CPU:</span><span class="metric-value" id="cpu">0%</span></div>
         <div class="metric-row"><span class="metric-label">Memory:</span><span class="metric-value" id="memory">0%</span></div>
     </div>
+    <div id="data-table-panel">
+        <h3>Spark DataFrame: sales</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
@@ -92,6 +104,20 @@
         var autoPlayInterval = null;
         var master, workers = [], dataParticles = [];
         var workerCount = 3, jobCount = 0;
+
+        var sparkData = [
+            { product: "Laptop", region: "US", sales: 15000, partition: 0 },
+            { product: "Phone", region: "US", sales: 22000, partition: 0 },
+            { product: "Laptop", region: "EU", sales: 12000, partition: 1 },
+            { product: "Tablet", region: "EU", sales: 8500, partition: 1 },
+            { product: "Phone", region: "Asia", sales: 35000, partition: 2 }
+        ];
+
+        var aggregatedData = [
+            { region: "US", total_sales: 37000, product_count: 2 },
+            { region: "EU", total_sales: 20500, product_count: 2 },
+            { region: "Asia", total_sales: 35000, product_count: 1 }
+        ];
 
         var steps = [
             { title: "Welcome to Dataproc!", description: "Dataproc is Google's <strong>managed Spark and Hadoop</strong> service. It lets you run big data processing jobs without managing infrastructure!", detail: "Dataproc clusters start in under 90 seconds - much faster than on-premises!", highlight: [], cameraPos: { x: 25, y: 18, z: 25 }, cameraTarget: { x: 0, y: 0, z: 0 } },
@@ -177,29 +203,85 @@
             });
         }
 
-        function scaleCluster() {
-            if (workers.length < 8) {
-                addWorker(workers.length);
-                workerCount = workers.length;
-                document.getElementById("workers").textContent = workerCount;
-            }
-        }
+                function scaleCluster() {
+                    if (workers.length < 8) {
+                        addWorker(workers.length);
+                        workerCount = workers.length;
+                        document.getElementById("workers").textContent = workerCount;
+                    }
+                }
 
-        function updateStep() {
-            var step = steps[currentStep];
-            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
-            document.getElementById("step-title").textContent = step.title;
-            document.getElementById("step-description").innerHTML = step.description;
-            document.getElementById("step-detail").innerHTML = step.detail;
-            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
-            document.getElementById("prev-btn").disabled = currentStep === 0;
-            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
-            animateCamera(step.cameraPos, step.cameraTarget);
-        }
+                function buildSparkTable(data, columns, highlightPartition) {
+                    var html = '<table class="data-table"><thead><tr>';
+                    columns.forEach(function(col) { html += '<th>' + col + '</th>'; });
+                    html += '</tr></thead><tbody>';
+                    data.forEach(function(row) {
+                        var cls = highlightPartition !== undefined && row.partition === highlightPartition ? ' class="highlight"' : '';
+                        html += '<tr' + cls + '>';
+                        columns.forEach(function(col) {
+                            var key = col.toLowerCase().replace('_', '_');
+                            var val = row[key];
+                            if (key === 'partition') {
+                                html += '<td class="partition">' + val + '</td>';
+                            } else if (typeof val === 'number') {
+                                html += '<td class="count">' + val.toLocaleString() + '</td>';
+                            } else {
+                                html += '<td>' + val + '</td>';
+                            }
+                        });
+                        html += '</tr>';
+                    });
+                    html += '</tbody></table>';
+                    return html;
+                }
 
-        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
-        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
-        function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); jobCount = 0; }
+                function updateDataTableForStep(step) {
+                    var container = document.getElementById("data-table-container");
+                    var panel = document.getElementById("data-table-panel");
+                    switch(step) {
+                        case 0:
+                            panel.querySelector("h3").textContent = "Spark DataFrame: sales";
+                            container.innerHTML = buildSparkTable(sparkData, ["product", "region", "sales", "partition"], undefined);
+                            break;
+                        case 1:
+                            panel.querySelector("h3").textContent = "Master: Job Scheduling";
+                            container.innerHTML = '<p style="color:#ff9800;font-size:0.8em;margin-bottom:8px;">Master coordinates tasks:</p>' + buildSparkTable(sparkData, ["product", "region", "sales"], undefined);
+                            break;
+                        case 2:
+                            panel.querySelector("h3").textContent = "Workers: Partitioned Data";
+                            container.innerHTML = '<p style="color:#00ffff;font-size:0.8em;margin-bottom:8px;">Data split across workers:</p>' + buildSparkTable(sparkData, ["product", "region", "sales", "partition"], 0);
+                            break;
+                        case 3:
+                            panel.querySelector("h3").textContent = "Job: Processing Data";
+                            container.innerHTML = buildSparkTable(sparkData, ["product", "region", "sales", "partition"], undefined);
+                            break;
+                        case 4:
+                            panel.querySelector("h3").textContent = "Shuffle: GROUP BY region";
+                            container.innerHTML = '<p style="color:#ffff00;font-size:0.8em;margin-bottom:8px;">After shuffle aggregation:</p>' + buildSparkTable(aggregatedData, ["region", "total_sales", "product_count"], undefined);
+                            break;
+                        case 5:
+                            panel.querySelector("h3").textContent = "Autoscaling: Dynamic Workers";
+                            container.innerHTML = buildSparkTable(sparkData, ["product", "region", "sales", "partition"], undefined);
+                            break;
+                    }
+                }
+
+                        function updateStep() {
+                    var step = steps[currentStep];
+                    document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+                    document.getElementById("step-title").textContent = step.title;
+                    document.getElementById("step-description").innerHTML = step.description;
+                    document.getElementById("step-detail").innerHTML = step.detail;
+                    document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+                    document.getElementById("prev-btn").disabled = currentStep === 0;
+                    document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+                    animateCamera(step.cameraPos, step.cameraTarget);
+                    updateDataTableForStep(currentStep);
+                }
+
+                function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+                function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+                function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); jobCount = 0; }
 
         function animateCamera(targetPos, targetLookAt) {
             var startPos = camera.position.clone();

@@ -45,6 +45,14 @@
         #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #ff6600; border-right: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #data-table-panel { position: absolute; bottom: 220px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #ff6600; border-radius: 15px; padding: 15px; max-width: 400px; min-width: 360px; z-index: 100; max-height: 220px; overflow-y: auto; }
+        #data-table-panel h3 { color: #ff6600; margin-bottom: 10px; font-size: 0.95em; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.72em; font-family: 'Consolas', 'Monaco', monospace; }
+        .data-table th { background: rgba(255,102,0,0.2); color: #ff6600; padding: 5px 6px; text-align: left; border-bottom: 2px solid #ff6600; }
+        .data-table td { padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ccc; }
+        .data-table tr.highlight { background: rgba(0,255,255,0.2); }
+        .data-table .prediction { color: #00ff00; }
+        .data-table .confidence { color: #00ffff; }
     </style>
 </head>
 <body>
@@ -88,6 +96,10 @@
         <div class="metric-row"><span class="metric-label">QPS:</span><span class="metric-value" id="qps">0</span></div>
     </div>
     <div id="tooltip"><h4 id="tooltip-title">Component</h4><p id="tooltip-desc">Description</p></div>
+    <div id="data-table-panel">
+        <h3>ML Data: training_data</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
@@ -98,6 +110,20 @@
         var dataset, automl, training, model, endpoint;
         var dataParticles = [];
         var modelCount = 0;
+
+        var trainingData = [
+            { feature1: 25, feature2: 50000, feature3: 3, label: "buy" },
+            { feature1: 45, feature2: 120000, feature3: 8, label: "buy" },
+            { feature1: 22, feature2: 35000, feature3: 1, label: "skip" },
+            { feature1: 38, feature2: 85000, feature3: 5, label: "buy" },
+            { feature1: 19, feature2: 28000, feature3: 2, label: "skip" }
+        ];
+
+        var predictionData = [
+            { feature1: 32, feature2: 72000, feature3: 4, predicted: "buy", confidence: 0.89 },
+            { feature1: 21, feature2: 31000, feature3: 1, predicted: "skip", confidence: 0.94 },
+            { feature1: 41, feature2: 98000, feature3: 7, predicted: "buy", confidence: 0.91 }
+        ];
 
         var steps = [
             { title: "Welcome to Vertex AI!", description: "Vertex AI is Google's <strong>unified ML platform</strong>. It brings together all the tools you need to build AI - from AutoML for beginners to custom training for experts!", detail: "Vertex AI combines what used to be separate products: AI Platform, AutoML, and ML Engine.", highlight: [], cameraPos: { x: 25, y: 18, z: 25 }, cameraTarget: { x: 0, y: 0, z: 0 } },
@@ -197,28 +223,83 @@
             });
         }
 
-        function deployModel() {
-            document.getElementById("latency").textContent = Math.floor(Math.random() * 50 + 20) + " ms";
-            document.getElementById("qps").textContent = Math.floor(Math.random() * 1000 + 500);
-            endpoint.children[0].material.emissiveIntensity = 0.9;
-            setTimeout(function() { endpoint.children[0].material.emissiveIntensity = 0.4; }, 500);
-        }
+                function deployModel() {
+                    document.getElementById("latency").textContent = Math.floor(Math.random() * 50 + 20) + " ms";
+                    document.getElementById("qps").textContent = Math.floor(Math.random() * 1000 + 500);
+                    endpoint.children[0].material.emissiveIntensity = 0.9;
+                    setTimeout(function() { endpoint.children[0].material.emissiveIntensity = 0.4; }, 500);
+                }
 
-        function updateStep() {
-            var step = steps[currentStep];
-            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
-            document.getElementById("step-title").textContent = step.title;
-            document.getElementById("step-description").innerHTML = step.description;
-            document.getElementById("step-detail").innerHTML = step.detail;
-            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
-            document.getElementById("prev-btn").disabled = currentStep === 0;
-            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
-            animateCamera(step.cameraPos, step.cameraTarget);
-        }
+                function buildMLTable(data, columns) {
+                    var html = '<table class="data-table"><thead><tr>';
+                    columns.forEach(function(col) { html += '<th>' + col + '</th>'; });
+                    html += '</tr></thead><tbody>';
+                    data.forEach(function(row) {
+                        html += '<tr>';
+                        columns.forEach(function(col) {
+                            var key = col.toLowerCase();
+                            var val = row[key];
+                            if (key === 'predicted' || key === 'label') {
+                                html += '<td class="prediction">' + val + '</td>';
+                            } else if (key === 'confidence') {
+                                html += '<td class="confidence">' + val + '</td>';
+                            } else {
+                                html += '<td>' + val + '</td>';
+                            }
+                        });
+                        html += '</tr>';
+                    });
+                    html += '</tbody></table>';
+                    return html;
+                }
 
-        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
-        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
-        function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); modelCount = 0; }
+                function updateDataTableForStep(step) {
+                    var container = document.getElementById("data-table-container");
+                    var panel = document.getElementById("data-table-panel");
+                    switch(step) {
+                        case 0:
+                            panel.querySelector("h3").textContent = "ML Data: training_data";
+                            container.innerHTML = buildMLTable(trainingData, ["feature1", "feature2", "feature3", "label"]);
+                            break;
+                        case 1:
+                            panel.querySelector("h3").textContent = "Dataset: Labeled Training Data";
+                            container.innerHTML = '<p style="color:#ff6600;font-size:0.8em;margin-bottom:8px;">Features + Labels for training:</p>' + buildMLTable(trainingData, ["feature1", "feature2", "feature3", "label"]);
+                            break;
+                        case 2:
+                            panel.querySelector("h3").textContent = "AutoML: Auto Feature Engineering";
+                            container.innerHTML = buildMLTable(trainingData, ["feature1", "feature2", "feature3", "label"]);
+                            break;
+                        case 3:
+                            panel.querySelector("h3").textContent = "Custom Training: Model Learning";
+                            container.innerHTML = buildMLTable(trainingData, ["feature1", "feature2", "feature3", "label"]);
+                            break;
+                        case 4:
+                            panel.querySelector("h3").textContent = "Model Registry: Trained Model";
+                            container.innerHTML = '<p style="color:#00ff00;font-size:0.8em;margin-bottom:8px;">Model ready for deployment</p>' + buildMLTable(trainingData.slice(0, 3), ["feature1", "feature2", "feature3", "label"]);
+                            break;
+                        case 5:
+                            panel.querySelector("h3").textContent = "Endpoint: Predictions";
+                            container.innerHTML = '<p style="color:#ffff00;font-size:0.8em;margin-bottom:8px;">Real-time predictions:</p>' + buildMLTable(predictionData, ["feature1", "feature2", "feature3", "predicted", "confidence"]);
+                            break;
+                    }
+                }
+
+                        function updateStep() {
+                    var step = steps[currentStep];
+                    document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+                    document.getElementById("step-title").textContent = step.title;
+                    document.getElementById("step-description").innerHTML = step.description;
+                    document.getElementById("step-detail").innerHTML = step.detail;
+                    document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+                    document.getElementById("prev-btn").disabled = currentStep === 0;
+                    document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+                    animateCamera(step.cameraPos, step.cameraTarget);
+                    updateDataTableForStep(currentStep);
+                }
+
+                function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+                function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+                function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); modelCount = 0; }
 
         function animateCamera(targetPos, targetLookAt) {
             var startPos = camera.position.clone();

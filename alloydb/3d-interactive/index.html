@@ -41,6 +41,14 @@
         #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #4285f4; border-right: 4px solid #00ff00; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #data-table-panel { position: absolute; bottom: 220px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #4285f4; border-radius: 15px; padding: 15px; max-width: 400px; min-width: 360px; z-index: 100; max-height: 220px; overflow-y: auto; }
+        #data-table-panel h3 { color: #4285f4; margin-bottom: 10px; font-size: 0.95em; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.72em; font-family: 'Consolas', 'Monaco', monospace; }
+        .data-table th { background: rgba(66,133,244,0.2); color: #4285f4; padding: 5px 6px; text-align: left; border-bottom: 2px solid #4285f4; }
+        .data-table td { padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ccc; }
+        .data-table tr.highlight { background: rgba(0,255,0,0.2); }
+        .data-table .pk { color: #00ff00; }
+        .data-table .numeric { color: #00ffff; }
     </style>
 </head>
 <body>
@@ -83,6 +91,10 @@
         <div class="metric-row"><span class="metric-label">Latency:</span><span class="metric-value" id="latency">0 ms</span></div>
         <div class="metric-row"><span class="metric-label">Cache Hit:</span><span class="metric-value" id="cache">0%</span></div>
     </div>
+    <div id="data-table-panel">
+        <h3>Table: accounts</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
@@ -92,6 +104,20 @@
         var autoPlayInterval = null;
         var primary, readPool = [], storage, analytics, cache;
         var tps = 0, qps = 0;
+
+        var accountsData = [
+            { id: 1001, name: "Acme Corp", balance: 125000.50, region: "US-West" },
+            { id: 1002, name: "Global Ltd", balance: 89500.25, region: "EU-Central" },
+            { id: 1003, name: "Tech Inc", balance: 245000.00, region: "US-East" },
+            { id: 1004, name: "Data Co", balance: 67800.75, region: "Asia-Pacific" }
+        ];
+
+        var analyticsResults = [
+            { region: "US-West", total_balance: 125000.50, account_count: 1 },
+            { region: "EU-Central", total_balance: 89500.25, account_count: 1 },
+            { region: "US-East", total_balance: 245000.00, account_count: 1 },
+            { region: "Asia-Pacific", total_balance: 67800.75, account_count: 1 }
+        ];
 
         var steps = [
             { title: "Welcome to AlloyDB!", description: "AlloyDB is a <strong>fully managed PostgreSQL-compatible</strong> database. It's 4x faster for transactions and 100x faster for analytics than standard PostgreSQL!", detail: "AlloyDB is 4x faster than standard PostgreSQL for transactional workloads!", highlight: [], cameraPos: { x: 25, y: 18, z: 25 }, cameraTarget: { x: 0, y: 0, z: 0 } },
@@ -180,30 +206,85 @@
             setTimeout(function() { primary.material.emissiveIntensity = 0.4; }, 300);
         }
 
-        function runAnalytics() {
-            qps += Math.floor(Math.random() * 1000) + 500;
-            document.getElementById("qps").textContent = qps;
-            document.getElementById("latency").textContent = Math.floor(Math.random() * 50 + 10) + " ms";
-            analytics.material.emissiveIntensity = 0.9;
-            storage.material.emissiveIntensity = 0.5;
-            setTimeout(function() { analytics.material.emissiveIntensity = 0.4; storage.material.emissiveIntensity = 0.2; }, 500);
-        }
+                function runAnalytics() {
+                    qps += Math.floor(Math.random() * 1000) + 500;
+                    document.getElementById("qps").textContent = qps;
+                    document.getElementById("latency").textContent = Math.floor(Math.random() * 50 + 10) + " ms";
+                    analytics.material.emissiveIntensity = 0.9;
+                    storage.material.emissiveIntensity = 0.5;
+                    setTimeout(function() { analytics.material.emissiveIntensity = 0.4; storage.material.emissiveIntensity = 0.2; }, 500);
+                }
 
-        function updateStep() {
-            var step = steps[currentStep];
-            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
-            document.getElementById("step-title").textContent = step.title;
-            document.getElementById("step-description").innerHTML = step.description;
-            document.getElementById("step-detail").innerHTML = step.detail;
-            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
-            document.getElementById("prev-btn").disabled = currentStep === 0;
-            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
-            animateCamera(step.cameraPos, step.cameraTarget);
-        }
+                function buildAlloyTable(data, columns) {
+                    var html = '<table class="data-table"><thead><tr>';
+                    columns.forEach(function(col) { html += '<th>' + col + '</th>'; });
+                    html += '</tr></thead><tbody>';
+                    data.forEach(function(row) {
+                        html += '<tr>';
+                        columns.forEach(function(col) {
+                            var key = col.toLowerCase().replace('_', '_');
+                            var val = row[key];
+                            if (key === 'id') {
+                                html += '<td class="pk">' + val + '</td>';
+                            } else if (typeof val === 'number') {
+                                html += '<td class="numeric">' + val.toLocaleString() + '</td>';
+                            } else {
+                                html += '<td>' + val + '</td>';
+                            }
+                        });
+                        html += '</tr>';
+                    });
+                    html += '</tbody></table>';
+                    return html;
+                }
 
-        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
-        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
-        function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); tps = 0; qps = 0; }
+                function updateDataTableForStep(step) {
+                    var container = document.getElementById("data-table-container");
+                    var panel = document.getElementById("data-table-panel");
+                    switch(step) {
+                        case 0:
+                            panel.querySelector("h3").textContent = "Table: accounts";
+                            container.innerHTML = buildAlloyTable(accountsData, ["id", "name", "balance", "region"]);
+                            break;
+                        case 1:
+                            panel.querySelector("h3").textContent = "Primary: Write Operations";
+                            container.innerHTML = '<p style="color:#4285f4;font-size:0.8em;margin-bottom:8px;">INSERT/UPDATE handled by primary:</p>' + buildAlloyTable(accountsData, ["id", "name", "balance"]);
+                            break;
+                        case 2:
+                            panel.querySelector("h3").textContent = "Read Pool: SELECT Queries";
+                            container.innerHTML = '<p style="color:#00ff00;font-size:0.8em;margin-bottom:8px;">Read replicas serve queries:</p>' + buildAlloyTable(accountsData, ["id", "name", "balance", "region"]);
+                            break;
+                        case 3:
+                            panel.querySelector("h3").textContent = "Distributed Storage";
+                            container.innerHTML = buildAlloyTable(accountsData, ["id", "name", "balance", "region"]);
+                            break;
+                        case 4:
+                            panel.querySelector("h3").textContent = "Columnar Analytics: GROUP BY";
+                            container.innerHTML = '<p style="color:#ff00ff;font-size:0.8em;margin-bottom:8px;">100x faster analytics:</p>' + buildAlloyTable(analyticsResults, ["region", "total_balance", "account_count"]);
+                            break;
+                        case 5:
+                            panel.querySelector("h3").textContent = "Cache: Hot Data";
+                            container.innerHTML = buildAlloyTable(accountsData, ["id", "name", "balance", "region"]);
+                            break;
+                    }
+                }
+
+                        function updateStep() {
+                    var step = steps[currentStep];
+                    document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+                    document.getElementById("step-title").textContent = step.title;
+                    document.getElementById("step-description").innerHTML = step.description;
+                    document.getElementById("step-detail").innerHTML = step.detail;
+                    document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+                    document.getElementById("prev-btn").disabled = currentStep === 0;
+                    document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+                    animateCamera(step.cameraPos, step.cameraTarget);
+                    updateDataTableForStep(currentStep);
+                }
+
+                function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+                function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+                function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); tps = 0; qps = 0; }
 
         function animateCamera(targetPos, targetLookAt) {
             var startPos = camera.position.clone();

@@ -41,6 +41,14 @@
         #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #ffcc00; border-right: 4px solid #ff6600; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #data-table-panel { position: absolute; bottom: 220px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #ffcc00; border-radius: 15px; padding: 15px; max-width: 400px; min-width: 360px; z-index: 100; max-height: 220px; overflow-y: auto; }
+        #data-table-panel h3 { color: #ffcc00; margin-bottom: 10px; font-size: 0.95em; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.72em; font-family: 'Consolas', 'Monaco', monospace; }
+        .data-table th { background: rgba(255,204,0,0.2); color: #ffcc00; padding: 5px 6px; text-align: left; border-bottom: 2px solid #ffcc00; }
+        .data-table td { padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ccc; }
+        .data-table tr.highlight { background: rgba(255,102,0,0.2); }
+        .data-table .docid { color: #ff6600; }
+        .data-table .field { color: #00ffff; }
     </style>
 </head>
 <body>
@@ -83,6 +91,10 @@
         <div class="metric-row"><span class="metric-label">Writes:</span><span class="metric-value" id="writes">0</span></div>
         <div class="metric-row"><span class="metric-label">Latency:</span><span class="metric-value" id="latency">0 ms</span></div>
     </div>
+    <div id="data-table-panel">
+        <h3>Collection: users</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
@@ -92,6 +104,19 @@
         var autoPlayInterval = null;
         var collections = [], documents = [];
         var docCount = 0, readCount = 0, writeCount = 0;
+
+        var firestoreData = [
+            { doc_id: "user_001", name: "Alice", email: "alice@ex.com", age: 28 },
+            { doc_id: "user_002", name: "Bob", email: "bob@ex.com", age: 34 },
+            { doc_id: "user_003", name: "Carol", email: "carol@ex.com", age: 25 },
+            { doc_id: "user_004", name: "David", email: "david@ex.com", age: 42 }
+        ];
+
+        var ordersData = [
+            { doc_id: "order_001", user_id: "user_001", total: 150.00, status: "shipped" },
+            { doc_id: "order_002", user_id: "user_002", total: 89.99, status: "pending" },
+            { doc_id: "order_003", user_id: "user_001", total: 245.50, status: "delivered" }
+        ];
 
         var steps = [
             { title: "Welcome to Firestore!", description: "Firestore is a <strong>NoSQL document database</strong> that stores data in flexible, JSON-like documents. It's perfect for mobile and web apps with real-time sync!", detail: "Firestore syncs data in real-time across all connected clients - changes appear instantly!", highlight: [], cameraPos: { x: 25, y: 18, z: 25 }, cameraTarget: { x: 0, y: 0, z: 0 } },
@@ -174,29 +199,85 @@
             });
         }
 
-        function createGrid() {
-            var grid = new THREE.GridHelper(50, 50, 0xffcc00, 0x1a1a2e);
-            grid.position.y = -5;
-            grid.material.opacity = 0.25;
-            grid.material.transparent = true;
-            scene.add(grid);
-        }
+                function createGrid() {
+                    var grid = new THREE.GridHelper(50, 50, 0xffcc00, 0x1a1a2e);
+                    grid.position.y = -5;
+                    grid.material.opacity = 0.25;
+                    grid.material.transparent = true;
+                    scene.add(grid);
+                }
 
-        function updateStep() {
-            var step = steps[currentStep];
-            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
-            document.getElementById("step-title").textContent = step.title;
-            document.getElementById("step-description").innerHTML = step.description;
-            document.getElementById("step-detail").innerHTML = step.detail;
-            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
-            document.getElementById("prev-btn").disabled = currentStep === 0;
-            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
-            animateCamera(step.cameraPos, step.cameraTarget);
-        }
+                function buildDocTable(data, columns) {
+                    var html = '<table class="data-table"><thead><tr>';
+                    columns.forEach(function(col) { html += '<th>' + col + '</th>'; });
+                    html += '</tr></thead><tbody>';
+                    data.forEach(function(row) {
+                        html += '<tr>';
+                        columns.forEach(function(col) {
+                            var key = col.toLowerCase().replace('_', '_');
+                            var val = row[key];
+                            if (key === 'doc_id') {
+                                html += '<td class="docid">' + val + '</td>';
+                            } else if (typeof val === 'number') {
+                                html += '<td class="field">' + val + '</td>';
+                            } else {
+                                html += '<td>' + val + '</td>';
+                            }
+                        });
+                        html += '</tr>';
+                    });
+                    html += '</tbody></table>';
+                    return html;
+                }
 
-        function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
-        function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
-        function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); }
+                function updateDataTableForStep(step) {
+                    var container = document.getElementById("data-table-container");
+                    var panel = document.getElementById("data-table-panel");
+                    switch(step) {
+                        case 0:
+                            panel.querySelector("h3").textContent = "Collection: users";
+                            container.innerHTML = buildDocTable(firestoreData, ["doc_id", "name", "email", "age"]);
+                            break;
+                        case 1:
+                            panel.querySelector("h3").textContent = "Collections Overview";
+                            container.innerHTML = '<p style="color:#ffcc00;font-size:0.8em;margin-bottom:8px;">users, orders, products collections:</p>' + buildDocTable(firestoreData, ["doc_id", "name", "email"]);
+                            break;
+                        case 2:
+                            panel.querySelector("h3").textContent = "Document: users/user_001";
+                            container.innerHTML = '<p style="color:#ff6600;font-size:0.8em;margin-bottom:8px;">JSON-like document structure:</p>' + buildDocTable([firestoreData[0]], ["doc_id", "name", "email", "age"]);
+                            break;
+                        case 3:
+                            panel.querySelector("h3").textContent = "Subcollection: users/user_001/orders";
+                            container.innerHTML = '<p style="color:#00ffff;font-size:0.8em;margin-bottom:8px;">Orders for user_001:</p>' + buildDocTable(ordersData.filter(function(o) { return o.user_id === "user_001"; }), ["doc_id", "total", "status"]);
+                            break;
+                        case 4:
+                            panel.querySelector("h3").textContent = "Query: WHERE age > 25";
+                            var filtered = firestoreData.filter(function(u) { return u.age > 25; });
+                            container.innerHTML = '<p style="color:#00ff00;font-size:0.8em;margin-bottom:8px;">Filtered results:</p>' + buildDocTable(filtered, ["doc_id", "name", "age"]);
+                            break;
+                        case 5:
+                            panel.querySelector("h3").textContent = "Real-Time Listener";
+                            container.innerHTML = buildDocTable(firestoreData, ["doc_id", "name", "email", "age"]);
+                            break;
+                    }
+                }
+
+                        function updateStep() {
+                    var step = steps[currentStep];
+                    document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+                    document.getElementById("step-title").textContent = step.title;
+                    document.getElementById("step-description").innerHTML = step.description;
+                    document.getElementById("step-detail").innerHTML = step.detail;
+                    document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+                    document.getElementById("prev-btn").disabled = currentStep === 0;
+                    document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+                    animateCamera(step.cameraPos, step.cameraTarget);
+                    updateDataTableForStep(currentStep);
+                }
+
+                function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
+                function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
+                function resetVisualization() { currentStep = 0; stopAutoPlay(); updateStep(); }
 
         function animateCamera(targetPos, targetLookAt) {
             var startPos = camera.position.clone();

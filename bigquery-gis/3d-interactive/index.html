@@ -41,6 +41,14 @@
         #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 300; }
         .loader { width: 70px; height: 70px; border: 4px solid #333; border-top: 4px solid #4caf50; border-right: 4px solid #2196f3; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #data-table-panel { position: absolute; bottom: 220px; right: 20px; background: rgba(0,0,0,0.95); border: 2px solid #4caf50; border-radius: 15px; padding: 15px; max-width: 400px; min-width: 360px; z-index: 100; max-height: 220px; overflow-y: auto; }
+        #data-table-panel h3 { color: #4caf50; margin-bottom: 10px; font-size: 0.95em; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.72em; font-family: 'Consolas', 'Monaco', monospace; }
+        .data-table th { background: rgba(76,175,80,0.2); color: #4caf50; padding: 5px 6px; text-align: left; border-bottom: 2px solid #4caf50; }
+        .data-table td { padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ccc; }
+        .data-table tr.highlight { background: rgba(33,150,243,0.2); }
+        .data-table .geo { color: #2196f3; }
+        .data-table .distance { color: #ff00ff; }
     </style>
 </head>
 <body>
@@ -83,6 +91,10 @@
         <div class="metric-row"><span class="metric-label">Area:</span><span class="metric-value" id="area">0 km²</span></div>
         <div class="metric-row"><span class="metric-label">Query Time:</span><span class="metric-value" id="time">0 s</span></div>
     </div>
+    <div id="data-table-panel">
+        <h3>GIS Data: locations</h3>
+        <div id="data-table-container"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
@@ -91,6 +103,20 @@
         var isAutoPlaying = false;
         var autoPlayInterval = null;
         var globe, points = [], polygons = [], lines = [];
+
+        var gisData = [
+            { id: "LOC001", name: "San Francisco", lat: 37.7749, lng: -122.4194, type: "city" },
+            { id: "LOC002", name: "Los Angeles", lat: 34.0522, lng: -118.2437, type: "city" },
+            { id: "LOC003", name: "Seattle", lat: 47.6062, lng: -122.3321, type: "city" },
+            { id: "LOC004", name: "Store A", lat: 37.7849, lng: -122.4094, type: "store" },
+            { id: "LOC005", name: "Store B", lat: 37.7649, lng: -122.4294, type: "store" }
+        ];
+
+        var distanceResults = [
+            { from: "San Francisco", to: "Los Angeles", distance: "559.1 km" },
+            { from: "San Francisco", to: "Seattle", distance: "1,092.4 km" },
+            { from: "Store A", to: "Store B", distance: "2.8 km" }
+        ];
 
         var steps = [
             { title: "Welcome to BigQuery GIS!", description: "BigQuery GIS lets you analyze <strong>geospatial data at scale</strong>. Work with billions of location points using familiar SQL syntax!", detail: "BigQuery GIS uses the GEOGRAPHY data type for spatial data.", highlight: [], cameraPos: { x: 30, y: 20, z: 30 }, cameraTarget: { x: 0, y: 0, z: 0 } },
@@ -193,24 +219,80 @@
             });
         }
 
-        function calculateDistance() {
-            var dist = (Math.random() * 500 + 50).toFixed(1);
-            document.getElementById("distance").textContent = dist + " km";
-            document.getElementById("area").textContent = (Math.random() * 1000 + 100).toFixed(0) + " km²";
-            document.getElementById("time").textContent = (Math.random() * 1 + 0.2).toFixed(1) + " s";
-        }
+                function calculateDistance() {
+                    var dist = (Math.random() * 500 + 50).toFixed(1);
+                    document.getElementById("distance").textContent = dist + " km";
+                    document.getElementById("area").textContent = (Math.random() * 1000 + 100).toFixed(0) + " km²";
+                    document.getElementById("time").textContent = (Math.random() * 1 + 0.2).toFixed(1) + " s";
+                }
 
-        function updateStep() {
-            var step = steps[currentStep];
-            document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
-            document.getElementById("step-title").textContent = step.title;
-            document.getElementById("step-description").innerHTML = step.description;
-            document.getElementById("step-detail").innerHTML = step.detail;
-            document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
-            document.getElementById("prev-btn").disabled = currentStep === 0;
-            document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
-            animateCamera(step.cameraPos, step.cameraTarget);
-        }
+                function buildGISTable(data, columns, highlightType) {
+                    var html = '<table class="data-table"><thead><tr>';
+                    columns.forEach(function(col) { html += '<th>' + col + '</th>'; });
+                    html += '</tr></thead><tbody>';
+                    data.forEach(function(row) {
+                        var cls = highlightType && row.type === highlightType ? ' class="highlight"' : '';
+                        html += '<tr' + cls + '>';
+                        columns.forEach(function(col) {
+                            var key = col.toLowerCase().replace(' ', '_');
+                            if (key === 'lat' || key === 'lng') {
+                                html += '<td class="geo">' + row[key] + '</td>';
+                            } else if (key === 'distance') {
+                                html += '<td class="distance">' + row[key] + '</td>';
+                            } else {
+                                html += '<td>' + (row[key] || row[col.toLowerCase()] || '') + '</td>';
+                            }
+                        });
+                        html += '</tr>';
+                    });
+                    html += '</tbody></table>';
+                    return html;
+                }
+
+                function updateDataTableForStep(step) {
+                    var container = document.getElementById("data-table-container");
+                    var panel = document.getElementById("data-table-panel");
+                    switch(step) {
+                        case 0:
+                            panel.querySelector("h3").textContent = "GIS Data: locations";
+                            container.innerHTML = buildGISTable(gisData, ["id", "name", "lat", "lng", "type"], null);
+                            break;
+                        case 1:
+                            panel.querySelector("h3").textContent = "GEOGRAPHY Points";
+                            container.innerHTML = '<p style="color:#4caf50;font-size:0.8em;margin-bottom:8px;">ST_GEOGPOINT(lng, lat) creates points:</p>' + buildGISTable(gisData, ["name", "lat", "lng"], null);
+                            break;
+                        case 2:
+                            panel.querySelector("h3").textContent = "ST_DISTANCE Results";
+                            container.innerHTML = '<p style="color:#2196f3;font-size:0.8em;margin-bottom:8px;">Distance calculations:</p>' + buildGISTable(distanceResults, ["from", "to", "distance"], null);
+                            break;
+                        case 3:
+                            panel.querySelector("h3").textContent = "ST_DWITHIN: Nearby Stores";
+                            var nearby = gisData.filter(function(r) { return r.type === "store"; });
+                            container.innerHTML = '<p style="color:#ff00ff;font-size:0.8em;margin-bottom:8px;">Stores within 5km of San Francisco:</p>' + buildGISTable(nearby, ["name", "lat", "lng", "type"], "store");
+                            break;
+                        case 4:
+                            panel.querySelector("h3").textContent = "ST_CONTAINS: Points in Polygon";
+                            container.innerHTML = '<p style="color:#2196f3;font-size:0.8em;margin-bottom:8px;">Points inside California boundary:</p>' + buildGISTable(gisData.slice(0, 3), ["name", "lat", "lng", "type"], "city");
+                            break;
+                        case 5:
+                            panel.querySelector("h3").textContent = "Public GIS Datasets";
+                            container.innerHTML = buildGISTable(gisData, ["id", "name", "lat", "lng", "type"], null);
+                            break;
+                    }
+                }
+
+                        function updateStep() {
+                    var step = steps[currentStep];
+                    document.getElementById("step-indicator").textContent = "STEP " + (currentStep + 1) + " OF " + steps.length;
+                    document.getElementById("step-title").textContent = step.title;
+                    document.getElementById("step-description").innerHTML = step.description;
+                    document.getElementById("step-detail").innerHTML = step.detail;
+                    document.getElementById("progress-fill").style.width = ((currentStep + 1) / steps.length * 100) + "%";
+                    document.getElementById("prev-btn").disabled = currentStep === 0;
+                    document.getElementById("next-btn").textContent = currentStep === steps.length - 1 ? "Restart" : "Next";
+                    animateCamera(step.cameraPos, step.cameraTarget);
+                    updateDataTableForStep(currentStep);
+                }
 
         function nextStep() { currentStep = currentStep < steps.length - 1 ? currentStep + 1 : 0; updateStep(); }
         function previousStep() { if (currentStep > 0) { currentStep--; updateStep(); } }
