@@ -1,0 +1,117 @@
+# GCP Data Engineering 360° - Git Ignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# Allow devcontainer
+!.devcontainer/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# GCP Credentials (NEVER commit these!)
+*.json
+!package.json
+!tsconfig.json
+service-account*.json
+credentials*.json
+*-key.json
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform.lock.hcl
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Data files (too large for git)
+data/raw/
+data/processed/
+*.csv
+*.parquet
+*.avro
+!**/sample*.csv
+
+# Output files
+outputs/
+*.html.bak
+
+# Node modules (for 3D visualizations)
+node_modules/
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# pytest
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp

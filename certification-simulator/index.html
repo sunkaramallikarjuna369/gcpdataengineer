@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GCP Data Engineer Certification Simulator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 1px solid #333;
+            margin-bottom: 30px;
+        }
+        
+        header h1 {
+            font-size: 2em;
+            background: linear-gradient(90deg, #4285f4, #00ffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            color: #888;
+        }
+        
+        .stats-bar {
+            display: flex;
+            justify-content: space-around;
+            background: rgba(66,133,244,0.1);
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            color: #4285f4;
+            font-weight: bold;
+        }
+        
+        .stat-label {
+            color: #888;
+            font-size: 0.9em;
+        }
+        
+        .question-card {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid #333;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+        
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .question-number {
+            background: #4285f4;
+            color: #fff;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+        
+        .question-category {
+            color: #888;
+            font-size: 0.9em;
+        }
+        
+        .question-text {
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+        
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .option {
+            background: rgba(255,255,255,0.05);
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 15px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .option:hover {
+            border-color: #4285f4;
+            background: rgba(66,133,244,0.1);
+        }
+        
+        .option.selected {
+            border-color: #4285f4;
+            background: rgba(66,133,244,0.2);
+        }
+        
+        .option.correct {
+            border-color: #34a853;
+            background: rgba(52,168,83,0.2);
+        }
+        
+        .option.incorrect {
+            border-color: #ea4335;
+            background: rgba(234,67,53,0.2);
+        }
+        
+        .option-letter {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        .explanation {
+            background: rgba(66,133,244,0.1);
+            border-left: 4px solid #4285f4;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 0 10px 10px 0;
+            display: none;
+        }
+        
+        .explanation.show {
+            display: block;
+        }
+        
+        .explanation h4 {
+            color: #4285f4;
+            margin-bottom: 10px;
+        }
+        
+        .btn-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border-radius: 25px;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(90deg, #4285f4, #00bcd4);
+            color: #fff;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(66,133,244,0.4);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: #4285f4;
+            border: 2px solid #4285f4;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(66,133,244,0.1);
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4285f4, #00bcd4);
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+        
+        .results {
+            text-align: center;
+            padding: 50px;
+            display: none;
+        }
+        
+        .results.show {
+            display: block;
+        }
+        
+        .results h2 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+        
+        .score-circle {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            border: 10px solid #4285f4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 30px auto;
+            font-size: 3em;
+            font-weight: bold;
+        }
+        
+        .score-circle.pass {
+            border-color: #34a853;
+            color: #34a853;
+        }
+        
+        .score-circle.fail {
+            border-color: #ea4335;
+            color: #ea4335;
+        }
+        
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .filter-btn {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid #333;
+            background: transparent;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .filter-btn:hover, .filter-btn.active {
+            border-color: #4285f4;
+            color: #4285f4;
+            background: rgba(66,133,244,0.1);
+        }
+        
+        @media (max-width: 768px) {
+            .stats-bar { flex-direction: column; gap: 20px; }
+            .btn-container { flex-direction: column; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>GCP Professional Data Engineer</h1>
+            <p>Certification Exam Simulator - 100+ Practice Questions</p>
+        </header>
+        
+        <div class="stats-bar">
+            <div class="stat">
+                <div class="stat-value" id="current-question">1</div>
+                <div class="stat-label">Question</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="correct-count">0</div>
+                <div class="stat-label">Correct</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="incorrect-count">0</div>
+                <div class="stat-label">Incorrect</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="score-percent">0%</div>
+                <div class="stat-label">Score</div>
+            </div>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+        </div>
+        
+        <div class="filter-buttons">
+            <button class="filter-btn active" onclick="filterQuestions('all')">All Topics</button>
+            <button class="filter-btn" onclick="filterQuestions('bigquery')">BigQuery</button>
+            <button class="filter-btn" onclick="filterQuestions('dataflow')">Dataflow</button>
+            <button class="filter-btn" onclick="filterQuestions('pubsub')">Pub/Sub</button>
+            <button class="filter-btn" onclick="filterQuestions('storage')">Storage</button>
+            <button class="filter-btn" onclick="filterQuestions('security')">Security</button>
+            <button class="filter-btn" onclick="filterQuestions('ml')">ML/AI</button>
+        </div>
+        
+        <div id="quiz-container">
+            <div class="question-card" id="question-card">
+                <div class="question-header">
+                    <span class="question-number" id="question-num">Question 1 of 100</span>
+                    <span class="question-category" id="question-cat">BigQuery</span>
+                </div>
+                <div class="question-text" id="question-text"></div>
+                <div class="options" id="options"></div>
+                <div class="explanation" id="explanation">
+                    <h4>Explanation</h4>
+                    <p id="explanation-text"></p>
+                </div>
+            </div>
+            
+            <div class="btn-container">
+                <button class="btn btn-secondary" onclick="prevQuestion()">Previous</button>
+                <button class="btn btn-primary" id="next-btn" onclick="nextQuestion()">Next Question</button>
+            </div>
+        </div>
+        
+        <div class="results" id="results">
+            <h2>Exam Complete!</h2>
+            <div class="score-circle" id="final-score"></div>
+            <p id="result-message"></p>
+            <button class="btn btn-primary" onclick="restartQuiz()" style="margin-top: 30px;">Try Again</button>
+            <a href="../index.html" class="btn btn-secondary" style="margin-top: 10px; display: inline-block; text-decoration: none;">Back to Home</a>
+        </div>
+    </div>
+    
+    <script>
+        const questions = [
+            // BigQuery Questions (20)
+            {
+                category: "bigquery",
+                question: "You need to optimize a BigQuery table that is frequently queried by date range and customer_id. The table contains 5 years of data. What is the best approach?",
+                options: [
+                    "Partition by ingestion time and cluster by customer_id",
+                    "Partition by date column and cluster by customer_id",
+                    "Create a materialized view grouped by date and customer_id",
+                    "Use BigQuery BI Engine for caching"
+                ],
+                correct: 1,
+                explanation: "Partitioning by the date column allows BigQuery to scan only relevant partitions when filtering by date. Clustering by customer_id further optimizes queries that filter on that column within partitions."
+            },
+            {
+                category: "bigquery",
+                question: "What is the maximum size of a single row in BigQuery?",
+                options: ["10 MB", "100 MB", "1 GB", "No limit"],
+                correct: 1,
+                explanation: "BigQuery has a maximum row size limit of 100 MB. This includes all columns and nested/repeated fields in the row."
+            },
+            {
+                category: "bigquery",
+                question: "You want to reduce BigQuery costs for a dashboard that runs the same queries repeatedly. What should you use?",
+                options: [
+                    "Flat-rate pricing",
+                    "BI Engine",
+                    "Materialized views",
+                    "Both B and C"
+                ],
+                correct: 3,
+                explanation: "Both BI Engine (for caching query results) and materialized views (for pre-computing aggregations) can reduce costs for repeated queries. BI Engine provides sub-second responses, while materialized views reduce data scanned."
+            },
+            {
+                category: "bigquery",
+                question: "Which BigQuery feature allows you to query data stored in Cloud Storage without loading it?",
+                options: [
+                    "Federated queries",
+                    "External tables",
+                    "BigLake",
+                    "All of the above"
+                ],
+                correct: 3,
+                explanation: "External tables, federated queries, and BigLake all allow querying data in Cloud Storage. BigLake adds fine-grained access control and performance optimizations."
+            },
+            {
+                category: "bigquery",
+                question: "What happens when you run a DML statement (INSERT, UPDATE, DELETE) on a partitioned table in BigQuery?",
+                options: [
+                    "The entire table is rewritten",
+                    "Only affected partitions are modified",
+                    "A new table version is created",
+                    "The operation fails without explicit partition specification"
+                ],
+                correct: 1,
+                explanation: "BigQuery DML operations on partitioned tables only affect the relevant partitions, making them more efficient than operating on the entire table."
+            },
+            {
+                category: "bigquery",
+                question: "You need to implement row-level security in BigQuery. Which approach should you use?",
+                options: [
+                    "Create separate tables for each user",
+                    "Use authorized views with SESSION_USER()",
+                    "Implement column-level security with policy tags",
+                    "Use VPC Service Controls"
+                ],
+                correct: 1,
+                explanation: "Authorized views with SESSION_USER() function allow you to filter rows based on the querying user's identity, implementing row-level security without duplicating data."
+            },
+            {
+                category: "bigquery",
+                question: "What is the purpose of BigQuery slots?",
+                options: [
+                    "Storage allocation units",
+                    "Virtual CPUs for query processing",
+                    "Network bandwidth allocation",
+                    "Memory allocation units"
+                ],
+                correct: 1,
+                explanation: "BigQuery slots are virtual CPUs used to execute SQL queries. More slots generally mean faster query execution. You can purchase flat-rate slots for predictable pricing."
+            },
+            {
+                category: "bigquery",
+                question: "Which statement about BigQuery streaming inserts is TRUE?",
+                options: [
+                    "Data is immediately available for querying",
+                    "Streaming inserts are free",
+                    "There is no quota limit on streaming inserts",
+                    "Streaming data can be modified immediately after insert"
+                ],
+                correct: 0,
+                explanation: "Streaming inserts make data available for querying within seconds. However, they have costs, quotas, and a brief buffer period before data can be modified."
+            },
+            {
+                category: "bigquery",
+                question: "You need to schedule a BigQuery query to run daily. What is the recommended approach?",
+                options: [
+                    "Use Cloud Scheduler with Cloud Functions",
+                    "Use BigQuery scheduled queries",
+                    "Use Cloud Composer",
+                    "Any of the above depending on complexity"
+                ],
+                correct: 3,
+                explanation: "For simple scheduled queries, BigQuery's built-in scheduled queries work well. For complex workflows with dependencies, Cloud Composer is better. Cloud Scheduler with Functions offers flexibility for custom logic."
+            },
+            {
+                category: "bigquery",
+                question: "What is the best way to load data from Cloud Storage to BigQuery for a one-time migration?",
+                options: [
+                    "Streaming inserts",
+                    "bq load command or BigQuery Data Transfer Service",
+                    "Dataflow pipeline",
+                    "Cloud Functions"
+                ],
+                correct: 1,
+                explanation: "For one-time batch loads, the bq load command or BigQuery Data Transfer Service is most efficient. Streaming inserts are for real-time data, and Dataflow is better for transformations."
+            },
+            {
+                category: "bigquery",
+                question: "Which BigQuery ML model type would you use for customer churn prediction?",
+                options: [
+                    "LINEAR_REG",
+                    "LOGISTIC_REG",
+                    "KMEANS",
+                    "ARIMA_PLUS"
+                ],
+                correct: 1,
+                explanation: "Churn prediction is a binary classification problem (will churn or won't churn), making LOGISTIC_REG the appropriate model type. LINEAR_REG is for continuous values, KMEANS for clustering, and ARIMA for time series."
+            },
+            {
+                category: "bigquery",
+                question: "What is the purpose of the INFORMATION_SCHEMA in BigQuery?",
+                options: [
+                    "Store user credentials",
+                    "Query metadata about datasets, tables, and jobs",
+                    "Configure BigQuery settings",
+                    "Store query results cache"
+                ],
+                correct: 1,
+                explanation: "INFORMATION_SCHEMA provides metadata views about BigQuery resources including tables, columns, jobs, and more. It's useful for monitoring, auditing, and administration."
+            },
+            {
+                category: "bigquery",
+                question: "You need to ensure that a BigQuery query doesn't scan more than 1 TB of data. What should you do?",
+                options: [
+                    "Set a query timeout",
+                    "Use the maximum_bytes_billed parameter",
+                    "Use LIMIT clause",
+                    "Create a smaller table"
+                ],
+                correct: 1,
+                explanation: "The maximum_bytes_billed parameter causes queries to fail if they would scan more than the specified amount, preventing unexpected costs."
+            },
+            {
+                category: "bigquery",
+                question: "Which feature allows BigQuery to automatically optimize storage by converting row-oriented data to columnar format?",
+                options: [
+                    "Capacitor",
+                    "Dremel",
+                    "Colossus",
+                    "Jupiter"
+                ],
+                correct: 0,
+                explanation: "Capacitor is BigQuery's columnar storage format that automatically optimizes data storage. Dremel is the query engine, Colossus is the distributed file system, and Jupiter is the network."
+            },
+            {
+                category: "bigquery",
+                question: "What is the default expiration time for BigQuery query results cache?",
+                options: [
+                    "1 hour",
+                    "24 hours",
+                    "7 days",
+                    "Results are cached indefinitely"
+                ],
+                correct: 1,
+                explanation: "BigQuery caches query results for 24 hours by default. Cached results are returned at no charge if the underlying tables haven't changed."
+            },
+            {
+                category: "bigquery",
+                question: "You need to create a BigQuery table that automatically expires after 90 days. How do you configure this?",
+                options: [
+                    "Set partition expiration",
+                    "Set table expiration",
+                    "Use Cloud Scheduler to delete the table",
+                    "Configure lifecycle policy"
+                ],
+                correct: 1,
+                explanation: "Table expiration can be set when creating a table or modified later. The table is automatically deleted after the specified time, useful for temporary or staging tables."
+            },
+            {
+                category: "bigquery",
+                question: "Which SQL function in BigQuery is used to parse JSON strings?",
+                options: [
+                    "PARSE_JSON()",
+                    "JSON_EXTRACT()",
+                    "JSON_VALUE()",
+                    "Both B and C"
+                ],
+                correct: 3,
+                explanation: "Both JSON_EXTRACT() and JSON_VALUE() can parse JSON strings. JSON_VALUE returns a scalar value, while JSON_EXTRACT can return complex JSON types."
+            },
+            {
+                category: "bigquery",
+                question: "What is the purpose of BigQuery Omni?",
+                options: [
+                    "Query data across multiple GCP projects",
+                    "Query data stored in AWS S3 or Azure Blob Storage",
+                    "Optimize query performance",
+                    "Manage BigQuery reservations"
+                ],
+                correct: 1,
+                explanation: "BigQuery Omni allows you to run BigQuery analytics on data stored in AWS S3 or Azure Blob Storage without moving the data, enabling multi-cloud analytics."
+            },
+            {
+                category: "bigquery",
+                question: "Which approach provides the best performance for joining a large fact table with a small dimension table in BigQuery?",
+                options: [
+                    "Use a broadcast join hint",
+                    "BigQuery automatically optimizes this",
+                    "Pre-join the tables into a denormalized table",
+                    "Use a hash join hint"
+                ],
+                correct: 1,
+                explanation: "BigQuery's query optimizer automatically chooses the best join strategy, including broadcast joins for small tables. Manual hints are rarely needed."
+            },
+            {
+                category: "bigquery",
+                question: "What is the maximum number of columns allowed in a BigQuery table?",
+                options: [
+                    "1,000",
+                    "10,000",
+                    "100,000",
+                    "No limit"
+                ],
+                correct: 1,
+                explanation: "BigQuery tables can have up to 10,000 columns. This limit includes nested and repeated fields."
+            },
+            
+            // Dataflow Questions (15)
+            {
+                category: "dataflow",
+                question: "What is the primary advantage of using Apache Beam with Dataflow?",
+                options: [
+                    "Lower cost than other runners",
+                    "Unified batch and streaming programming model",
+                    "Faster execution than Spark",
+                    "Built-in machine learning capabilities"
+                ],
+                correct: 1,
+                explanation: "Apache Beam provides a unified programming model that works for both batch and streaming data processing, allowing the same code to run on different runners including Dataflow."
+            },
+            {
+                category: "dataflow",
+                question: "In Dataflow, what is a 'watermark'?",
+                options: [
+                    "A timestamp marking when data was processed",
+                    "A mechanism to track event-time progress and handle late data",
+                    "A limit on the number of elements in a window",
+                    "A checkpoint for fault tolerance"
+                ],
+                correct: 1,
+                explanation: "Watermarks track the progress of event time in streaming pipelines, helping Dataflow determine when all data for a window has arrived and how to handle late data."
+            },
+            {
+                category: "dataflow",
+                question: "Which windowing strategy would you use to calculate a running average over the last 5 minutes, updated every minute?",
+                options: [
+                    "Fixed windows of 5 minutes",
+                    "Sliding windows of 5 minutes with 1-minute period",
+                    "Session windows with 5-minute gap",
+                    "Global window with triggers"
+                ],
+                correct: 1,
+                explanation: "Sliding windows with a 5-minute duration and 1-minute period create overlapping windows that update every minute, perfect for running averages."
+            },
+            {
+                category: "dataflow",
+                question: "What is the purpose of Dataflow Shuffle service?",
+                options: [
+                    "Randomize data for sampling",
+                    "Optimize GroupByKey and CoGroupByKey operations",
+                    "Load balance across workers",
+                    "Encrypt data in transit"
+                ],
+                correct: 1,
+                explanation: "Dataflow Shuffle is a service-based shuffle that moves GroupByKey and related operations off worker VMs, improving performance and reducing resource requirements."
+            },
+            {
+                category: "dataflow",
+                question: "How does Dataflow handle worker failures?",
+                options: [
+                    "The entire job fails and must be restarted",
+                    "Failed work is automatically redistributed to healthy workers",
+                    "Users must manually restart failed workers",
+                    "Data is lost and processing continues"
+                ],
+                correct: 1,
+                explanation: "Dataflow automatically handles worker failures by redistributing work to healthy workers and replaying data from checkpoints, ensuring exactly-once processing."
+            },
+            {
+                category: "dataflow",
+                question: "What is the difference between Dataflow batch and streaming jobs in terms of resource management?",
+                options: [
+                    "Batch jobs use more memory",
+                    "Streaming jobs cannot autoscale",
+                    "Batch jobs process all data then shut down; streaming jobs run continuously",
+                    "There is no difference"
+                ],
+                correct: 2,
+                explanation: "Batch jobs process a bounded dataset and terminate when complete. Streaming jobs run continuously, processing unbounded data as it arrives."
+            },
+            {
+                category: "dataflow",
+                question: "Which Dataflow feature allows you to update a running streaming pipeline without losing state?",
+                options: [
+                    "Hot updates",
+                    "Pipeline replacement",
+                    "Streaming update",
+                    "In-place update with --update flag"
+                ],
+                correct: 3,
+                explanation: "The --update flag allows you to replace a running streaming pipeline while preserving in-flight data and state, enabling zero-downtime updates."
+            },
+            {
+                category: "dataflow",
+                question: "What is a side input in Apache Beam/Dataflow?",
+                options: [
+                    "An additional output from a transform",
+                    "A secondary data source that can be accessed by all elements in a PCollection",
+                    "A backup input in case the primary fails",
+                    "Input from a different pipeline"
+                ],
+                correct: 1,
+                explanation: "Side inputs allow you to provide additional data (like lookup tables) that can be accessed by all elements being processed in a transform."
+            },
+            {
+                category: "dataflow",
+                question: "Which trigger would you use to emit results every 100 elements OR every 30 seconds, whichever comes first?",
+                options: [
+                    "AfterCount(100).orFinally(AfterProcessingTime(30))",
+                    "AfterFirst(AfterCount(100), AfterProcessingTime(30))",
+                    "Repeatedly(AfterFirst(AfterCount(100), AfterProcessingTime(30)))",
+                    "AfterWatermark().withEarlyFirings(AfterCount(100))"
+                ],
+                correct: 2,
+                explanation: "Repeatedly with AfterFirst combines count and time triggers, firing when either condition is met, and then resetting to fire again."
+            },
+            {
+                category: "dataflow",
+                question: "What is Dataflow Prime?",
+                options: [
+                    "A premium pricing tier",
+                    "An enhanced Dataflow with vertical autoscaling and right-fitting",
+                    "A development environment for Dataflow",
+                    "A monitoring dashboard"
+                ],
+                correct: 1,
+                explanation: "Dataflow Prime provides enhanced features including vertical autoscaling (adjusting worker resources) and right-fitting (optimizing resource allocation) for better performance and cost efficiency."
+            },
+            {
+                category: "dataflow",
+                question: "How do you handle late data in a Dataflow streaming pipeline?",
+                options: [
+                    "Late data is automatically discarded",
+                    "Configure allowed lateness on windows",
+                    "Use a dead-letter queue",
+                    "Late data causes the pipeline to fail"
+                ],
+                correct: 1,
+                explanation: "You can configure allowed lateness on windows to specify how long after the watermark passes to still accept late data. Data arriving after this period can be sent to a side output."
+            },
+            {
+                category: "dataflow",
+                question: "What is the purpose of the Dataflow Streaming Engine?",
+                options: [
+                    "Process batch data faster",
+                    "Move streaming execution off worker VMs to Google-managed infrastructure",
+                    "Convert batch pipelines to streaming",
+                    "Manage Pub/Sub subscriptions"
+                ],
+                correct: 1,
+                explanation: "Streaming Engine moves streaming pipeline execution to Google-managed infrastructure, reducing worker resource requirements and improving efficiency."
+            },
+            {
+                category: "dataflow",
+                question: "Which Apache Beam transform would you use to remove duplicate elements from a PCollection?",
+                options: [
+                    "Filter",
+                    "Distinct",
+                    "GroupByKey followed by First",
+                    "Deduplicate"
+                ],
+                correct: 2,
+                explanation: "Apache Beam doesn't have a built-in Distinct transform. You typically use GroupByKey to group by the element (or key), then take the first element from each group."
+            },
+            {
+                category: "dataflow",
+                question: "What happens when you set --maxNumWorkers in a Dataflow job?",
+                options: [
+                    "The job always uses that many workers",
+                    "Autoscaling is disabled",
+                    "The job can scale up to that number of workers but not beyond",
+                    "The job starts with that many workers"
+                ],
+                correct: 2,
+                explanation: "--maxNumWorkers sets an upper limit on autoscaling. The job can scale between --numWorkers (or 1) and --maxNumWorkers based on load."
+            },
+            {
+                category: "dataflow",
+                question: "Which Dataflow template type allows you to customize pipeline parameters at runtime?",
+                options: [
+                    "Classic templates",
+                    "Flex templates",
+                    "Both classic and flex templates",
+                    "Neither - parameters are fixed at compile time"
+                ],
+                correct: 2,
+                explanation: "Both classic and flex templates support runtime parameters. Flex templates additionally allow custom containers and more flexibility in pipeline construction."
+            },
+            
+            // Pub/Sub Questions (15)
+            {
+                category: "pubsub",
+                question: "What is the maximum message size in Pub/Sub?",
+                options: ["1 MB", "10 MB", "100 MB", "1 GB"],
+                correct: 1,
+                explanation: "Pub/Sub supports messages up to 10 MB in size. For larger payloads, store the data in Cloud Storage and send a reference in the message."
+            },
+            {
+                category: "pubsub",
+                question: "What is the default message retention period in Pub/Sub?",
+                options: ["1 day", "7 days", "31 days", "Unlimited"],
+                correct: 1,
+                explanation: "Pub/Sub retains unacknowledged messages for 7 days by default. This can be configured from 10 minutes to 31 days."
+            },
+            {
+                category: "pubsub",
+                question: "What is a dead-letter topic in Pub/Sub?",
+                options: [
+                    "A topic for deleted messages",
+                    "A topic that receives messages that couldn't be processed after multiple attempts",
+                    "A topic with no subscribers",
+                    "A topic for error logs"
+                ],
+                correct: 1,
+                explanation: "Dead-letter topics receive messages that couldn't be successfully processed after a configured number of delivery attempts, allowing you to handle problematic messages separately."
+            },
+            {
+                category: "pubsub",
+                question: "Which Pub/Sub subscription type should you use for exactly-once processing?",
+                options: [
+                    "Pull subscription",
+                    "Push subscription",
+                    "BigQuery subscription with exactly-once delivery",
+                    "Pub/Sub doesn't guarantee exactly-once"
+                ],
+                correct: 2,
+                explanation: "BigQuery subscriptions with exactly-once delivery enabled provide exactly-once semantics. Standard subscriptions provide at-least-once delivery."
+            },
+            {
+                category: "pubsub",
+                question: "What is the purpose of Pub/Sub message ordering?",
+                options: [
+                    "Sort messages alphabetically",
+                    "Ensure messages with the same ordering key are delivered in publish order",
+                    "Prioritize certain messages",
+                    "Order messages by size"
+                ],
+                correct: 1,
+                explanation: "Message ordering ensures that messages with the same ordering key are delivered to subscribers in the order they were published, important for maintaining sequence."
+            },
+            {
+                category: "pubsub",
+                question: "How does Pub/Sub handle message acknowledgment timeout?",
+                options: [
+                    "The message is deleted",
+                    "The message is redelivered to another subscriber",
+                    "The subscription is paused",
+                    "An error is logged"
+                ],
+                correct: 1,
+                explanation: "If a message isn't acknowledged within the ack deadline, Pub/Sub redelivers it to ensure at-least-once delivery."
+            },
+            {
+                category: "pubsub",
+                question: "What is the purpose of Pub/Sub Lite?",
+                options: [
+                    "A free tier of Pub/Sub",
+                    "A lower-cost option with zonal storage for high-volume workloads",
+                    "A simplified API for beginners",
+                    "A lightweight client library"
+                ],
+                correct: 1,
+                explanation: "Pub/Sub Lite offers lower costs for high-volume workloads by using zonal (not regional) storage and requiring capacity provisioning."
+            },
+            {
+                category: "pubsub",
+                question: "Which feature allows Pub/Sub to filter messages before delivery to subscribers?",
+                options: [
+                    "Message routing",
+                    "Subscription filters",
+                    "Topic partitioning",
+                    "Message attributes"
+                ],
+                correct: 1,
+                explanation: "Subscription filters allow you to specify conditions based on message attributes, so subscribers only receive messages matching the filter."
+            },
+            {
+                category: "pubsub",
+                question: "What is the maximum number of subscriptions per topic in Pub/Sub?",
+                options: [
+                    "100",
+                    "1,000",
+                    "10,000",
+                    "Unlimited (soft limit applies)"
+                ],
+                correct: 2,
+                explanation: "Pub/Sub supports up to 10,000 subscriptions per topic. This is a soft limit that can be increased by contacting support."
+            },
+            {
+                category: "pubsub",
+                question: "How do you implement fan-out messaging pattern in Pub/Sub?",
+                options: [
+                    "Create multiple topics",
+                    "Create multiple subscriptions on the same topic",
+                    "Use message attributes",
+                    "Use ordering keys"
+                ],
+                correct: 1,
+                explanation: "Fan-out is achieved by creating multiple subscriptions on the same topic. Each subscription receives a copy of every message published to the topic."
+            },
+            {
+                category: "pubsub",
+                question: "What is the purpose of the Pub/Sub seek feature?",
+                options: [
+                    "Search for specific messages",
+                    "Replay messages from a specific point in time or snapshot",
+                    "Find the oldest unacknowledged message",
+                    "Locate a specific subscriber"
+                ],
+                correct: 1,
+                explanation: "Seek allows you to replay messages by moving the subscription's position to a specific timestamp or snapshot, useful for reprocessing or recovery."
+            },
+            {
+                category: "pubsub",
+                question: "Which Pub/Sub feature helps prevent duplicate message processing?",
+                options: [
+                    "Message deduplication",
+                    "Exactly-once delivery",
+                    "Idempotent subscribers (application responsibility)",
+                    "Message ordering"
+                ],
+                correct: 2,
+                explanation: "Pub/Sub provides at-least-once delivery by default. Preventing duplicates is typically the subscriber's responsibility through idempotent processing or deduplication logic."
+            },
+            {
+                category: "pubsub",
+                question: "What is the difference between push and pull subscriptions?",
+                options: [
+                    "Push is faster than pull",
+                    "Push delivers to an HTTPS endpoint; pull requires the subscriber to request messages",
+                    "Pull supports more messages per second",
+                    "Push is more secure"
+                ],
+                correct: 1,
+                explanation: "Push subscriptions deliver messages to a configured HTTPS endpoint. Pull subscriptions require the subscriber to actively request messages from Pub/Sub."
+            },
+            {
+                category: "pubsub",
+                question: "How do you ensure messages are processed in order across multiple subscribers?",
+                options: [
+                    "Use a single subscriber",
+                    "Use ordering keys with a single subscriber per key",
+                    "Enable message ordering on the topic",
+                    "Use timestamps"
+                ],
+                correct: 1,
+                explanation: "For ordered processing, use ordering keys and ensure messages with the same key are processed by the same subscriber instance."
+            },
+            {
+                category: "pubsub",
+                question: "What happens to messages published to a topic with no subscriptions?",
+                options: [
+                    "Messages are stored until a subscription is created",
+                    "Messages are immediately deleted",
+                    "An error is returned to the publisher",
+                    "Messages are sent to a default subscription"
+                ],
+                correct: 1,
+                explanation: "Messages published to a topic with no subscriptions are immediately deleted. Create subscriptions before publishing to ensure message delivery."
+            },
+            
+            // Storage Questions (15)
+            {
+                category: "storage",
+                question: "Which Cloud Storage class should you use for data accessed less than once a month?",
+                options: [
+                    "Standard",
+                    "Nearline",
+                    "Coldline",
+                    "Archive"
+                ],
+                correct: 2,
+                explanation: "Coldline storage is designed for data accessed less than once a quarter. For monthly access, Nearline might be more cost-effective depending on access patterns."
+            },
+            {
+                category: "storage",
+                question: "What is the minimum storage duration for Archive class in Cloud Storage?",
+                options: [
+                    "30 days",
+                    "90 days",
+                    "365 days",
+                    "No minimum"
+                ],
+                correct: 2,
+                explanation: "Archive class has a 365-day minimum storage duration. You're charged for the full period even if you delete the object earlier."
+            },
+            {
+                category: "storage",
+                question: "How do you enable versioning on a Cloud Storage bucket?",
+                options: [
+                    "It's enabled by default",
+                    "gsutil versioning set on gs://bucket",
+                    "Create a lifecycle policy",
+                    "Enable it in IAM settings"
+                ],
+                correct: 1,
+                explanation: "Object versioning must be explicitly enabled using gsutil or the API. When enabled, Cloud Storage keeps all versions of objects."
+            },
+            {
+                category: "storage",
+                question: "What is the purpose of Cloud Storage lifecycle management?",
+                options: [
+                    "Automatically delete old objects",
+                    "Automatically change storage class based on age",
+                    "Both A and B",
+                    "Manage bucket permissions"
+                ],
+                correct: 2,
+                explanation: "Lifecycle management can automatically delete objects or change their storage class based on conditions like age, number of versions, or storage class."
+            },
+            {
+                category: "storage",
+                question: "Which Cloud Storage feature provides the lowest latency for frequently accessed data?",
+                options: [
+                    "Standard storage class",
+                    "Turbo replication",
+                    "Dual-region buckets",
+                    "All storage classes have the same latency"
+                ],
+                correct: 3,
+                explanation: "All Cloud Storage classes provide the same low latency for data access. The difference is in storage cost and retrieval fees, not performance."
+            },
+            {
+                category: "storage",
+                question: "What is the maximum object size in Cloud Storage?",
+                options: [
+                    "5 GB",
+                    "5 TB",
+                    "50 TB",
+                    "No limit"
+                ],
+                correct: 1,
+                explanation: "Cloud Storage supports objects up to 5 TB in size. For larger files, you need to split them into multiple objects."
+            },
+            {
+                category: "storage",
+                question: "How do you make a Cloud Storage bucket publicly readable?",
+                options: [
+                    "Set bucket to public in console",
+                    "Grant allUsers the Storage Object Viewer role",
+                    "Disable uniform bucket-level access",
+                    "Create a signed URL"
+                ],
+                correct: 1,
+                explanation: "Granting the allUsers principal the Storage Object Viewer role makes all objects in the bucket publicly readable."
+            },
+            {
+                category: "storage",
+                question: "What is the purpose of signed URLs in Cloud Storage?",
+                options: [
+                    "Encrypt objects",
+                    "Provide time-limited access without requiring authentication",
+                    "Sign objects for integrity verification",
+                    "Create permanent public links"
+                ],
+                correct: 1,
+                explanation: "Signed URLs provide time-limited access to specific objects without requiring the user to have a Google account or IAM permissions."
+            },
+            {
+                category: "storage",
+                question: "Which feature ensures Cloud Storage objects are encrypted with customer-managed keys?",
+                options: [
+                    "Default encryption",
+                    "Customer-Supplied Encryption Keys (CSEK)",
+                    "Customer-Managed Encryption Keys (CMEK)",
+                    "Both B and C"
+                ],
+                correct: 3,
+                explanation: "Both CSEK (you provide the key with each request) and CMEK (keys managed in Cloud KMS) allow customer-controlled encryption."
+            },
+            {
+                category: "storage",
+                question: "What is the difference between regional and multi-regional buckets?",
+                options: [
+                    "Multi-regional is faster",
+                    "Regional stores data in one location; multi-regional replicates across regions",
+                    "Regional is more expensive",
+                    "Multi-regional supports larger objects"
+                ],
+                correct: 1,
+                explanation: "Regional buckets store data in a single region. Multi-regional (and dual-regional) buckets replicate data across multiple regions for higher availability."
+            },
+            {
+                category: "storage",
+                question: "How do you optimize Cloud Storage costs for a data lake with mixed access patterns?",
+                options: [
+                    "Use Standard class for everything",
+                    "Use Archive class for everything",
+                    "Implement lifecycle policies to transition objects based on age",
+                    "Use Nearline for everything"
+                ],
+                correct: 2,
+                explanation: "Lifecycle policies automatically transition objects to cheaper storage classes as they age, optimizing costs for data with decreasing access frequency."
+            },
+            {
+                category: "storage",
+                question: "What is Cloud Storage Transfer Service used for?",
+                options: [
+                    "Transfer data between buckets in the same project",
+                    "Transfer data from other clouds or on-premises to Cloud Storage",
+                    "Transfer data to BigQuery",
+                    "All of the above"
+                ],
+                correct: 1,
+                explanation: "Storage Transfer Service is designed for large-scale transfers from AWS S3, Azure Blob Storage, HTTP sources, or on-premises to Cloud Storage."
+            },
+            {
+                category: "storage",
+                question: "Which Cloud Storage feature prevents objects from being deleted or modified?",
+                options: [
+                    "Versioning",
+                    "Retention policies",
+                    "Object holds",
+                    "Both B and C"
+                ],
+                correct: 3,
+                explanation: "Both retention policies (time-based) and object holds (event-based or temporary) can prevent object deletion or modification for compliance."
+            },
+            {
+                category: "storage",
+                question: "What is the purpose of uniform bucket-level access?",
+                options: [
+                    "Make all objects the same size",
+                    "Disable ACLs and use only IAM for access control",
+                    "Apply the same storage class to all objects",
+                    "Enable uniform pricing"
+                ],
+                correct: 1,
+                explanation: "Uniform bucket-level access disables object ACLs and uses only IAM policies for access control, simplifying permission management."
+            },
+            {
+                category: "storage",
+                question: "How do you efficiently list objects in a Cloud Storage bucket with millions of objects?",
+                options: [
+                    "Use gsutil ls",
+                    "Use prefix filtering and pagination",
+                    "Export to BigQuery and query",
+                    "Use Cloud Storage inventory reports"
+                ],
+                correct: 1,
+                explanation: "For large buckets, use prefix filtering to narrow results and pagination to handle large result sets efficiently."
+            },
+            
+            // Security Questions (15)
+            {
+                category: "security",
+                question: "What is the principle of least privilege in GCP IAM?",
+                options: [
+                    "Give users the minimum permissions needed to perform their tasks",
+                    "Use the fewest number of service accounts",
+                    "Minimize the number of projects",
+                    "Use basic roles instead of predefined roles"
+                ],
+                correct: 0,
+                explanation: "Least privilege means granting only the permissions necessary for users to perform their specific tasks, reducing security risk."
+            },
+            {
+                category: "security",
+                question: "What is the purpose of VPC Service Controls?",
+                options: [
+                    "Control network traffic between VPCs",
+                    "Create security perimeters around GCP resources to prevent data exfiltration",
+                    "Manage firewall rules",
+                    "Control service account permissions"
+                ],
+                correct: 1,
+                explanation: "VPC Service Controls create security perimeters that restrict data movement between GCP services, preventing data exfiltration even by authorized users."
+            },
+            {
+                category: "security",
+                question: "Which GCP service is used to discover and protect sensitive data?",
+                options: [
+                    "Cloud Armor",
+                    "Cloud DLP (Data Loss Prevention)",
+                    "Security Command Center",
+                    "Cloud IAM"
+                ],
+                correct: 1,
+                explanation: "Cloud DLP helps discover, classify, and protect sensitive data like PII, credit card numbers, and other sensitive information across GCP services."
+            },
+            {
+                category: "security",
+                question: "What is the difference between a service account and a user account?",
+                options: [
+                    "Service accounts are for humans; user accounts are for applications",
+                    "Service accounts are for applications; user accounts are for humans",
+                    "There is no difference",
+                    "Service accounts have more permissions"
+                ],
+                correct: 1,
+                explanation: "Service accounts are used by applications and services to authenticate and access GCP resources. User accounts are for human users."
+            },
+            {
+                category: "security",
+                question: "How do you implement column-level security in BigQuery?",
+                options: [
+                    "Create separate tables for each column",
+                    "Use policy tags from Data Catalog",
+                    "Use row-level security",
+                    "Create views for each user"
+                ],
+                correct: 1,
+                explanation: "Policy tags from Data Catalog can be applied to BigQuery columns to implement fine-grained access control at the column level."
+            },
+            {
+                category: "security",
+                question: "What is Cloud Audit Logs used for?",
+                options: [
+                    "Monitor application performance",
+                    "Track who did what, when, and where in GCP",
+                    "Audit code changes",
+                    "Monitor network traffic"
+                ],
+                correct: 1,
+                explanation: "Cloud Audit Logs record administrative activities, data access, and system events, providing an audit trail for compliance and security analysis."
+            },
+            {
+                category: "security",
+                question: "Which IAM role type provides the most granular permissions?",
+                options: [
+                    "Basic roles (Owner, Editor, Viewer)",
+                    "Predefined roles",
+                    "Custom roles",
+                    "All provide the same granularity"
+                ],
+                correct: 2,
+                explanation: "Custom roles allow you to define exactly which permissions to include, providing the most granular control. Predefined roles are fixed sets of permissions."
+            },
+            {
+                category: "security",
+                question: "What is the purpose of Workload Identity in GKE?",
+                options: [
+                    "Identify workloads for billing",
+                    "Allow Kubernetes service accounts to act as GCP service accounts",
+                    "Track workload performance",
+                    "Manage container images"
+                ],
+                correct: 1,
+                explanation: "Workload Identity allows Kubernetes service accounts to impersonate GCP service accounts, providing a secure way for pods to access GCP services."
+            },
+            {
+                category: "security",
+                question: "How do you encrypt data at rest in BigQuery?",
+                options: [
+                    "Enable encryption in table settings",
+                    "Use Cloud KMS",
+                    "Data is encrypted by default",
+                    "Use client-side encryption"
+                ],
+                correct: 2,
+                explanation: "BigQuery automatically encrypts all data at rest using Google-managed encryption keys. You can optionally use CMEK for customer-managed keys."
+            },
+            {
+                category: "security",
+                question: "What is the purpose of Binary Authorization?",
+                options: [
+                    "Authorize binary file downloads",
+                    "Ensure only trusted container images are deployed",
+                    "Encrypt binary data",
+                    "Authorize API calls"
+                ],
+                correct: 1,
+                explanation: "Binary Authorization ensures that only trusted, signed container images can be deployed to GKE, preventing unauthorized or tampered images from running."
+            },
+            {
+                category: "security",
+                question: "Which feature allows temporary elevated access in GCP?",
+                options: [
+                    "IAM Conditions",
+                    "Privileged Access Management (PAM)",
+                    "Just-in-Time access",
+                    "All of the above"
+                ],
+                correct: 3,
+                explanation: "IAM Conditions can restrict access by time, PAM provides approval workflows for elevated access, and JIT access grants temporary permissions - all enable temporary elevated access."
+            },
+            {
+                category: "security",
+                question: "What is the purpose of organization policies in GCP?",
+                options: [
+                    "Define billing policies",
+                    "Enforce constraints across the organization hierarchy",
+                    "Manage user accounts",
+                    "Configure network policies"
+                ],
+                correct: 1,
+                explanation: "Organization policies allow administrators to enforce constraints (like restricting resource locations or disabling service account key creation) across projects and folders."
+            },
+            {
+                category: "security",
+                question: "How do you securely store API keys and passwords for use in data pipelines?",
+                options: [
+                    "Environment variables",
+                    "Configuration files",
+                    "Secret Manager",
+                    "Cloud Storage"
+                ],
+                correct: 2,
+                explanation: "Secret Manager provides secure storage for sensitive data like API keys and passwords, with versioning, access control, and audit logging."
+            },
+            {
+                category: "security",
+                question: "What is the purpose of Access Transparency logs?",
+                options: [
+                    "Log user access to resources",
+                    "Log Google personnel access to your data",
+                    "Log API calls",
+                    "Log network traffic"
+                ],
+                correct: 1,
+                explanation: "Access Transparency logs record when Google personnel access your data for support purposes, providing visibility into Google's access to your resources."
+            },
+            {
+                category: "security",
+                question: "Which service provides centralized security and risk management for GCP?",
+                options: [
+                    "Cloud Armor",
+                    "Security Command Center",
+                    "Cloud IAM",
+                    "Cloud DLP"
+                ],
+                correct: 1,
+                explanation: "Security Command Center provides centralized visibility into security and data risks across GCP, including vulnerability scanning, threat detection, and compliance monitoring."
+            },
+            
+            // ML/AI Questions (20)
+            {
+                category: "ml",
+                question: "Which Vertex AI feature allows you to train models without writing code?",
+                options: [
+                    "Custom training",
+                    "AutoML",
+                    "Vertex AI Workbench",
+                    "Model Garden"
+                ],
+                correct: 1,
+                explanation: "AutoML allows you to train high-quality models without writing code by automatically selecting algorithms and tuning hyperparameters."
+            },
+            {
+                category: "ml",
+                question: "What is the purpose of Vertex AI Feature Store?",
+                options: [
+                    "Store trained models",
+                    "Store and serve ML features for training and inference",
+                    "Store training data",
+                    "Store model predictions"
+                ],
+                correct: 1,
+                explanation: "Feature Store provides a centralized repository for storing, sharing, and serving ML features, ensuring consistency between training and serving."
+            },
+            {
+                category: "ml",
+                question: "Which BigQuery ML model would you use for time series forecasting?",
+                options: [
+                    "LINEAR_REG",
+                    "ARIMA_PLUS",
+                    "BOOSTED_TREE_CLASSIFIER",
+                    "MATRIX_FACTORIZATION"
+                ],
+                correct: 1,
+                explanation: "ARIMA_PLUS is designed for time series forecasting, automatically handling seasonality, trends, and holidays."
+            },
+            {
+                category: "ml",
+                question: "What is the purpose of Vertex AI Pipelines?",
+                options: [
+                    "Data pipelines for ETL",
+                    "Orchestrate ML workflows including training, evaluation, and deployment",
+                    "Stream data to models",
+                    "Monitor model performance"
+                ],
+                correct: 1,
+                explanation: "Vertex AI Pipelines orchestrate ML workflows, allowing you to automate training, evaluation, deployment, and monitoring in a reproducible way."
+            },
+            {
+                category: "ml",
+                question: "Which service would you use to deploy a custom TensorFlow model for online predictions?",
+                options: [
+                    "Cloud Functions",
+                    "Vertex AI Endpoints",
+                    "BigQuery ML",
+                    "Dataflow"
+                ],
+                correct: 1,
+                explanation: "Vertex AI Endpoints provide managed infrastructure for deploying and serving ML models for online (real-time) predictions with autoscaling."
+            },
+            {
+                category: "ml",
+                question: "What is the difference between online and batch predictions in Vertex AI?",
+                options: [
+                    "Online is faster but more expensive",
+                    "Online is for real-time, low-latency predictions; batch is for large-scale, asynchronous predictions",
+                    "Batch is more accurate",
+                    "There is no difference"
+                ],
+                correct: 1,
+                explanation: "Online predictions provide real-time, low-latency responses for individual requests. Batch predictions process large datasets asynchronously."
+            },
+            {
+                category: "ml",
+                question: "Which BigQuery ML function is used to evaluate a classification model?",
+                options: [
+                    "ML.PREDICT",
+                    "ML.EVALUATE",
+                    "ML.TRAINING_INFO",
+                    "ML.CONFUSION_MATRIX"
+                ],
+                correct: 1,
+                explanation: "ML.EVALUATE returns evaluation metrics for a model, including accuracy, precision, recall, and F1 score for classification models."
+            },
+            {
+                category: "ml",
+                question: "What is Vertex AI Model Monitoring used for?",
+                options: [
+                    "Monitor model training progress",
+                    "Detect feature skew and drift in production models",
+                    "Monitor API latency",
+                    "Monitor costs"
+                ],
+                correct: 1,
+                explanation: "Model Monitoring detects feature skew (training-serving skew) and drift (changes in feature distributions over time) to identify when models may need retraining."
+            },
+            {
+                category: "ml",
+                question: "Which approach should you use to train a model on data that doesn't fit in memory?",
+                options: [
+                    "Use a larger machine",
+                    "Use distributed training with Vertex AI",
+                    "Sample the data",
+                    "Use BigQuery ML"
+                ],
+                correct: 1,
+                explanation: "Vertex AI supports distributed training across multiple machines, allowing you to train on datasets larger than a single machine's memory."
+            },
+            {
+                category: "ml",
+                question: "What is the purpose of Vertex AI Experiments?",
+                options: [
+                    "A/B testing for models",
+                    "Track and compare ML experiments and their metrics",
+                    "Test model APIs",
+                    "Experiment with different data sources"
+                ],
+                correct: 1,
+                explanation: "Vertex AI Experiments allows you to track, compare, and analyze ML experiments, including hyperparameters, metrics, and artifacts."
+            },
+            {
+                category: "ml",
+                question: "Which BigQuery ML feature allows you to import pre-trained TensorFlow models?",
+                options: [
+                    "ML.IMPORT_MODEL",
+                    "CREATE MODEL with model_type='TENSORFLOW'",
+                    "ML.EXTERNAL_MODEL",
+                    "Both A and B"
+                ],
+                correct: 1,
+                explanation: "You can import TensorFlow SavedModel format models into BigQuery ML using CREATE MODEL with model_type='TENSORFLOW'."
+            },
+            {
+                category: "ml",
+                question: "What is the purpose of Vertex AI Matching Engine?",
+                options: [
+                    "Match data schemas",
+                    "High-performance vector similarity search for recommendations and search",
+                    "Match models to datasets",
+                    "Match features to models"
+                ],
+                correct: 1,
+                explanation: "Matching Engine provides high-performance vector similarity search, useful for recommendation systems, semantic search, and other embedding-based applications."
+            },
+            {
+                category: "ml",
+                question: "Which metric is most important for an imbalanced classification problem?",
+                options: [
+                    "Accuracy",
+                    "Precision and Recall (or F1 score)",
+                    "Mean Squared Error",
+                    "R-squared"
+                ],
+                correct: 1,
+                explanation: "For imbalanced datasets, accuracy can be misleading. Precision, recall, and F1 score provide better insight into model performance on minority classes."
+            },
+            {
+                category: "ml",
+                question: "What is the purpose of ML.TRANSFORM in BigQuery ML?",
+                options: [
+                    "Transform model outputs",
+                    "Apply feature transformations during training and prediction",
+                    "Transform data types",
+                    "Transform model architecture"
+                ],
+                correct: 1,
+                explanation: "ML.TRANSFORM allows you to define feature transformations (like normalization, bucketization) that are automatically applied during both training and prediction."
+            },
+            {
+                category: "ml",
+                question: "Which Vertex AI feature helps explain model predictions?",
+                options: [
+                    "Model Monitoring",
+                    "Explainable AI (feature attributions)",
+                    "Model Registry",
+                    "Experiments"
+                ],
+                correct: 1,
+                explanation: "Explainable AI provides feature attributions that show how much each feature contributed to a prediction, helping understand model behavior."
+            },
+            {
+                category: "ml",
+                question: "What is the recommended way to handle categorical features with high cardinality in BigQuery ML?",
+                options: [
+                    "One-hot encoding",
+                    "Feature hashing or embeddings",
+                    "Remove the feature",
+                    "Convert to numeric"
+                ],
+                correct: 1,
+                explanation: "High-cardinality categorical features should use feature hashing or embeddings to reduce dimensionality while preserving information."
+            },
+            {
+                category: "ml",
+                question: "Which service provides pre-trained models for common tasks like vision and NLP?",
+                options: [
+                    "BigQuery ML",
+                    "Vertex AI Model Garden",
+                    "AutoML",
+                    "Cloud AI APIs"
+                ],
+                correct: 3,
+                explanation: "Cloud AI APIs (Vision, Natural Language, Translation, etc.) provide pre-trained models for common tasks without requiring ML expertise."
+            },
+            {
+                category: "ml",
+                question: "What is the purpose of Vertex AI Tensorboard?",
+                options: [
+                    "Create dashboards",
+                    "Visualize and track ML experiments and training metrics",
+                    "Build tensor operations",
+                    "Manage model versions"
+                ],
+                correct: 1,
+                explanation: "Vertex AI Tensorboard provides visualization tools for tracking and comparing ML experiments, including training metrics, model graphs, and embeddings."
+            },
+            {
+                category: "ml",
+                question: "Which BigQuery ML model type would you use for customer segmentation?",
+                options: [
+                    "LINEAR_REG",
+                    "LOGISTIC_REG",
+                    "KMEANS",
+                    "ARIMA_PLUS"
+                ],
+                correct: 2,
+                explanation: "KMEANS is an unsupervised clustering algorithm ideal for customer segmentation, grouping similar customers without predefined labels."
+            },
+            {
+                category: "ml",
+                question: "What is the purpose of Vertex AI Model Registry?",
+                options: [
+                    "Register domain names for models",
+                    "Centrally manage, version, and deploy ML models",
+                    "Register model APIs",
+                    "Track model licenses"
+                ],
+                correct: 1,
+                explanation: "Model Registry provides a central repository for managing ML models, including versioning, metadata, and deployment tracking."
+            }
+        ];
+        
+        let currentQuestionIndex = 0;
+        let correctCount = 0;
+        let incorrectCount = 0;
+        let answeredQuestions = new Set();
+        let filteredQuestions = [...questions];
+        
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+        
+        function filterQuestions(category) {
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (category === 'all') {
+                filteredQuestions = [...questions];
+            } else {
+                filteredQuestions = questions.filter(q => q.category === category);
+            }
+            
+            shuffleArray(filteredQuestions);
+            currentQuestionIndex = 0;
+            correctCount = 0;
+            incorrectCount = 0;
+            answeredQuestions.clear();
+            updateStats();
+            displayQuestion();
+        }
+        
+        function displayQuestion() {
+            if (currentQuestionIndex >= filteredQuestions.length) {
+                showResults();
+                return;
+            }
+            
+            const q = filteredQuestions[currentQuestionIndex];
+            document.getElementById('question-num').textContent = `Question ${currentQuestionIndex + 1} of ${filteredQuestions.length}`;
+            document.getElementById('question-cat').textContent = q.category.charAt(0).toUpperCase() + q.category.slice(1);
+            document.getElementById('question-text').textContent = q.question;
+            
+            const optionsContainer = document.getElementById('options');
+            optionsContainer.innerHTML = '';
+            
+            const letters = ['A', 'B', 'C', 'D'];
+            q.options.forEach((opt, i) => {
+                const div = document.createElement('div');
+                div.className = 'option';
+                div.innerHTML = `<span class="option-letter">${letters[i]}</span><span>${opt}</span>`;
+                div.onclick = () => selectOption(i);
+                optionsContainer.appendChild(div);
+            });
+            
+            document.getElementById('explanation').classList.remove('show');
+            document.getElementById('progress-fill').style.width = `${((currentQuestionIndex + 1) / filteredQuestions.length) * 100}%`;
+            document.getElementById('current-question').textContent = currentQuestionIndex + 1;
+        }
+        
+        function selectOption(index) {
+            if (answeredQuestions.has(currentQuestionIndex)) return;
+            
+            answeredQuestions.add(currentQuestionIndex);
+            const q = filteredQuestions[currentQuestionIndex];
+            const options = document.querySelectorAll('.option');
+            
+            options.forEach((opt, i) => {
+                opt.classList.remove('selected');
+                if (i === q.correct) {
+                    opt.classList.add('correct');
+                } else if (i === index && index !== q.correct) {
+                    opt.classList.add('incorrect');
+                }
+            });
+            
+            if (index === q.correct) {
+                correctCount++;
+            } else {
+                incorrectCount++;
+            }
+            
+            document.getElementById('explanation-text').textContent = q.explanation;
+            document.getElementById('explanation').classList.add('show');
+            updateStats();
+        }
+        
+        function updateStats() {
+            document.getElementById('correct-count').textContent = correctCount;
+            document.getElementById('incorrect-count').textContent = incorrectCount;
+            const total = correctCount + incorrectCount;
+            const percent = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+            document.getElementById('score-percent').textContent = `${percent}%`;
+        }
+        
+        function nextQuestion() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex >= filteredQuestions.length) {
+                showResults();
+            } else {
+                displayQuestion();
+            }
+        }
+        
+        function prevQuestion() {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                displayQuestion();
+            }
+        }
+        
+        function showResults() {
+            document.getElementById('quiz-container').style.display = 'none';
+            document.getElementById('results').classList.add('show');
+            
+            const total = correctCount + incorrectCount;
+            const percent = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+            const scoreCircle = document.getElementById('final-score');
+            scoreCircle.textContent = `${percent}%`;
+            
+            if (percent >= 70) {
+                scoreCircle.classList.add('pass');
+                scoreCircle.classList.remove('fail');
+                document.getElementById('result-message').textContent = `Congratulations! You passed with ${correctCount} out of ${total} correct answers. You're ready for the certification exam!`;
+            } else {
+                scoreCircle.classList.add('fail');
+                scoreCircle.classList.remove('pass');
+                document.getElementById('result-message').textContent = `You scored ${correctCount} out of ${total}. Review the topics and try again. You need 70% to pass.`;
+            }
+        }
+        
+        function restartQuiz() {
+            currentQuestionIndex = 0;
+            correctCount = 0;
+            incorrectCount = 0;
+            answeredQuestions.clear();
+            shuffleArray(filteredQuestions);
+            
+            document.getElementById('quiz-container').style.display = 'block';
+            document.getElementById('results').classList.remove('show');
+            updateStats();
+            displayQuestion();
+        }
+        
+        // Initialize
+        shuffleArray(filteredQuestions);
+        displayQuestion();
+    </script>
+</body>
+</html>

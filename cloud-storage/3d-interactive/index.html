@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Storage - 3D Interactive</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; }
+        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #4285f4; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
+        #info-panel h1 { color: #4285f4; font-size: 1.3em; margin-bottom: 10px; }
+        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
+        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .control-btn { background: rgba(66,133,244,0.1); border: 1px solid #4285f4; color: #4285f4; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
+        .control-btn:hover { background: rgba(66,133,244,0.3); }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="info-panel">
+        <h1>Cloud Storage Buckets</h1>
+        <p>Visualize object storage with different storage classes. Watch objects flow into buckets and transition between tiers.</p>
+    </div>
+    <div id="controls">
+        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
+        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        let scene, camera, renderer, controls, isAnimating = true;
+        let buckets = [], objects = [];
+        
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 15, 25);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            const light = new THREE.PointLight(0x4285f4, 1, 100);
+            light.position.set(0, 20, 10);
+            scene.add(light);
+            
+            // Storage class buckets
+            const classes = [
+                { name: 'Standard', x: -9, color: 0x4285f4 },
+                { name: 'Nearline', x: -3, color: 0x34a853 },
+                { name: 'Coldline', x: 3, color: 0xfbbc04 },
+                { name: 'Archive', x: 9, color: 0xea4335 }
+            ];
+            
+            classes.forEach(c => {
+                const geom = new THREE.CylinderGeometry(2, 2.5, 4, 32, 1, true);
+                const mat = new THREE.MeshPhongMaterial({ color: c.color, emissive: c.color, emissiveIntensity: 0.2, side: THREE.DoubleSide, transparent: true, opacity: 0.7 });
+                const bucket = new THREE.Mesh(geom, mat);
+                bucket.position.set(c.x, 0, 0);
+                buckets.push(bucket);
+                scene.add(bucket);
+            });
+            
+            // Objects (files)
+            for (let i = 0; i < 100; i++) {
+                const geom = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+                const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                const obj = new THREE.Mesh(geom, mat);
+                obj.position.set((Math.random() - 0.5) * 30, 15 + Math.random() * 10, (Math.random() - 0.5) * 10);
+                obj.userData = { targetBucket: Math.floor(Math.random() * 4), speed: 0.05 + Math.random() * 0.1, falling: true };
+                objects.push(obj);
+                scene.add(obj);
+            }
+            
+            const grid = new THREE.GridHelper(40, 40, 0x4285f4, 0x1a1a2e);
+            grid.position.y = -5;
+            scene.add(grid);
+            
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            animate();
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            if (isAnimating) {
+                buckets.forEach(b => b.rotation.y += 0.005);
+                
+                objects.forEach(obj => {
+                    if (obj.userData.falling) {
+                        const target = buckets[obj.userData.targetBucket];
+                        const dx = target.position.x - obj.position.x;
+                        const dz = target.position.z - obj.position.z;
+                        obj.position.x += dx * 0.02;
+                        obj.position.z += dz * 0.02;
+                        obj.position.y -= obj.userData.speed;
+                        
+                        if (obj.position.y < -2) {
+                            obj.position.y = 15 + Math.random() * 10;
+                            obj.position.x = (Math.random() - 0.5) * 30;
+                            obj.userData.targetBucket = Math.floor(Math.random() * 4);
+                        }
+                    }
+                    obj.rotation.x += 0.02;
+                    obj.rotation.y += 0.02;
+                });
+            }
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
+        function resetCamera() { camera.position.set(0, 15, 25); controls.target.set(0, 0, 0); }
+        
+        init();
+    </script>
+</body>
+</html>

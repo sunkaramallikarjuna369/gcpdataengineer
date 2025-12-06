@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Datastream CDC - 3D Interactive</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; }
+        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #ff5722; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
+        #info-panel h1 { color: #ff5722; font-size: 1.3em; margin-bottom: 10px; }
+        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
+        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .control-btn { background: rgba(255,87,34,0.1); border: 1px solid #ff5722; color: #ff5722; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
+        .control-btn:hover { background: rgba(255,87,34,0.3); }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="info-panel">
+        <h1>Datastream CDC</h1>
+        <p>Watch database changes flow in real-time. INSERTs (green), UPDATEs (yellow), and DELETEs (red) stream to BigQuery.</p>
+    </div>
+    <div id="controls">
+        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
+        <button class="control-btn" onclick="triggerChange()">Trigger Change</button>
+        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        let scene, camera, renderer, controls, isAnimating = true;
+        let sourceDB, destBQ, cdcEvents = [];
+        
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 15, 25);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            const light = new THREE.PointLight(0xff5722, 1, 100);
+            light.position.set(0, 20, 10);
+            scene.add(light);
+            
+            // Source database
+            const sourceGeom = new THREE.CylinderGeometry(3, 3, 4, 32);
+            const sourceMat = new THREE.MeshPhongMaterial({ color: 0x9c27b0, emissive: 0x9c27b0, emissiveIntensity: 0.3 });
+            sourceDB = new THREE.Mesh(sourceGeom, sourceMat);
+            sourceDB.position.set(-10, 0, 0);
+            scene.add(sourceDB);
+            
+            // Destination BigQuery
+            const destGeom = new THREE.BoxGeometry(5, 3, 5);
+            const destMat = new THREE.MeshPhongMaterial({ color: 0x4285f4, emissive: 0x4285f4, emissiveIntensity: 0.3 });
+            destBQ = new THREE.Mesh(destGeom, destMat);
+            destBQ.position.set(10, 0, 0);
+            scene.add(destBQ);
+            
+            // Connection pipe
+            const pipeGeom = new THREE.CylinderGeometry(0.3, 0.3, 15, 16);
+            const pipeMat = new THREE.MeshBasicMaterial({ color: 0x444444 });
+            const pipe = new THREE.Mesh(pipeGeom, pipeMat);
+            pipe.rotation.z = Math.PI / 2;
+            pipe.position.set(0, 0, 0);
+            scene.add(pipe);
+            
+            const grid = new THREE.GridHelper(40, 40, 0xff5722, 0x1a1a2e);
+            grid.position.y = -5;
+            scene.add(grid);
+            
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            setInterval(triggerChange, 800);
+            animate();
+        }
+        
+        function triggerChange() {
+            const changeTypes = [
+                { color: 0x00ff00, name: 'INSERT' },
+                { color: 0xffff00, name: 'UPDATE' },
+                { color: 0xff0000, name: 'DELETE' }
+            ];
+            const type = changeTypes[Math.floor(Math.random() * changeTypes.length)];
+            
+            const geom = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+            const mat = new THREE.MeshBasicMaterial({ color: type.color });
+            const event = new THREE.Mesh(geom, mat);
+            event.position.copy(sourceDB.position);
+            event.position.y += (Math.random() - 0.5) * 2;
+            event.userData = { progress: 0, speed: 0.02 + Math.random() * 0.02 };
+            cdcEvents.push(event);
+            scene.add(event);
+            
+            // Flash source
+            sourceDB.material.emissiveIntensity = 0.8;
+            setTimeout(() => sourceDB.material.emissiveIntensity = 0.3, 100);
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            if (isAnimating) {
+                sourceDB.rotation.y += 0.01;
+                destBQ.rotation.y += 0.005;
+                
+                cdcEvents.forEach((e, i) => {
+                    e.userData.progress += e.userData.speed;
+                    const t = e.userData.progress;
+                    
+                    e.position.x = sourceDB.position.x + (destBQ.position.x - sourceDB.position.x) * t;
+                    e.position.y = Math.sin(t * Math.PI) * 3;
+                    e.rotation.x += 0.1;
+                    e.rotation.y += 0.1;
+                    
+                    if (t >= 1) {
+                        destBQ.material.emissiveIntensity = 0.6;
+                        setTimeout(() => destBQ.material.emissiveIntensity = 0.3, 100);
+                        scene.remove(e);
+                        cdcEvents.splice(i, 1);
+                    }
+                });
+            }
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
+        function resetCamera() { camera.position.set(0, 15, 25); controls.target.set(0, 0, 0); }
+        
+        init();
+    </script>
+</body>
+</html>

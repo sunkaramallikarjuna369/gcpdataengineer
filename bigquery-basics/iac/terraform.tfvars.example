@@ -1,0 +1,18 @@
+# BigQuery Basics - Terraform Variables Example
+# =============================================
+# Copy this file to terraform.tfvars and fill in your values
+
+# Required: Your GCP Project ID
+project_id = "your-project-id"
+
+# Optional: GCP Region (default: us-central1)
+region = "us-central1"
+
+# Optional: BigQuery dataset location (default: US)
+location = "US"
+
+# Optional: Environment label (default: learning)
+environment = "learning"
+
+# Optional: Default table expiration in days (default: 0 = no expiration)
+default_table_expiration_days = 0

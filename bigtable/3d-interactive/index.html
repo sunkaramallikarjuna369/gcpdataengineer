@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Bigtable - 3D Interactive</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; }
+        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #00bcd4; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
+        #info-panel h1 { color: #00bcd4; font-size: 1.3em; margin-bottom: 10px; }
+        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
+        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .control-btn { background: rgba(0,188,212,0.1); border: 1px solid #00bcd4; color: #00bcd4; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
+        .control-btn:hover { background: rgba(0,188,212,0.3); }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="info-panel">
+        <h1>Cloud Bigtable</h1>
+        <p>Visualize a wide-column NoSQL database. Rows are distributed across tablets, each containing sorted row ranges.</p>
+    </div>
+    <div id="controls">
+        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
+        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        let scene, camera, renderer, controls, isAnimating = true;
+        let tablets = [], rows = [];
+        
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 15, 30);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            const light = new THREE.PointLight(0x00bcd4, 1, 100);
+            light.position.set(0, 20, 10);
+            scene.add(light);
+            
+            // Create tablets (column families)
+            for (let i = 0; i < 5; i++) {
+                const geom = new THREE.BoxGeometry(4, 8, 4);
+                const mat = new THREE.MeshPhongMaterial({ color: 0x00bcd4, emissive: 0x00bcd4, emissiveIntensity: 0.2, transparent: true, opacity: 0.6 });
+                const tablet = new THREE.Mesh(geom, mat);
+                tablet.position.set((i - 2) * 6, 0, 0);
+                tablets.push(tablet);
+                scene.add(tablet);
+                
+                // Rows within tablet
+                for (let j = 0; j < 10; j++) {
+                    const rowGeom = new THREE.BoxGeometry(3.5, 0.3, 3.5);
+                    const rowMat = new THREE.MeshBasicMaterial({ color: 0x4caf50 });
+                    const row = new THREE.Mesh(rowGeom, rowMat);
+                    row.position.set((i - 2) * 6, -3.5 + j * 0.7, 0);
+                    row.userData = { baseY: row.position.y, offset: Math.random() * Math.PI * 2 };
+                    rows.push(row);
+                    scene.add(row);
+                }
+            }
+            
+            const grid = new THREE.GridHelper(40, 40, 0x00bcd4, 0x1a1a2e);
+            grid.position.y = -8;
+            scene.add(grid);
+            
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            animate();
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            if (isAnimating) {
+                tablets.forEach((t, i) => {
+                    t.rotation.y = Math.sin(Date.now() * 0.001 + i) * 0.1;
+                });
+                rows.forEach(r => {
+                    r.position.y = r.userData.baseY + Math.sin(Date.now() * 0.002 + r.userData.offset) * 0.1;
+                });
+            }
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
+        function resetCamera() { camera.position.set(0, 15, 30); controls.target.set(0, 0, 0); }
+        
+        init();
+    </script>
+</body>
+</html>

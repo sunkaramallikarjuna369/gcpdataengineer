@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring & Optimization - 3D Interactive</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; }
+        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #00bfa5; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
+        #info-panel h1 { color: #00bfa5; font-size: 1.3em; margin-bottom: 10px; }
+        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
+        #metrics { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.85); border: 1px solid #00bfa5; border-radius: 10px; padding: 15px; z-index: 100; }
+        #metrics h3 { color: #00bfa5; margin-bottom: 10px; }
+        .metric { margin: 8px 0; font-size: 0.85em; }
+        .metric-label { color: #888; }
+        .metric-value { color: #00ff00; font-family: monospace; }
+        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .control-btn { background: rgba(0,191,165,0.1); border: 1px solid #00bfa5; color: #00bfa5; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
+        .control-btn:hover { background: rgba(0,191,165,0.3); }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="info-panel">
+        <h1>System Monitoring</h1>
+        <p>Real-time visualization of system metrics. Watch CPU, memory, and throughput as data flows through your pipelines.</p>
+    </div>
+    <div id="metrics">
+        <h3>Live Metrics</h3>
+        <div class="metric"><span class="metric-label">CPU:</span> <span class="metric-value" id="cpu">0%</span></div>
+        <div class="metric"><span class="metric-label">Memory:</span> <span class="metric-value" id="memory">0%</span></div>
+        <div class="metric"><span class="metric-label">Throughput:</span> <span class="metric-value" id="throughput">0/s</span></div>
+        <div class="metric"><span class="metric-label">Latency:</span> <span class="metric-value" id="latency">0ms</span></div>
+    </div>
+    <div id="controls">
+        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
+        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        let scene, camera, renderer, controls, isAnimating = true;
+        let metricBars = [], dataPoints = [];
+        
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 15, 25);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            const light = new THREE.PointLight(0x00bfa5, 1, 100);
+            light.position.set(0, 20, 10);
+            scene.add(light);
+            
+            // Metric bars (like a dashboard)
+            const metrics = ['CPU', 'Memory', 'Disk', 'Network'];
+            const colors = [0x00bfa5, 0x4285f4, 0xfbbc04, 0xea4335];
+            
+            metrics.forEach((m, i) => {
+                const geom = new THREE.BoxGeometry(2, 1, 2);
+                const mat = new THREE.MeshPhongMaterial({ color: colors[i], emissive: colors[i], emissiveIntensity: 0.3 });
+                const bar = new THREE.Mesh(geom, mat);
+                bar.position.set((i - 1.5) * 4, 0, -5);
+                bar.userData = { baseHeight: 1, targetHeight: 1 + Math.random() * 5 };
+                metricBars.push(bar);
+                scene.add(bar);
+            });
+            
+            // Data flow visualization
+            for (let i = 0; i < 100; i++) {
+                const geom = new THREE.SphereGeometry(0.15);
+                const mat = new THREE.MeshBasicMaterial({ color: 0x00bfa5 });
+                const point = new THREE.Mesh(geom, mat);
+                point.position.set(-15 + Math.random() * 30, Math.random() * 10, 5 + Math.random() * 5);
+                point.userData = { speed: 0.05 + Math.random() * 0.1, phase: Math.random() * Math.PI * 2 };
+                dataPoints.push(point);
+                scene.add(point);
+            }
+            
+            const grid = new THREE.GridHelper(40, 40, 0x00bfa5, 0x1a1a2e);
+            grid.position.y = -5;
+            scene.add(grid);
+            
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            setInterval(updateMetrics, 1000);
+            animate();
+        }
+        
+        function updateMetrics() {
+            document.getElementById('cpu').textContent = Math.floor(30 + Math.random() * 50) + '%';
+            document.getElementById('memory').textContent = Math.floor(40 + Math.random() * 40) + '%';
+            document.getElementById('throughput').textContent = Math.floor(1000 + Math.random() * 5000) + '/s';
+            document.getElementById('latency').textContent = Math.floor(10 + Math.random() * 50) + 'ms';
+            
+            metricBars.forEach(bar => {
+                bar.userData.targetHeight = 1 + Math.random() * 8;
+            });
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            if (isAnimating) {
+                metricBars.forEach(bar => {
+                    const diff = bar.userData.targetHeight - bar.scale.y;
+                    bar.scale.y += diff * 0.1;
+                    bar.position.y = bar.scale.y / 2 - 0.5;
+                });
+                
+                dataPoints.forEach(p => {
+                    p.position.x += p.userData.speed;
+                    p.position.y = 5 + Math.sin(Date.now() * 0.002 + p.userData.phase) * 3;
+                    if (p.position.x > 15) p.position.x = -15;
+                });
+            }
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
+        function resetCamera() { camera.position.set(0, 15, 25); controls.target.set(0, 0, 0); }
+        
+        init();
+    </script>
+</body>
+</html>

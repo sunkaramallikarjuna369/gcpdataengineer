@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlloyDB - 3D Interactive</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; }
+        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #00e5ff; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
+        #info-panel h1 { color: #00e5ff; font-size: 1.3em; margin-bottom: 10px; }
+        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
+        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .control-btn { background: rgba(0,229,255,0.1); border: 1px solid #00e5ff; color: #00e5ff; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
+        .control-btn:hover { background: rgba(0,229,255,0.3); }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="info-panel">
+        <h1>AlloyDB Architecture</h1>
+        <p>Disaggregated compute and storage. Watch how the columnar engine accelerates analytical queries alongside OLTP workloads.</p>
+    </div>
+    <div id="controls">
+        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
+        <button class="control-btn" onclick="runAnalytics()">Run Analytics</button>
+        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        let scene, camera, renderer, controls, isAnimating = true;
+        let computeNode, storageNodes = [], columnarEngine, dataFlows = [];
+        
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 15, 25);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            const light = new THREE.PointLight(0x00e5ff, 1, 100);
+            light.position.set(0, 20, 10);
+            scene.add(light);
+            
+            // Compute node (PostgreSQL)
+            const computeGeom = new THREE.DodecahedronGeometry(2);
+            const computeMat = new THREE.MeshPhongMaterial({ color: 0x00e5ff, emissive: 0x00e5ff, emissiveIntensity: 0.3 });
+            computeNode = new THREE.Mesh(computeGeom, computeMat);
+            computeNode.position.set(0, 5, 0);
+            scene.add(computeNode);
+            
+            // Storage layer (disaggregated)
+            for (let i = 0; i < 5; i++) {
+                const geom = new THREE.CylinderGeometry(1, 1, 2, 32);
+                const mat = new THREE.MeshPhongMaterial({ color: 0x4285f4, emissive: 0x4285f4, emissiveIntensity: 0.2 });
+                const storage = new THREE.Mesh(geom, mat);
+                storage.position.set((i - 2) * 3, -3, 0);
+                storageNodes.push(storage);
+                scene.add(storage);
+            }
+            
+            // Columnar engine
+            const colGeom = new THREE.BoxGeometry(8, 1, 2);
+            const colMat = new THREE.MeshPhongMaterial({ color: 0xff6d00, emissive: 0xff6d00, emissiveIntensity: 0.2, transparent: true, opacity: 0.7 });
+            columnarEngine = new THREE.Mesh(colGeom, colMat);
+            columnarEngine.position.set(0, 1, 0);
+            scene.add(columnarEngine);
+            
+            // Data flows
+            for (let i = 0; i < 30; i++) {
+                const geom = new THREE.SphereGeometry(0.15);
+                const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+                const flow = new THREE.Mesh(geom, mat);
+                flow.userData = { phase: Math.random() * Math.PI * 2, speed: 0.02 + Math.random() * 0.02 };
+                dataFlows.push(flow);
+                scene.add(flow);
+            }
+            
+            const grid = new THREE.GridHelper(40, 40, 0x00e5ff, 0x1a1a2e);
+            grid.position.y = -6;
+            scene.add(grid);
+            
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            animate();
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            if (isAnimating) {
+                computeNode.rotation.y += 0.01;
+                computeNode.rotation.x += 0.005;
+                storageNodes.forEach(s => s.rotation.y += 0.01);
+                
+                dataFlows.forEach(f => {
+                    f.userData.phase += f.userData.speed;
+                    const t = (Math.sin(f.userData.phase) + 1) / 2;
+                    const storageIdx = Math.floor(f.userData.phase) % storageNodes.length;
+                    const storage = storageNodes[storageIdx];
+                    
+                    f.position.x = storage.position.x + (computeNode.position.x - storage.position.x) * t;
+                    f.position.y = storage.position.y + (computeNode.position.y - storage.position.y) * t;
+                    f.position.z = Math.sin(t * Math.PI) * 3;
+                });
+            }
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
+        
+        function runAnalytics() {
+            columnarEngine.material.emissiveIntensity = 0.8;
+            setTimeout(() => columnarEngine.material.emissiveIntensity = 0.2, 1000);
+        }
+        
+        function resetCamera() { camera.position.set(0, 15, 25); controls.target.set(0, 0, 0); }
+        
+        init();
+    </script>
+</body>
+</html>

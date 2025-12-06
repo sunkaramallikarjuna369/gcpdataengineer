@@ -1,0 +1,48 @@
+{
+    "name": "GCP Data Engineering 360",
+    "image": "mcr.microsoft.com/devcontainers/python:3.11",
+    "features": {
+        "ghcr.io/devcontainers/features/gcloud:1": {},
+        "ghcr.io/devcontainers/features/node:1": {},
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-toolsai.jupyter",
+                "googlecloudtools.cloudcode",
+                "mtxr.sqltools",
+                "mtxr.sqltools-driver-bigquery",
+                "hashicorp.terraform",
+                "redhat.vscode-yaml",
+                "esbenp.prettier-vscode",
+                "bradlc.vscode-tailwindcss"
+            ],
+            "settings": {
+                "python.defaultInterpreterPath": "/usr/local/bin/python",
+                "python.linting.enabled": true,
+                "python.linting.pylintEnabled": true,
+                "editor.formatOnSave": true,
+                "editor.defaultFormatter": "esbenp.prettier-vscode",
+                "[python]": {
+                    "editor.defaultFormatter": "ms-python.python"
+                }
+            }
+        }
+    },
+    "postCreateCommand": "pip install -r requirements.txt && gcloud auth application-default login --no-launch-browser || true",
+    "forwardPorts": [8080, 3000, 5000],
+    "portsAttributes": {
+        "8080": {
+            "label": "Web Server",
+            "onAutoForward": "notify"
+        },
+        "3000": {
+            "label": "Dev Server",
+            "onAutoForward": "notify"
+        }
+    },
+    "remoteUser": "vscode"
+}

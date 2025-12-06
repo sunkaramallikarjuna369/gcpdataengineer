@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cost Optimization - 3D Interactive</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; }
+        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #34a853; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
+        #info-panel h1 { color: #34a853; font-size: 1.3em; margin-bottom: 10px; }
+        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
+        #cost-display { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.85); border: 1px solid #34a853; border-radius: 10px; padding: 15px; z-index: 100; }
+        #cost-display h3 { color: #34a853; margin-bottom: 10px; }
+        .cost-item { margin: 5px 0; font-size: 0.85em; }
+        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .control-btn { background: rgba(52,168,83,0.1); border: 1px solid #34a853; color: #34a853; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
+        .control-btn:hover { background: rgba(52,168,83,0.3); }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="info-panel">
+        <h1>Cost Optimization</h1>
+        <p>Visualize cloud spending across services. Watch costs flow and see optimization opportunities.</p>
+    </div>
+    <div id="cost-display">
+        <h3>Monthly Costs</h3>
+        <div class="cost-item">BigQuery: $<span id="bq-cost">0</span></div>
+        <div class="cost-item">Dataflow: $<span id="df-cost">0</span></div>
+        <div class="cost-item">Storage: $<span id="st-cost">0</span></div>
+        <div class="cost-item" style="border-top: 1px solid #444; padding-top: 5px; margin-top: 5px;">Total: $<span id="total-cost">0</span></div>
+    </div>
+    <div id="controls">
+        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
+        <button class="control-btn" onclick="optimize()">Optimize</button>
+        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        let scene, camera, renderer, controls, isAnimating = true;
+        let costBars = [], dollarParticles = [];
+        let costs = { bq: 5000, df: 3000, st: 2000 };
+        
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 15, 25);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            const light = new THREE.PointLight(0x34a853, 1, 100);
+            light.position.set(0, 20, 10);
+            scene.add(light);
+            
+            // Cost bars
+            const services = [
+                { name: 'BigQuery', x: -6, color: 0x4285f4, cost: 'bq' },
+                { name: 'Dataflow', x: 0, color: 0xea4335, cost: 'df' },
+                { name: 'Storage', x: 6, color: 0xfbbc04, cost: 'st' }
+            ];
+            
+            services.forEach(s => {
+                const geom = new THREE.BoxGeometry(3, 1, 3);
+                const mat = new THREE.MeshPhongMaterial({ color: s.color, emissive: s.color, emissiveIntensity: 0.2 });
+                const bar = new THREE.Mesh(geom, mat);
+                bar.position.set(s.x, 0, 0);
+                bar.userData = { costKey: s.cost };
+                costBars.push(bar);
+                scene.add(bar);
+            });
+            
+            // Dollar particles
+            for (let i = 0; i < 50; i++) {
+                const geom = new THREE.SphereGeometry(0.2);
+                const mat = new THREE.MeshBasicMaterial({ color: 0x34a853 });
+                const p = new THREE.Mesh(geom, mat);
+                p.position.set((Math.random() - 0.5) * 20, 15 + Math.random() * 5, (Math.random() - 0.5) * 10);
+                p.userData = { speed: 0.05 + Math.random() * 0.1 };
+                dollarParticles.push(p);
+                scene.add(p);
+            }
+            
+            const grid = new THREE.GridHelper(40, 40, 0x34a853, 0x1a1a2e);
+            grid.position.y = -3;
+            scene.add(grid);
+            
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            updateCostDisplay();
+            animate();
+        }
+        
+        function updateCostDisplay() {
+            document.getElementById('bq-cost').textContent = costs.bq.toLocaleString();
+            document.getElementById('df-cost').textContent = costs.df.toLocaleString();
+            document.getElementById('st-cost').textContent = costs.st.toLocaleString();
+            document.getElementById('total-cost').textContent = (costs.bq + costs.df + costs.st).toLocaleString();
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            if (isAnimating) {
+                costBars.forEach(bar => {
+                    const targetHeight = costs[bar.userData.costKey] / 500;
+                    bar.scale.y += (targetHeight - bar.scale.y) * 0.1;
+                    bar.position.y = bar.scale.y / 2;
+                });
+                
+                dollarParticles.forEach(p => {
+                    p.position.y -= p.userData.speed;
+                    if (p.position.y < 0) p.position.y = 20;
+                    p.rotation.y += 0.05;
+                });
+            }
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
+        
+        function optimize() {
+            costs.bq = Math.max(costs.bq * 0.7, 1000);
+            costs.df = Math.max(costs.df * 0.8, 500);
+            costs.st = Math.max(costs.st * 0.6, 200);
+            updateCostDisplay();
+        }
+        
+        function resetCamera() { camera.position.set(0, 15, 25); controls.target.set(0, 0, 0); }
+        
+        init();
+    </script>
+</body>
+</html>

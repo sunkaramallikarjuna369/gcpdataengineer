@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pub/Sub Messaging - 3D Interactive Visualization</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+        }
+        #canvas-container { width: 100%; height: 100vh; }
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid #00ffff;
+            border-radius: 10px;
+            padding: 20px;
+            max-width: 320px;
+            z-index: 100;
+        }
+        #info-panel h1 { color: #00ffff; font-size: 1.4em; margin-bottom: 10px; }
+        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
+        #stats {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid #ff00ff;
+            border-radius: 10px;
+            padding: 15px;
+            z-index: 100;
+        }
+        #stats h3 { color: #ff00ff; margin-bottom: 10px; }
+        .stat-row { display: flex; justify-content: space-between; margin: 5px 0; font-size: 0.85em; }
+        .stat-label { color: #888; }
+        .stat-value { color: #00ff00; font-family: monospace; }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+        .control-btn {
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid #00ffff;
+            color: #00ffff;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .control-btn:hover { background: rgba(0, 255, 255, 0.3); }
+        .control-btn.active { background: #00ffff; color: #000; }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    
+    <div id="info-panel">
+        <h1>Pub/Sub Message Swarm</h1>
+        <p>Watch billions of messages orbit through the Pub/Sub system. Each particle is a message flowing from publishers to subscribers through topics.</p>
+        <p style="margin-top: 10px; color: #00ffff;">The swarm represents real-time message throughput.</p>
+    </div>
+
+    <div id="stats">
+        <h3>Live Metrics</h3>
+        <div class="stat-row">
+            <span class="stat-label">Messages/sec:</span>
+            <span class="stat-value" id="msg-rate">0</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Unacked:</span>
+            <span class="stat-value" id="unacked">0</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Oldest Unacked:</span>
+            <span class="stat-value" id="oldest">0s</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Subscriptions:</span>
+            <span class="stat-value" id="subs">3</span>
+        </div>
+    </div>
+
+    <div id="controls">
+        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
+        <button class="control-btn" onclick="burstMessages()">Burst Messages</button>
+        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        let scene, camera, renderer, controls;
+        let topic, subscriptions = [];
+        let messageParticles;
+        let isAnimating = true;
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 20, 30);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            // Lights
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            const light = new THREE.PointLight(0x00ffff, 1, 100);
+            light.position.set(0, 20, 0);
+            scene.add(light);
+
+            // Create Topic (central sphere)
+            const topicGeom = new THREE.IcosahedronGeometry(3, 2);
+            const topicMat = new THREE.MeshPhongMaterial({
+                color: 0x00ffff,
+                emissive: 0x00ffff,
+                emissiveIntensity: 0.5,
+                wireframe: true
+            });
+            topic = new THREE.Mesh(topicGeom, topicMat);
+            scene.add(topic);
+
+            // Create Subscriptions (orbiting cubes)
+            const subColors = [0xff00ff, 0x00ff00, 0xffff00];
+            for (let i = 0; i < 3; i++) {
+                const subGeom = new THREE.BoxGeometry(2, 2, 2);
+                const subMat = new THREE.MeshPhongMaterial({
+                    color: subColors[i],
+                    emissive: subColors[i],
+                    emissiveIntensity: 0.3
+                });
+                const sub = new THREE.Mesh(subGeom, subMat);
+                sub.userData = { angle: (i * Math.PI * 2) / 3, radius: 12, speed: 0.01 };
+                subscriptions.push(sub);
+                scene.add(sub);
+            }
+
+            // Create Message Particles (swarm)
+            const particleCount = 2000;
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+
+            for (let i = 0; i < particleCount; i++) {
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI;
+                const r = 5 + Math.random() * 10;
+                
+                positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+                positions[i * 3 + 1] = r * Math.cos(phi);
+                positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+
+                const color = new THREE.Color().setHSL(Math.random() * 0.3 + 0.5, 1, 0.5);
+                colors[i * 3] = color.r;
+                colors[i * 3 + 1] = color.g;
+                colors[i * 3 + 2] = color.b;
+            }
+
+            const particleGeom = new THREE.BufferGeometry();
+            particleGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particleGeom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const particleMat = new THREE.PointsMaterial({
+                size: 0.15,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            });
+
+            messageParticles = new THREE.Points(particleGeom, particleMat);
+            scene.add(messageParticles);
+
+            // Grid
+            const grid = new THREE.GridHelper(40, 40, 0x00ffff, 0x1a1a2e);
+            grid.position.y = -10;
+            scene.add(grid);
+
+            window.addEventListener('resize', onResize);
+            animate();
+            simulateMetrics();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isAnimating) {
+                // Rotate topic
+                topic.rotation.y += 0.005;
+                topic.rotation.x += 0.002;
+
+                // Orbit subscriptions
+                subscriptions.forEach(sub => {
+                    sub.userData.angle += sub.userData.speed;
+                    sub.position.x = Math.cos(sub.userData.angle) * sub.userData.radius;
+                    sub.position.z = Math.sin(sub.userData.angle) * sub.userData.radius;
+                    sub.rotation.y += 0.02;
+                });
+
+                // Animate message swarm
+                const positions = messageParticles.geometry.attributes.position.array;
+                for (let i = 0; i < positions.length; i += 3) {
+                    const x = positions[i];
+                    const y = positions[i + 1];
+                    const z = positions[i + 2];
+                    
+                    // Orbital motion around topic
+                    const angle = Math.atan2(z, x) + 0.01;
+                    const r = Math.sqrt(x * x + z * z);
+                    positions[i] = r * Math.cos(angle);
+                    positions[i + 2] = r * Math.sin(angle);
+                    positions[i + 1] += (Math.random() - 0.5) * 0.1;
+                    
+                    // Keep within bounds
+                    if (Math.abs(positions[i + 1]) > 10) {
+                        positions[i + 1] *= 0.9;
+                    }
+                }
+                messageParticles.geometry.attributes.position.needsUpdate = true;
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function toggleAnimation() {
+            isAnimating = !isAnimating;
+            event.target.textContent = isAnimating ? 'Pause' : 'Resume';
+            event.target.classList.toggle('active');
+        }
+
+        function burstMessages() {
+            // Add burst effect
+            const positions = messageParticles.geometry.attributes.position.array;
+            for (let i = 0; i < 100; i++) {
+                const idx = Math.floor(Math.random() * (positions.length / 3)) * 3;
+                positions[idx] *= 1.5;
+                positions[idx + 2] *= 1.5;
+            }
+            messageParticles.geometry.attributes.position.needsUpdate = true;
+        }
+
+        function resetCamera() {
+            camera.position.set(0, 20, 30);
+            controls.target.set(0, 0, 0);
+        }
+
+        function simulateMetrics() {
+            setInterval(() => {
+                document.getElementById('msg-rate').textContent = 
+                    Math.floor(Math.random() * 100000 + 50000).toLocaleString();
+                document.getElementById('unacked').textContent = 
+                    Math.floor(Math.random() * 5000);
+                document.getElementById('oldest').textContent = 
+                    Math.floor(Math.random() * 30) + 's';
+            }, 2000);
+        }
+
+        init();
+    </script>
+</body>
+</html>

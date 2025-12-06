@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dataform - 3D Interactive</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; }
+        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #536dfe; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
+        #info-panel h1 { color: #536dfe; font-size: 1.3em; margin-bottom: 10px; }
+        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
+        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .control-btn { background: rgba(83,109,254,0.1); border: 1px solid #536dfe; color: #536dfe; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
+        .control-btn:hover { background: rgba(83,109,254,0.3); }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="info-panel">
+        <h1>Dataform DAG</h1>
+        <p>Visualize SQL transformation dependencies. Each node is a table/view, edges show data lineage from sources to marts.</p>
+    </div>
+    <div id="controls">
+        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
+        <button class="control-btn" onclick="runPipeline()">Run Pipeline</button>
+        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        let scene, camera, renderer, controls, isAnimating = true;
+        let nodes = [], edges = [], dataFlows = [];
+        
+        const nodeData = [
+            { x: -12, y: 4, layer: 'source', color: 0x888888 },
+            { x: -12, y: 0, layer: 'source', color: 0x888888 },
+            { x: -12, y: -4, layer: 'source', color: 0x888888 },
+            { x: -4, y: 2, layer: 'staging', color: 0xfbbc04 },
+            { x: -4, y: -2, layer: 'staging', color: 0xfbbc04 },
+            { x: 4, y: 2, layer: 'intermediate', color: 0x536dfe },
+            { x: 4, y: -2, layer: 'intermediate', color: 0x536dfe },
+            { x: 12, y: 0, layer: 'mart', color: 0x34a853 }
+        ];
+        
+        const edgeData = [
+            [0, 3], [1, 3], [1, 4], [2, 4],
+            [3, 5], [4, 5], [4, 6],
+            [5, 7], [6, 7]
+        ];
+        
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 10, 25);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            const light = new THREE.PointLight(0x536dfe, 1, 100);
+            light.position.set(0, 20, 10);
+            scene.add(light);
+            
+            // Create nodes
+            nodeData.forEach((n, i) => {
+                const geom = new THREE.CylinderGeometry(1, 1, 0.5, 32);
+                const mat = new THREE.MeshPhongMaterial({ color: n.color, emissive: n.color, emissiveIntensity: 0.3 });
+                const node = new THREE.Mesh(geom, mat);
+                node.position.set(n.x, n.y, 0);
+                node.rotation.x = Math.PI / 2;
+                node.userData = { index: i, status: 'pending' };
+                nodes.push(node);
+                scene.add(node);
+            });
+            
+            // Create edges
+            edgeData.forEach(([from, to]) => {
+                const start = new THREE.Vector3(nodeData[from].x, nodeData[from].y, 0);
+                const end = new THREE.Vector3(nodeData[to].x, nodeData[to].y, 0);
+                const points = [start, end];
+                const geom = new THREE.BufferGeometry().setFromPoints(points);
+                const mat = new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.5 });
+                const edge = new THREE.Line(geom, mat);
+                edges.push({ line: edge, from, to });
+                scene.add(edge);
+            });
+            
+            // Data flow particles
+            for (let i = 0; i < 50; i++) {
+                const geom = new THREE.SphereGeometry(0.15);
+                const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+                const flow = new THREE.Mesh(geom, mat);
+                const edgeIdx = Math.floor(Math.random() * edgeData.length);
+                flow.userData = { edgeIdx, progress: Math.random(), speed: 0.01 + Math.random() * 0.02 };
+                dataFlows.push(flow);
+                scene.add(flow);
+            }
+            
+            const grid = new THREE.GridHelper(40, 40, 0x536dfe, 0x1a1a2e);
+            grid.position.y = -8;
+            scene.add(grid);
+            
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            animate();
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            if (isAnimating) {
+                nodes.forEach(n => n.rotation.z += 0.01);
+                
+                dataFlows.forEach(f => {
+                    f.userData.progress += f.userData.speed;
+                    if (f.userData.progress > 1) {
+                        f.userData.progress = 0;
+                        f.userData.edgeIdx = Math.floor(Math.random() * edgeData.length);
+                    }
+                    const edge = edgeData[f.userData.edgeIdx];
+                    const from = nodeData[edge[0]];
+                    const to = nodeData[edge[1]];
+                    const t = f.userData.progress;
+                    f.position.x = from.x + (to.x - from.x) * t;
+                    f.position.y = from.y + (to.y - from.y) * t;
+                    f.position.z = Math.sin(t * Math.PI) * 2;
+                });
+            }
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
+        
+        function runPipeline() {
+            nodes.forEach((n, i) => {
+                setTimeout(() => {
+                    n.material.emissiveIntensity = 0.8;
+                    setTimeout(() => n.material.emissiveIntensity = 0.3, 500);
+                }, i * 300);
+            });
+        }
+        
+        function resetCamera() { camera.position.set(0, 10, 25); controls.target.set(0, 0, 0); }
+        
+        init();
+    </script>
+</body>
+</html>

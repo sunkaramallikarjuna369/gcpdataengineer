@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dataflow Pipeline - 3D Interactive Visualization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+        }
+
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid #ff6f00;
+            border-radius: 10px;
+            padding: 20px;
+            max-width: 350px;
+            box-shadow: 0 0 30px rgba(255, 111, 0, 0.3);
+            z-index: 100;
+        }
+
+        #info-panel h1 {
+            color: #ff6f00;
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #ff6f00;
+        }
+
+        #info-panel p {
+            color: #aaa;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        .control-btn {
+            background: rgba(255, 111, 0, 0.1);
+            border: 1px solid #ff6f00;
+            color: #ff6f00;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 111, 0, 0.3);
+            box-shadow: 0 0 20px rgba(255, 111, 0, 0.5);
+        }
+
+        .control-btn.active {
+            background: #ff6f00;
+            color: #000;
+        }
+
+        #tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #00ffff;
+            border-radius: 8px;
+            padding: 15px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            max-width: 300px;
+            z-index: 200;
+        }
+
+        #tooltip h3 {
+            color: #00ffff;
+            margin-bottom: 8px;
+        }
+
+        #tooltip p {
+            color: #ccc;
+            font-size: 0.85em;
+        }
+
+        #stats {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid #00ff00;
+            border-radius: 10px;
+            padding: 15px;
+            z-index: 100;
+        }
+
+        #stats h3 {
+            color: #00ff00;
+            margin-bottom: 10px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 0.85em;
+        }
+
+        .stat-label { color: #888; }
+        .stat-value { color: #00ff00; font-family: monospace; }
+
+        #pipeline-stages {
+            position: absolute;
+            bottom: 80px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid #444;
+            border-radius: 10px;
+            padding: 15px;
+            z-index: 100;
+        }
+
+        #pipeline-stages h4 {
+            color: #fff;
+            margin-bottom: 10px;
+        }
+
+        .stage-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 0.8em;
+        }
+
+        .stage-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 300;
+        }
+
+        .loader {
+            width: 60px;
+            height: 60px;
+            border: 3px solid #333;
+            border-top: 3px solid #ff6f00;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="loader"></div>
+        <p>Loading Dataflow Pipeline...</p>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <div id="info-panel">
+        <h1>Dataflow Pipeline</h1>
+        <p>Watch data flow through an Apache Beam pipeline. Each glowing particle represents a data element being processed through transforms.</p>
+        <p style="margin-top: 10px; color: #ff6f00;">Click on pipeline stages to see details.</p>
+    </div>
+
+    <div id="stats">
+        <h3>Pipeline Metrics</h3>
+        <div class="stat-row">
+            <span class="stat-label">Elements/sec:</span>
+            <span class="stat-value" id="throughput">0</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Workers:</span>
+            <span class="stat-value" id="workers">0</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">CPU Utilization:</span>
+            <span class="stat-value" id="cpu">0%</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Backlog:</span>
+            <span class="stat-value" id="backlog">0</span>
+        </div>
+    </div>
+
+    <div id="pipeline-stages">
+        <h4>Pipeline Stages</h4>
+        <div class="stage-item">
+            <div class="stage-color" style="background: #00ffff;"></div>
+            <span>Source (Read)</span>
+        </div>
+        <div class="stage-item">
+            <div class="stage-color" style="background: #ff6f00;"></div>
+            <span>Transform (ParDo)</span>
+        </div>
+        <div class="stage-item">
+            <div class="stage-color" style="background: #ff00ff;"></div>
+            <span>GroupByKey</span>
+        </div>
+        <div class="stage-item">
+            <div class="stage-color" style="background: #00ff00;"></div>
+            <span>Sink (Write)</span>
+        </div>
+    </div>
+
+    <div id="controls">
+        <button class="control-btn" onclick="toggleAnimation()">Pause Flow</button>
+        <button class="control-btn" onclick="toggleSpeed()">Speed: Normal</button>
+        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+        <button class="control-btn" onclick="toggleWorkers()">Scale Workers</button>
+    </div>
+
+    <div id="tooltip">
+        <h3 id="tooltip-title">Stage</h3>
+        <p id="tooltip-desc">Description</p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        let scene, camera, renderer, controls;
+        let pipelineStages = [];
+        let dataParticles = [];
+        let isAnimating = true;
+        let speedMultiplier = 1;
+        let workerCount = 4;
+
+        const stageData = {
+            source: {
+                title: "Source (ReadFromPubSub)",
+                desc: "Reads unbounded data from Pub/Sub subscription. Each message becomes a PCollection element."
+            },
+            transform1: {
+                title: "ParDo Transform",
+                desc: "Applies a user-defined function to each element. Supports side inputs and outputs."
+            },
+            groupby: {
+                title: "GroupByKey",
+                desc: "Groups elements by key. In streaming, uses windows to bound the grouping."
+            },
+            transform2: {
+                title: "Combine Transform",
+                desc: "Aggregates values per key using associative and commutative operations."
+            },
+            sink: {
+                title: "Sink (WriteToBigQuery)",
+                desc: "Writes results to BigQuery using streaming inserts or batch loads."
+            }
+        };
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+            scene.fog = new THREE.Fog(0x0a0a0a, 30, 100);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 15, 25);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+            scene.add(ambientLight);
+
+            const pointLight1 = new THREE.PointLight(0xff6f00, 1, 100);
+            pointLight1.position.set(0, 20, 0);
+            scene.add(pointLight1);
+
+            const pointLight2 = new THREE.PointLight(0x00ffff, 0.5, 100);
+            pointLight2.position.set(-20, 10, 10);
+            scene.add(pointLight2);
+
+            createPipeline();
+            createDataParticles();
+            createWorkers();
+
+            // Grid
+            const gridHelper = new THREE.GridHelper(40, 40, 0xff6f00, 0x1a1a2e);
+            gridHelper.position.y = -3;
+            scene.add(gridHelper);
+
+            document.getElementById('loading').style.display = 'none';
+
+            window.addEventListener('resize', onWindowResize);
+            renderer.domElement.addEventListener('mousemove', onMouseMove);
+            renderer.domElement.addEventListener('click', onClick);
+
+            animate();
+            simulateMetrics();
+        }
+
+        function createPipeline() {
+            const stages = [
+                { x: -15, color: 0x00ffff, type: 'source', shape: 'cylinder' },
+                { x: -7, color: 0xff6f00, type: 'transform1', shape: 'box' },
+                { x: 0, color: 0xff00ff, type: 'groupby', shape: 'octahedron' },
+                { x: 7, color: 0xff6f00, type: 'transform2', shape: 'box' },
+                { x: 15, color: 0x00ff00, type: 'sink', shape: 'cylinder' }
+            ];
+
+            stages.forEach((stage, i) => {
+                let geometry;
+                if (stage.shape === 'cylinder') {
+                    geometry = new THREE.CylinderGeometry(2, 2, 3, 32);
+                } else if (stage.shape === 'octahedron') {
+                    geometry = new THREE.OctahedronGeometry(2.5);
+                } else {
+                    geometry = new THREE.BoxGeometry(3, 3, 3);
+                }
+
+                const material = new THREE.MeshPhongMaterial({
+                    color: stage.color,
+                    emissive: stage.color,
+                    emissiveIntensity: 0.3,
+                    transparent: true,
+                    opacity: 0.8
+                });
+
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.set(stage.x, 0, 0);
+                mesh.userData = { type: stage.type };
+                scene.add(mesh);
+                pipelineStages.push(mesh);
+
+                // Add glow
+                const glowGeom = geometry.clone();
+                const glowMat = new THREE.MeshBasicMaterial({
+                    color: stage.color,
+                    transparent: true,
+                    opacity: 0.1,
+                    side: THREE.BackSide
+                });
+                const glow = new THREE.Mesh(glowGeom, glowMat);
+                glow.scale.multiplyScalar(1.3);
+                mesh.add(glow);
+
+                // Connection pipes
+                if (i < stages.length - 1) {
+                    const pipeGeom = new THREE.CylinderGeometry(0.3, 0.3, 5, 16);
+                    const pipeMat = new THREE.MeshPhongMaterial({
+                        color: 0x444444,
+                        emissive: 0x222222,
+                        transparent: true,
+                        opacity: 0.6
+                    });
+                    const pipe = new THREE.Mesh(pipeGeom, pipeMat);
+                    pipe.rotation.z = Math.PI / 2;
+                    pipe.position.set(stage.x + 3.5, 0, 0);
+                    scene.add(pipe);
+                }
+            });
+        }
+
+        function createDataParticles() {
+            const particleCount = 200;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const geometry = new THREE.SphereGeometry(0.15, 8, 8);
+                const hue = Math.random();
+                const color = new THREE.Color().setHSL(hue, 1, 0.5);
+                const material = new THREE.MeshBasicMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                
+                const particle = new THREE.Mesh(geometry, material);
+                particle.position.set(
+                    -18 + Math.random() * 2,
+                    (Math.random() - 0.5) * 2,
+                    (Math.random() - 0.5) * 4
+                );
+                particle.userData = {
+                    speed: 0.05 + Math.random() * 0.05,
+                    offset: Math.random() * Math.PI * 2,
+                    baseY: particle.position.y,
+                    baseZ: particle.position.z
+                };
+                
+                scene.add(particle);
+                dataParticles.push(particle);
+            }
+        }
+
+        function createWorkers() {
+            // Worker visualization will be added dynamically
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isAnimating) {
+                // Animate pipeline stages
+                pipelineStages.forEach((stage, i) => {
+                    stage.rotation.y += 0.005;
+                    if (stage.userData.type === 'groupby') {
+                        stage.rotation.x += 0.01;
+                    }
+                });
+
+                // Animate data particles
+                dataParticles.forEach(particle => {
+                    particle.position.x += particle.userData.speed * speedMultiplier;
+                    particle.position.y = particle.userData.baseY + Math.sin(Date.now() * 0.002 + particle.userData.offset) * 0.3;
+                    
+                    // Reset when reaching end
+                    if (particle.position.x > 18) {
+                        particle.position.x = -18;
+                        particle.position.z = (Math.random() - 0.5) * 4;
+                    }
+                    
+                    // Slow down at GroupByKey (shuffle)
+                    if (particle.position.x > -2 && particle.position.x < 2) {
+                        particle.position.z += (Math.random() - 0.5) * 0.1;
+                    }
+                });
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onMouseMove(event) {
+            const tooltip = document.getElementById('tooltip');
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(pipelineStages);
+
+            if (intersects.length > 0) {
+                const obj = intersects[0].object;
+                const data = stageData[obj.userData.type];
+
+                if (data) {
+                    tooltip.style.opacity = '1';
+                    tooltip.style.left = event.clientX + 15 + 'px';
+                    tooltip.style.top = event.clientY + 15 + 'px';
+                    document.getElementById('tooltip-title').textContent = data.title;
+                    document.getElementById('tooltip-desc').textContent = data.desc;
+                }
+            } else {
+                tooltip.style.opacity = '0';
+            }
+        }
+
+        function onClick(event) {
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(pipelineStages);
+
+            if (intersects.length > 0) {
+                const obj = intersects[0].object;
+                const scale = obj.scale.clone();
+                obj.scale.multiplyScalar(1.2);
+                setTimeout(() => obj.scale.copy(scale), 200);
+            }
+        }
+
+        function toggleAnimation() {
+            isAnimating = !isAnimating;
+            event.target.textContent = isAnimating ? 'Pause Flow' : 'Resume Flow';
+            event.target.classList.toggle('active');
+        }
+
+        function toggleSpeed() {
+            speedMultiplier = speedMultiplier === 1 ? 2 : speedMultiplier === 2 ? 0.5 : 1;
+            const label = speedMultiplier === 1 ? 'Normal' : speedMultiplier === 2 ? 'Fast' : 'Slow';
+            event.target.textContent = `Speed: ${label}`;
+        }
+
+        function resetCamera() {
+            camera.position.set(0, 15, 25);
+            controls.target.set(0, 0, 0);
+        }
+
+        function toggleWorkers() {
+            workerCount = workerCount === 4 ? 8 : workerCount === 8 ? 2 : 4;
+            document.getElementById('workers').textContent = workerCount;
+        }
+
+        function simulateMetrics() {
+            setInterval(() => {
+                document.getElementById('throughput').textContent = 
+                    Math.floor(Math.random() * 50000 + 10000).toLocaleString();
+                document.getElementById('workers').textContent = workerCount;
+                document.getElementById('cpu').textContent = 
+                    Math.floor(Math.random() * 30 + 50) + '%';
+                document.getElementById('backlog').textContent = 
+                    Math.floor(Math.random() * 1000);
+            }, 2000);
+        }
+
+        init();
+    </script>
+</body>
+</html>

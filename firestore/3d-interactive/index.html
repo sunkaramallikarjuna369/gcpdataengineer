@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Firestore - 3D Interactive</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; }
+        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #ffca28; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
+        #info-panel h1 { color: #ffca28; font-size: 1.3em; margin-bottom: 10px; }
+        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
+        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .control-btn { background: rgba(255,202,40,0.1); border: 1px solid #ffca28; color: #ffca28; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
+        .control-btn:hover { background: rgba(255,202,40,0.3); }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="info-panel">
+        <h1>Cloud Firestore</h1>
+        <p>Visualize document collections and subcollections. Watch real-time sync updates propagate across the database.</p>
+    </div>
+    <div id="controls">
+        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
+        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        let scene, camera, renderer, controls, isAnimating = true;
+        let collections = [], documents = [], syncPulses = [];
+        
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 15, 25);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            const light = new THREE.PointLight(0xffca28, 1, 100);
+            light.position.set(0, 20, 10);
+            scene.add(light);
+            
+            // Collections (folders)
+            for (let i = 0; i < 3; i++) {
+                const geom = new THREE.CylinderGeometry(2, 2, 0.5, 32);
+                const mat = new THREE.MeshPhongMaterial({ color: 0xffca28, emissive: 0xffca28, emissiveIntensity: 0.3 });
+                const coll = new THREE.Mesh(geom, mat);
+                coll.position.set((i - 1) * 8, 5, 0);
+                collections.push(coll);
+                scene.add(coll);
+                
+                // Documents in each collection
+                for (let j = 0; j < 5; j++) {
+                    const docGeom = new THREE.BoxGeometry(1.2, 0.3, 1.2);
+                    const docMat = new THREE.MeshPhongMaterial({ color: 0x4caf50, emissive: 0x4caf50, emissiveIntensity: 0.2 });
+                    const doc = new THREE.Mesh(docGeom, docMat);
+                    doc.position.set((i - 1) * 8, 3 - j * 1.5, 0);
+                    doc.userData = { collectionIdx: i, baseY: doc.position.y };
+                    documents.push(doc);
+                    scene.add(doc);
+                }
+            }
+            
+            // Sync pulses
+            for (let i = 0; i < 20; i++) {
+                const geom = new THREE.RingGeometry(0.5, 0.7, 32);
+                const mat = new THREE.MeshBasicMaterial({ color: 0x00e676, transparent: true, opacity: 0.8, side: THREE.DoubleSide });
+                const pulse = new THREE.Mesh(geom, mat);
+                pulse.rotation.x = Math.PI / 2;
+                pulse.position.set(0, 0, 0);
+                pulse.userData = { scale: 0, active: false, docIdx: 0 };
+                syncPulses.push(pulse);
+                scene.add(pulse);
+            }
+            
+            const grid = new THREE.GridHelper(40, 40, 0xffca28, 0x1a1a2e);
+            grid.position.y = -8;
+            scene.add(grid);
+            
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            setInterval(triggerSync, 500);
+            animate();
+        }
+        
+        function triggerSync() {
+            const inactivePulse = syncPulses.find(p => !p.userData.active);
+            if (inactivePulse && documents.length > 0) {
+                const docIdx = Math.floor(Math.random() * documents.length);
+                inactivePulse.userData.active = true;
+                inactivePulse.userData.scale = 0;
+                inactivePulse.userData.docIdx = docIdx;
+                inactivePulse.position.copy(documents[docIdx].position);
+            }
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            if (isAnimating) {
+                collections.forEach(c => c.rotation.y += 0.01);
+                documents.forEach(d => {
+                    d.position.y = d.userData.baseY + Math.sin(Date.now() * 0.002 + d.userData.collectionIdx) * 0.1;
+                });
+                
+                syncPulses.forEach(p => {
+                    if (p.userData.active) {
+                        p.userData.scale += 0.05;
+                        p.scale.set(p.userData.scale, p.userData.scale, 1);
+                        p.material.opacity = 1 - p.userData.scale / 3;
+                        if (p.userData.scale > 3) {
+                            p.userData.active = false;
+                            p.scale.set(0, 0, 1);
+                        }
+                    }
+                });
+            }
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
+        function resetCamera() { camera.position.set(0, 15, 25); controls.target.set(0, 0, 0); }
+        
+        init();
+    </script>
+</body>
+</html>

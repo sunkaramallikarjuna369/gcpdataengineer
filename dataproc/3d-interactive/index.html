@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dataproc Cluster - 3D Interactive</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100%; height: 100vh; }
+        #info-panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); border: 1px solid #e25a1c; border-radius: 10px; padding: 20px; max-width: 300px; z-index: 100; }
+        #info-panel h1 { color: #e25a1c; font-size: 1.3em; margin-bottom: 10px; }
+        #info-panel p { color: #aaa; font-size: 0.85em; line-height: 1.5; }
+        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .control-btn { background: rgba(226,90,28,0.1); border: 1px solid #e25a1c; color: #e25a1c; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
+        .control-btn:hover { background: rgba(226,90,28,0.3); }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="info-panel">
+        <h1>Dataproc Spark Cluster</h1>
+        <p>Watch a Spark cluster process data. Master node coordinates workers executing parallel tasks.</p>
+    </div>
+    <div id="controls">
+        <button class="control-btn" onclick="toggleAnimation()">Pause</button>
+        <button class="control-btn" onclick="scaleCluster()">Scale Workers</button>
+        <button class="control-btn" onclick="resetCamera()">Reset View</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        let scene, camera, renderer, controls, isAnimating = true;
+        let master, workers = [], tasks = [];
+        let workerCount = 4;
+        
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 20, 25);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            const light = new THREE.PointLight(0xe25a1c, 1, 100);
+            light.position.set(0, 20, 10);
+            scene.add(light);
+            
+            // Master node
+            const masterGeom = new THREE.DodecahedronGeometry(2);
+            const masterMat = new THREE.MeshPhongMaterial({ color: 0xe25a1c, emissive: 0xe25a1c, emissiveIntensity: 0.4 });
+            master = new THREE.Mesh(masterGeom, masterMat);
+            master.position.set(0, 5, 0);
+            scene.add(master);
+            
+            createWorkers();
+            
+            // Tasks (data being processed)
+            for (let i = 0; i < 50; i++) {
+                const geom = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+                const mat = new THREE.MeshBasicMaterial({ color: 0x4285f4 });
+                const task = new THREE.Mesh(geom, mat);
+                task.position.set(0, 5, 0);
+                task.userData = { targetWorker: Math.floor(Math.random() * workerCount), progress: Math.random(), speed: 0.02 };
+                tasks.push(task);
+                scene.add(task);
+            }
+            
+            const grid = new THREE.GridHelper(40, 40, 0xe25a1c, 0x1a1a2e);
+            grid.position.y = -5;
+            scene.add(grid);
+            
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            animate();
+        }
+        
+        function createWorkers() {
+            workers.forEach(w => scene.remove(w));
+            workers = [];
+            for (let i = 0; i < workerCount; i++) {
+                const angle = (i / workerCount) * Math.PI * 2;
+                const geom = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+                const mat = new THREE.MeshPhongMaterial({ color: 0x4caf50, emissive: 0x4caf50, emissiveIntensity: 0.3 });
+                const worker = new THREE.Mesh(geom, mat);
+                worker.position.set(Math.cos(angle) * 10, 0, Math.sin(angle) * 10);
+                workers.push(worker);
+                scene.add(worker);
+            }
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            if (isAnimating) {
+                master.rotation.y += 0.01;
+                workers.forEach(w => w.rotation.y += 0.02);
+                
+                tasks.forEach(task => {
+                    const worker = workers[task.userData.targetWorker % workers.length];
+                    if (worker) {
+                        task.userData.progress += task.userData.speed;
+                        if (task.userData.progress > 1) {
+                            task.userData.progress = 0;
+                            task.userData.targetWorker = Math.floor(Math.random() * workerCount);
+                        }
+                        const t = task.userData.progress;
+                        task.position.x = master.position.x + (worker.position.x - master.position.x) * t;
+                        task.position.y = master.position.y + (worker.position.y - master.position.y) * t + Math.sin(t * Math.PI) * 3;
+                        task.position.z = master.position.z + (worker.position.z - master.position.z) * t;
+                    }
+                });
+            }
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        function toggleAnimation() { isAnimating = !isAnimating; event.target.textContent = isAnimating ? 'Pause' : 'Resume'; }
+        function scaleCluster() { workerCount = workerCount === 4 ? 8 : workerCount === 8 ? 2 : 4; createWorkers(); }
+        function resetCamera() { camera.position.set(0, 20, 25); controls.target.set(0, 0, 0); }
+        
+        init();
+    </script>
+</body>
+</html>

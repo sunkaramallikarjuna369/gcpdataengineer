@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GCP Data Engineering 360° - Interactive Learning Platform</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); 
+            color: #fff; 
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        
+        #canvas-container { 
+            width: 100%; 
+            height: 100vh; 
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        
+        .overlay {
+            position: relative;
+            z-index: 10;
+            pointer-events: none;
+        }
+        
+        .overlay * {
+            pointer-events: auto;
+        }
+        
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .logo h1 {
+            font-size: 1.5em;
+            background: linear-gradient(90deg, #4285f4, #00ffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .logo span {
+            font-size: 0.8em;
+            color: #888;
+        }
+        
+        nav {
+            display: flex;
+            gap: 20px;
+        }
+        
+        nav a {
+            color: #aaa;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            transition: all 0.3s;
+        }
+        
+        nav a:hover {
+            color: #fff;
+            background: rgba(66,133,244,0.2);
+        }
+        
+        .hero {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 50;
+        }
+        
+        .hero h2 {
+            font-size: 3em;
+            margin-bottom: 20px;
+            text-shadow: 0 0 30px rgba(66,133,244,0.5);
+        }
+        
+        .hero p {
+            font-size: 1.2em;
+            color: #aaa;
+            margin-bottom: 30px;
+            max-width: 600px;
+        }
+        
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+        
+        .btn {
+            padding: 15px 30px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(90deg, #4285f4, #00bcd4);
+            color: #fff;
+            border: none;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(66,133,244,0.4);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: #fff;
+            border: 2px solid #4285f4;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(66,133,244,0.2);
+        }
+        
+        #module-panel {
+            position: fixed;
+            right: 20px;
+            top: 100px;
+            width: 300px;
+            max-height: calc(100vh - 140px);
+            overflow-y: auto;
+            background: rgba(0,0,0,0.85);
+            border: 1px solid #333;
+            border-radius: 15px;
+            padding: 20px;
+            z-index: 100;
+        }
+        
+        #module-panel h3 {
+            color: #4285f4;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        
+        .module-list {
+            list-style: none;
+        }
+        
+        .module-list li {
+            margin: 8px 0;
+        }
+        
+        .module-list a {
+            color: #aaa;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-size: 0.9em;
+        }
+        
+        .module-list a:hover {
+            color: #fff;
+            background: rgba(66,133,244,0.2);
+        }
+        
+        .module-list .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4285f4;
+        }
+        
+        .module-list .dot.green { background: #34a853; }
+        .module-list .dot.yellow { background: #fbbc04; }
+        .module-list .dot.red { background: #ea4335; }
+        .module-list .dot.purple { background: #9c27b0; }
+        
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+        
+        .control-btn {
+            background: rgba(66,133,244,0.2);
+            border: 1px solid #4285f4;
+            color: #4285f4;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9em;
+        }
+        
+        .control-btn:hover {
+            background: rgba(66,133,244,0.4);
+            transform: translateY(-2px);
+        }
+        
+        .stats {
+            position: fixed;
+            left: 20px;
+            bottom: 20px;
+            background: rgba(0,0,0,0.85);
+            border: 1px solid #333;
+            border-radius: 15px;
+            padding: 20px;
+            z-index: 100;
+        }
+        
+        .stats h4 {
+            color: #4285f4;
+            margin-bottom: 10px;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            font-size: 0.9em;
+        }
+        
+        .stat-item span:first-child { color: #888; }
+        .stat-item span:last-child { color: #00ff00; font-family: monospace; }
+        
+        @media (max-width: 768px) {
+            #module-panel { display: none; }
+            .hero h2 { font-size: 2em; }
+            .cta-buttons { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    
+    <div class="overlay">
+        <header>
+            <div class="logo">
+                <h1>GCP Data Engineering 360°</h1>
+                <span>v1.0</span>
+            </div>
+            <nav>
+                <a href="#modules">Modules</a>
+                <a href="certification-simulator/index.html">Cert Prep</a>
+                <a href="https://github.com/sunkaramallikarjuna369/gcpdataengineer">GitHub</a>
+            </nav>
+        </header>
+        
+        <div class="hero" id="hero">
+            <h2>Master GCP Data Engineering</h2>
+            <p>Interactive 3D visualizations, hands-on labs, and certification prep for the Google Professional Data Engineer exam</p>
+            <div class="cta-buttons">
+                <a href="bigquery-basics/3d-interactive/index.html" class="btn btn-primary">Start Learning</a>
+                <a href="certification-simulator/index.html" class="btn btn-secondary">Practice Exam</a>
+            </div>
+        </div>
+        
+        <div id="module-panel">
+            <h3>Learning Modules</h3>
+            <ul class="module-list">
+                <li><a href="gcp-fundamentals/3d-interactive/index.html"><span class="dot green"></span>GCP Fundamentals</a></li>
+                <li><a href="bigquery-basics/3d-interactive/index.html"><span class="dot"></span>BigQuery Basics</a></li>
+                <li><a href="bigquery-advanced/3d-interactive/index.html"><span class="dot"></span>BigQuery Advanced</a></li>
+                <li><a href="bigquery-ml/3d-interactive/index.html"><span class="dot purple"></span>BigQuery ML</a></li>
+                <li><a href="bigquery-gis/3d-interactive/index.html"><span class="dot"></span>BigQuery GIS</a></li>
+                <li><a href="dataflow-basics/3d-interactive/index.html"><span class="dot yellow"></span>Dataflow</a></li>
+                <li><a href="pubsub-messaging/3d-interactive/index.html"><span class="dot red"></span>Pub/Sub</a></li>
+                <li><a href="cloud-composer/3d-interactive/index.html"><span class="dot yellow"></span>Cloud Composer</a></li>
+                <li><a href="dataproc/3d-interactive/index.html"><span class="dot green"></span>Dataproc</a></li>
+                <li><a href="cloud-storage/3d-interactive/index.html"><span class="dot"></span>Cloud Storage</a></li>
+                <li><a href="bigtable/3d-interactive/index.html"><span class="dot"></span>Bigtable</a></li>
+                <li><a href="spanner/3d-interactive/index.html"><span class="dot purple"></span>Spanner</a></li>
+                <li><a href="firestore/3d-interactive/index.html"><span class="dot yellow"></span>Firestore</a></li>
+                <li><a href="alloydb/3d-interactive/index.html"><span class="dot"></span>AlloyDB</a></li>
+                <li><a href="vertex-ai/3d-interactive/index.html"><span class="dot purple"></span>Vertex AI</a></li>
+                <li><a href="dataform/3d-interactive/index.html"><span class="dot"></span>Dataform</a></li>
+                <li><a href="data-fusion/3d-interactive/index.html"><span class="dot yellow"></span>Data Fusion</a></li>
+                <li><a href="datastream/3d-interactive/index.html"><span class="dot red"></span>Datastream</a></li>
+                <li><a href="streaming/3d-interactive/index.html"><span class="dot green"></span>Streaming</a></li>
+                <li><a href="data-catalog/3d-interactive/index.html"><span class="dot purple"></span>Data Catalog</a></li>
+                <li><a href="security-compliance/3d-interactive/index.html"><span class="dot red"></span>Security</a></li>
+                <li><a href="monitoring-optimization/3d-interactive/index.html"><span class="dot green"></span>Monitoring</a></li>
+                <li><a href="cost-optimization/3d-interactive/index.html"><span class="dot green"></span>Cost Optimization</a></li>
+                <li><a href="cloud-functions/3d-interactive/index.html"><span class="dot"></span>Cloud Functions</a></li>
+                <li><a href="cloud-run/3d-interactive/index.html"><span class="dot"></span>Cloud Run</a></li>
+                <li><a href="workflows/3d-interactive/index.html"><span class="dot purple"></span>Workflows</a></li>
+                <li><a href="secret-manager/3d-interactive/index.html"><span class="dot yellow"></span>Secret Manager</a></li>
+                <li><a href="looker-studio/3d-interactive/index.html"><span class="dot"></span>Looker Studio</a></li>
+                <li><a href="data-ingestion/3d-interactive/index.html"><span class="dot"></span>Data Ingestion</a></li>
+            </ul>
+        </div>
+        
+        <div id="controls">
+            <button class="control-btn" onclick="toggleFlythrough()">Toggle Fly-Through</button>
+            <button class="control-btn" onclick="resetView()">Reset View</button>
+            <button class="control-btn" onclick="toggleHero()">Toggle Info</button>
+        </div>
+        
+        <div class="stats">
+            <h4>Repository Stats</h4>
+            <div class="stat-item"><span>Modules:</span><span>50+</span></div>
+            <div class="stat-item"><span>3D Visualizations:</span><span>30+</span></div>
+            <div class="stat-item"><span>Practice Questions:</span><span>100+</span></div>
+            <div class="stat-item"><span>Python Labs:</span><span>20+</span></div>
+            <div class="stat-item"><span>SQL Labs:</span><span>15+</span></div>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        let scene, camera, renderer, controls;
+        let modules = [], connections = [], particles = [];
+        let flythrough = false, flythroughAngle = 0;
+        
+        const moduleData = [
+            { name: 'BigQuery', x: 0, y: 0, z: 0, color: 0x4285f4, size: 2 },
+            { name: 'Dataflow', x: 8, y: 2, z: 3, color: 0xea4335, size: 1.5 },
+            { name: 'Pub/Sub', x: -6, y: 4, z: 5, color: 0xff00ff, size: 1.5 },
+            { name: 'Composer', x: 5, y: -3, z: -4, color: 0xfbbc04, size: 1.5 },
+            { name: 'Dataproc', x: -8, y: -2, z: -3, color: 0x34a853, size: 1.5 },
+            { name: 'Storage', x: 3, y: 5, z: -6, color: 0x00bcd4, size: 1.3 },
+            { name: 'Bigtable', x: -4, y: -5, z: 4, color: 0x9c27b0, size: 1.3 },
+            { name: 'Spanner', x: 7, y: -4, z: 6, color: 0x673ab7, size: 1.3 },
+            { name: 'Vertex AI', x: -7, y: 3, z: -5, color: 0xff5722, size: 1.4 },
+            { name: 'Firestore', x: 4, y: 6, z: 2, color: 0xffca28, size: 1.2 },
+            { name: 'AlloyDB', x: -5, y: -6, z: -2, color: 0x00e5ff, size: 1.2 },
+            { name: 'Functions', x: 6, y: 1, z: -7, color: 0x00c853, size: 1.1 },
+            { name: 'Run', x: -3, y: 7, z: 1, color: 0x2979ff, size: 1.1 },
+            { name: 'Workflows', x: 2, y: -7, z: 5, color: 0x7c4dff, size: 1.1 },
+            { name: 'Monitoring', x: -6, y: 0, z: 7, color: 0x00bfa5, size: 1.2 },
+        ];
+        
+        const connectionData = [
+            [0, 1], [0, 2], [0, 3], [0, 4], [0, 5],
+            [1, 2], [1, 5], [2, 3], [3, 4], [4, 8],
+            [5, 6], [6, 7], [7, 0], [8, 0], [9, 0],
+            [10, 0], [11, 1], [12, 11], [13, 3], [14, 0]
+        ];
+        
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+            scene.fog = new THREE.Fog(0x0a0a0a, 20, 60);
+            
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(20, 15, 25);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 0.5;
+            
+            // Lighting
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            const light1 = new THREE.PointLight(0x4285f4, 1, 100);
+            light1.position.set(10, 20, 10);
+            scene.add(light1);
+            const light2 = new THREE.PointLight(0xff00ff, 0.5, 100);
+            light2.position.set(-10, -10, 10);
+            scene.add(light2);
+            
+            // Create modules
+            moduleData.forEach((m, i) => {
+                const geom = new THREE.IcosahedronGeometry(m.size, 1);
+                const mat = new THREE.MeshPhongMaterial({
+                    color: m.color,
+                    emissive: m.color,
+                    emissiveIntensity: 0.3,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const mesh = new THREE.Mesh(geom, mat);
+                mesh.position.set(m.x, m.y, m.z);
+                mesh.userData = { index: i, name: m.name };
+                modules.push(mesh);
+                scene.add(mesh);
+                
+                // Glow effect
+                const glowGeom = new THREE.IcosahedronGeometry(m.size * 1.2, 1);
+                const glowMat = new THREE.MeshBasicMaterial({
+                    color: m.color,
+                    transparent: true,
+                    opacity: 0.1,
+                    side: THREE.BackSide
+                });
+                const glow = new THREE.Mesh(glowGeom, glowMat);
+                glow.position.copy(mesh.position);
+                scene.add(glow);
+            });
+            
+            // Create connections
+            connectionData.forEach(([from, to]) => {
+                const start = new THREE.Vector3(moduleData[from].x, moduleData[from].y, moduleData[from].z);
+                const end = new THREE.Vector3(moduleData[to].x, moduleData[to].y, moduleData[to].z);
+                
+                const curve = new THREE.QuadraticBezierCurve3(
+                    start,
+                    new THREE.Vector3((start.x + end.x) / 2, (start.y + end.y) / 2 + 2, (start.z + end.z) / 2),
+                    end
+                );
+                
+                const points = curve.getPoints(50);
+                const geom = new THREE.BufferGeometry().setFromPoints(points);
+                const mat = new THREE.LineBasicMaterial({ color: 0x333333, transparent: true, opacity: 0.5 });
+                const line = new THREE.Line(geom, mat);
+                connections.push(line);
+                scene.add(line);
+            });
+            
+            // Create particles
+            const particleGeom = new THREE.BufferGeometry();
+            const particleCount = 2000;
+            const positions = new Float32Array(particleCount * 3);
+            
+            for (let i = 0; i < particleCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 60;
+                positions[i + 1] = (Math.random() - 0.5) * 60;
+                positions[i + 2] = (Math.random() - 0.5) * 60;
+            }
+            
+            particleGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const particleMat = new THREE.PointsMaterial({ color: 0x4285f4, size: 0.1, transparent: true, opacity: 0.6 });
+            const particleSystem = new THREE.Points(particleGeom, particleMat);
+            scene.add(particleSystem);
+            particles.push(particleSystem);
+            
+            // Grid
+            const grid = new THREE.GridHelper(50, 50, 0x4285f4, 0x1a1a2e);
+            grid.position.y = -10;
+            scene.add(grid);
+            
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Rotate modules
+            modules.forEach((m, i) => {
+                m.rotation.x += 0.005;
+                m.rotation.y += 0.01;
+                m.position.y += Math.sin(Date.now() * 0.001 + i) * 0.005;
+            });
+            
+            // Rotate particles
+            particles.forEach(p => {
+                p.rotation.y += 0.0005;
+            });
+            
+            // Flythrough mode
+            if (flythrough) {
+                flythroughAngle += 0.005;
+                camera.position.x = Math.cos(flythroughAngle) * 30;
+                camera.position.z = Math.sin(flythroughAngle) * 30;
+                camera.position.y = 10 + Math.sin(flythroughAngle * 2) * 5;
+                camera.lookAt(0, 0, 0);
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        function toggleFlythrough() {
+            flythrough = !flythrough;
+            controls.autoRotate = !flythrough;
+        }
+        
+        function resetView() {
+            camera.position.set(20, 15, 25);
+            controls.target.set(0, 0, 0);
+            flythrough = false;
+            controls.autoRotate = true;
+        }
+        
+        function toggleHero() {
+            const hero = document.getElementById('hero');
+            hero.style.display = hero.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        init();
+    </script>
+</body>
+</html>
